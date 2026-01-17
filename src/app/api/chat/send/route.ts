@@ -8,7 +8,7 @@ import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
 const ChatSchema = z.object({
   message: z.string().min(1),
   sessionId: z.string().optional().nullable(),
-  subject: z.string().optional(),
+  subjectId: z.string().optional().nullable(),
   declaredPreferences: z.record(z.string()).optional(),
 });
 
@@ -79,6 +79,24 @@ export async function POST(request: Request) {
       ? await prisma.chatSession.findUnique({ where: { id: payload.sessionId } })
       : null;
 
+  const subject =
+    payload.subjectId != null
+      ? await prisma.subject.findFirst({
+          where: {
+            id: payload.subjectId,
+            userId: user.id,
+            archivedAt: null,
+          },
+        })
+      : null;
+
+  if (payload.subjectId && !subject) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Subject not found." },
+      { status: 400 },
+    );
+  }
+
   const activeSession =
     session ??
     (await prisma.chatSession.create({
@@ -88,15 +106,7 @@ export async function POST(request: Request) {
         effectivePreferencesJson: effectivePreferences,
         personalizationReady: user.personalizationReady,
         promptTemplateId: promptTemplate.id,
-        subjectId: payload.subject
-          ? (
-              await prisma.subject.upsert({
-                where: { name: payload.subject },
-                update: {},
-                create: { name: payload.subject },
-              })
-            ).id
-          : null,
+        subjectId: subject?.id ?? null,
       },
     }));
 

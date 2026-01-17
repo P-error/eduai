@@ -39,7 +39,7 @@ export async function getAdminAnalytics() {
     list.push(attempt);
     grouped.set(key, list);
 
-    const subjectName = attempt.test.subject.name;
+    const subjectName = attempt.test.subject.title;
     const subjectEntry = subjectAgg.get(subjectName) ?? {
       total: 0,
       scoreSum: 0,
@@ -71,7 +71,7 @@ export async function getAdminAnalytics() {
     const first = attemptsForSubject[0];
     const last = attemptsForSubject[attemptsForSubject.length - 1];
     const delta = last.score - first.score;
-    const subjectName = last.test.subject.name;
+    const subjectName = last.test.subject.title;
     const entry = deltaBySubject.get(subjectName) ?? { total: 0, count: 0 };
     entry.total += delta;
     entry.count += 1;

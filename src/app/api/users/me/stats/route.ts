@@ -59,7 +59,7 @@ export async function GET(request: Request) {
       id: attempt.id,
       score: attempt.score,
       createdAt: attempt.createdAt,
-      subject: attempt.test.subject.name,
+      subject: attempt.test.subject.title,
       topic: attempt.test.topic,
     })),
   });

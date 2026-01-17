@@ -23,15 +23,43 @@ model User {
   attempts     TestAttempt[]
   tagStats     UserTagStat[]
   chatSessions ChatSession[]
+  collections  Collection[]
+  subjects     Subject[]
+}
+
+model Collection {
+  id        String      @id @default(cuid())
+  userId    String?
+  name      String
+  parentId  String?
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user     User?        @relation(fields: [userId], references: [id])
+  parent   Collection?  @relation("CollectionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Collection[] @relation("CollectionHierarchy")
+  subjects Subject[]
+
+  @@index([userId])
 }
 
 model Subject {
   id        String          @id @default(cuid())
-  name      String          @unique
+  userId    String?
+  title     String          @map("name")
+  description String?
+  collectionId String?
+  archivedAt DateTime?
   createdAt DateTime        @default(now())
+  updatedAt DateTime        @default(now()) @updatedAt
 
+  user         User?           @relation(fields: [userId], references: [id])
+  collection   Collection?     @relation(fields: [collectionId], references: [id], onDelete: SetNull)
   tests        GeneratedTest[]
   chatSessions ChatSession[]
+
+  @@index([userId])
 }
 
 model GeneratedTest {

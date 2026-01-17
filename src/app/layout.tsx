@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthActions from "./AuthActions";
+import AuthGate from "./AuthGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,9 @@ export default function RootLayout({
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/tests/create">
                 Create Test
               </a>
+              <a className="rounded-full border border-slate-700 px-4 py-2" href="/subjects">
+                Subjects
+              </a>
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/tests/stats">
                 Stats
               </a>
@@ -52,7 +56,9 @@ export default function RootLayout({
               </a>
             </nav>
           </header>
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <AuthGate>{children}</AuthGate>
+          </main>
         </div>
       </body>
     </html>

@@ -1,17 +1,39 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
 
 export default function CreateTestPage() {
   const router = useRouter();
-  const [subject, setSubject] = useState("Biology");
+  const [subjects, setSubjects] = useState<{ id: string; title: string }[]>(
+    [],
+  );
+  const [subjectId, setSubjectId] = useState("");
   const [topic, setTopic] = useState("Cell structure");
   const [questionCount, setQuestionCount] = useState(5);
   const [mode, setMode] = useState("quiz");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSubjects() {
+      const response = await authFetch("/api/subjects");
+      if (!response.ok) return;
+      const json = (await response.json()) as { id: string; title: string }[];
+      if (active) {
+        setSubjects(json);
+        if (json.length > 0) {
+          setSubjectId(json[0].id);
+        }
+      }
+    }
+    loadSubjects();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -22,7 +44,7 @@ export default function CreateTestPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        subject,
+        subjectId,
         topic,
         questionCount,
         mode,
@@ -49,12 +71,28 @@ export default function CreateTestPage() {
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
           <label className="grid gap-2 text-sm">
             Subject
-            <input
+            <select
               className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100"
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
+              value={subjectId}
+              onChange={(event) => setSubjectId(event.target.value)}
               required
-            />
+            >
+              <option value="">Select a subject</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.title}
+                </option>
+              ))}
+            </select>
+            {subjects.length === 0 ? (
+              <span className="text-xs text-slate-400">
+                No subjects yet. Create one on the{" "}
+                <a className="underline" href="/subjects">
+                  subjects page
+                </a>
+                .
+              </span>
+            ) : null}
           </label>
           <label className="grid gap-2 text-sm">
             Topic

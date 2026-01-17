@@ -1,19 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [subject, setSubject] = useState("General");
+  const [subjectId, setSubjectId] = useState<string>("");
+  const [subjects, setSubjects] = useState<{ id: string; title: string }[]>(
+    [],
+  );
   const [declaredPrefs, setDeclaredPrefs] = useState(
     '{"tone":"friendly","depth":"conceptual"}',
   );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSubjects() {
+      const response = await authFetch("/api/subjects");
+      if (!response.ok) return;
+      const json = (await response.json()) as { id: string; title: string }[];
+      if (active) {
+        setSubjects(json);
+        if (json.length > 0) {
+          setSubjectId(json[0].id);
+        }
+      }
+    }
+    loadSubjects();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -32,13 +54,16 @@ export default function ChatPage() {
     const body: {
       message: string;
       sessionId?: string;
-      subject: string;
+      subjectId?: string;
       declaredPreferences?: Record<string, string>;
     } = {
       message: outgoing,
-      subject,
       declaredPreferences,
     };
+
+    if (subjectId) {
+      body.subjectId = subjectId;
+    }
 
     if (sessionId) {
       body.sessionId = sessionId;
@@ -65,11 +90,18 @@ export default function ChatPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="grid gap-2 text-sm">
             Subject
-            <input
+            <select
               className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100"
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-            />
+              value={subjectId}
+              onChange={(event) => setSubjectId(event.target.value)}
+            >
+              <option value="">No subject</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.title}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="grid gap-2 text-sm">
             Declared preferences (JSON)

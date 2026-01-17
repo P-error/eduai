@@ -10,7 +10,7 @@ import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
 import { tagQuestionsWithLLM } from "@/lib/llm-tagger";
 
 const GenerateSchema = z.object({
-  subject: z.string().min(2),
+  subjectId: z.string().min(1),
   topic: z.string().min(2),
   questionCount: z.number().int().min(1).max(20),
   mode: z.enum(["quiz", "exam", "practice"]).default("quiz"),
@@ -40,11 +40,20 @@ export async function POST(request: Request) {
 
   await ensureTagLegend();
 
-  const subject = await prisma.subject.upsert({
-    where: { name: payload.subject },
-    update: {},
-    create: { name: payload.subject },
+  const subject = await prisma.subject.findFirst({
+    where: {
+      id: payload.subjectId,
+      userId: user.id,
+      archivedAt: null,
+    },
   });
+
+  if (!subject) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Subject not found." },
+      { status: 400 },
+    );
+  }
 
   let testPayload;
   const promptTemplate = await getPromptTemplate("test_generation_v1");
@@ -74,7 +83,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     testPayload = fallbackTest(
-      payload.subject,
+      subject.title,
       payload.topic,
       payload.questionCount,
     );
