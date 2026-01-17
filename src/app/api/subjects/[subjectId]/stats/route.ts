@@ -5,10 +5,10 @@ import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string }> },
 ) {
-  const { id } = await params;
-  if (!id) {
+  const { subjectId } = await params;
+  if (!subjectId) {
     return NextResponse.json(
       { error: "INVALID_INPUT", message: "Missing subject id." },
       { status: 400 },
@@ -24,7 +24,7 @@ export async function GET(
   }
 
   const subject = await prisma.subject.findFirst({
-    where: { id, userId: user.id },
+    where: { id: subjectId, userId: user.id },
     include: { collection: true },
   });
 

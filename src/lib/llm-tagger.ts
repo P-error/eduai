@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { llmChatJson } from "./llm/provider";
-import { getPromptTemplate, renderPrompt } from "./prompts";
+import { getActivePromptTemplate, renderPrompt } from "./prompts";
 import { TAG_AXES, TAGS_BY_AXIS, TagAxisKey } from "./tags";
 
 export type TaggingResult = Record<TagAxisKey, string>;
@@ -48,7 +48,7 @@ export async function tagQuestionsWithLLM(
   questions: { prompt: string }[],
   model = "gpt-4o-mini",
 ) {
-  const promptTemplate = await getPromptTemplate("tagger_v1");
+  const promptTemplate = await getActivePromptTemplate("tagger_v1");
   const axes = Object.entries(allowedTagsByAxis)
     .map(([axis, tags]) => `${axis}: ${tags.join(", ")}`)
     .join(" | ");

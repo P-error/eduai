@@ -12,12 +12,12 @@ const UpdateSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string; sectionId: string }> },
 ) {
-  const { id } = await params;
-  if (!id) {
+  const { subjectId, sectionId } = await params;
+  if (!sectionId || !subjectId) {
     return NextResponse.json(
-      { error: "INVALID_INPUT", message: "Missing section id." },
+      { error: "INVALID_INPUT", message: "Missing subject/section id." },
       { status: 400 },
     );
   }
@@ -42,7 +42,7 @@ export async function PATCH(
   }
 
   const section = await prisma.subjectSection.findFirst({
-    where: { id, subject: { userId: user.id } },
+    where: { id: sectionId, subjectId, subject: { userId: user.id } },
   });
 
   if (!section) {
@@ -52,9 +52,30 @@ export async function PATCH(
     );
   }
 
+  async function isDescendant(parentId: string, targetId: string) {
+    let currentId: string | null = parentId;
+    let guard = 0;
+    while (currentId && guard < 20) {
+      if (currentId === targetId) return true;
+      const current = await prisma.subjectSection.findFirst({
+        where: { id: currentId, subjectId },
+        select: { parentId: true },
+      });
+      currentId = current?.parentId ?? null;
+      guard += 1;
+    }
+    return false;
+  }
+
   if (payload.parentId) {
+    if (payload.parentId === section.id) {
+      return NextResponse.json(
+        { error: "INVALID_INPUT", message: "Section cannot parent itself." },
+        { status: 400 },
+      );
+    }
     const parent = await prisma.subjectSection.findFirst({
-      where: { id: payload.parentId, subjectId: section.subjectId },
+      where: { id: payload.parentId, subjectId },
     });
     if (!parent) {
       return NextResponse.json(
@@ -62,10 +83,18 @@ export async function PATCH(
         { status: 400 },
       );
     }
+
+    const cyclic = await isDescendant(payload.parentId, section.id);
+    if (cyclic) {
+      return NextResponse.json(
+        { error: "INVALID_INPUT", message: "Cyclic parent assignment." },
+        { status: 400 },
+      );
+    }
   }
 
   await prisma.subjectSection.update({
-    where: { id },
+    where: { id: sectionId },
     data: {
       title: payload.title?.trim(),
       description: payload.description?.trim() || null,
@@ -79,12 +108,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string; sectionId: string }> },
 ) {
-  const { id } = await params;
-  if (!id) {
+  const { subjectId, sectionId } = await params;
+  if (!sectionId || !subjectId) {
     return NextResponse.json(
-      { error: "INVALID_INPUT", message: "Missing section id." },
+      { error: "INVALID_INPUT", message: "Missing subject/section id." },
       { status: 400 },
     );
   }
@@ -98,7 +127,7 @@ export async function DELETE(
   }
 
   const section = await prisma.subjectSection.findFirst({
-    where: { id, subject: { userId: user.id } },
+    where: { id: sectionId, subjectId, subject: { userId: user.id } },
   });
 
   if (!section) {
@@ -108,6 +137,6 @@ export async function DELETE(
     );
   }
 
-  await prisma.subjectSection.delete({ where: { id } });
+  await prisma.subjectSection.delete({ where: { id: sectionId } });
   return NextResponse.json({ ok: true });
 }

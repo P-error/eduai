@@ -57,6 +57,9 @@ export default function RootLayout({
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/admin/analytics">
                 Analytics
               </a>
+              <a className="rounded-full border border-slate-700 px-4 py-2" href="/admin/prompt-templates">
+                Prompts
+              </a>
             </nav>
           </header>
           <main className="flex-1">

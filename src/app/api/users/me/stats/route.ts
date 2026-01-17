@@ -69,6 +69,8 @@ export async function GET(request: Request) {
       id: attempt.id,
       score: attempt.score,
       createdAt: attempt.createdAt,
+      subjectId: attempt.test.subjectId,
+      sectionId: attempt.test.sectionId ?? null,
       subject: attempt.test.subject.title,
       topic: attempt.test.topic,
     })),

@@ -30,6 +30,8 @@ export default function SubjectsPage() {
   const [subjectTitle, setSubjectTitle] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
   const [subjectCollectionId, setSubjectCollectionId] = useState("");
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [creatingSubject, setCreatingSubject] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -86,42 +88,56 @@ export default function SubjectsPage() {
 
   async function createCollection(event: React.FormEvent) {
     event.preventDefault();
-    const response = await authFetch("/api/collections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: collectionName,
-        parentId: collectionParentId || null,
-      }),
-    });
-    if (!response.ok) {
-      setError("Failed to create collection.");
-      return;
+    setCreatingCollection(true);
+    setError(null);
+    try {
+      const response = await authFetch("/api/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: collectionName,
+          parentId: collectionParentId || null,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        setError(json?.error?.message ?? "Failed to create collection.");
+        return;
+      }
+      setCollectionName("");
+      setCollectionParentId("");
+      await loadData();
+    } finally {
+      setCreatingCollection(false);
     }
-    setCollectionName("");
-    setCollectionParentId("");
-    await loadData();
   }
 
   async function createSubject(event: React.FormEvent) {
     event.preventDefault();
-    const response = await authFetch("/api/subjects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: subjectTitle,
-        description: subjectDescription || null,
-        collectionId: subjectCollectionId || null,
-      }),
-    });
-    if (!response.ok) {
-      setError("Failed to create subject.");
-      return;
+    setCreatingSubject(true);
+    setError(null);
+    try {
+      const response = await authFetch("/api/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: subjectTitle,
+          description: subjectDescription || null,
+          collectionId: subjectCollectionId || null,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        setError(json?.error?.message ?? "Failed to create subject.");
+        return;
+      }
+      setSubjectTitle("");
+      setSubjectDescription("");
+      setSubjectCollectionId("");
+      await loadData();
+    } finally {
+      setCreatingSubject(false);
     }
-    setSubjectTitle("");
-    setSubjectDescription("");
-    setSubjectCollectionId("");
-    await loadData();
   }
 
   async function renameCollection(id: string) {
@@ -309,8 +325,9 @@ export default function SubjectsPage() {
           <button
             className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-slate-900"
             type="submit"
+            disabled={creatingCollection}
           >
-            Create collection
+            {creatingCollection ? "Creating..." : "Create collection"}
           </button>
         </form>
 
@@ -357,8 +374,9 @@ export default function SubjectsPage() {
           <button
             className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-slate-900"
             type="submit"
+            disabled={creatingSubject}
           >
-            Create subject
+            {creatingSubject ? "Creating..." : "Create subject"}
           </button>
         </form>
       </div>

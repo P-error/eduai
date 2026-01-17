@@ -93,11 +93,14 @@ model GeneratedTest {
   promptTemplateId    String?
   llmModel            String?
   promptTemplateKey   String?
+  promptTemplateVersion Int?
   promptTemplateSnapshot String?
   rawLlmOutput        String?
   normalizedJson      Json?
   validationMetaJson  Json?
   sectionSnapshot     String?
+  recommended         Boolean         @default(false)
+  recommendationSnapshot Json?
   topic               String
   questionCount       Int
   mode                String
@@ -196,6 +199,7 @@ model ChatSession {
   promptTemplateId         String?
   llmModel                 String?
   promptTemplateKey        String?
+  promptTemplateVersion    Int?
   promptTemplateSnapshot   String?
   declaredPreferencesJson  Json?
   effectivePreferencesJson Json?
@@ -222,11 +226,16 @@ model ChatMessage {
 
 model PromptTemplate {
   id        String   @id @default(cuid())
-  key       String   @unique
+  key       String
+  version   Int
   template  String
+  notes     String?
+  isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tests        GeneratedTest[]
   chatSessions ChatSession[]
+
+  @@unique([key, version])
 }

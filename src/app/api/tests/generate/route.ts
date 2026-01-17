@@ -6,8 +6,20 @@ import { llmChatJsonWithRaw } from "@/lib/llm/provider";
 import { TestSchema } from "@/lib/test-schema";
 import { tagQuestion } from "@/lib/tagger";
 import { getUserFromRequest } from "@/lib/auth";
-import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
+import { getActivePromptTemplate, renderPrompt } from "@/lib/prompts";
 import { tagQuestionsWithLLM } from "@/lib/llm-tagger";
+
+const DeliverySchema = z
+  .object({
+    depth: z.string().optional(),
+    cognitive_level: z.string().optional(),
+    task_type: z.string().optional(),
+    micro_complexity: z.string().optional(),
+    format: z.string().optional(),
+    tone: z.string().optional(),
+    style: z.string().optional(),
+  })
+  .optional();
 
 const GenerateSchema = z.object({
   subjectId: z.string().min(1),
@@ -15,6 +27,9 @@ const GenerateSchema = z.object({
   topic: z.string().min(2),
   questionCount: z.number().int().min(1).max(20),
   mode: z.enum(["quiz", "exam", "practice"]).default("quiz"),
+  delivery: DeliverySchema,
+  recommended: z.boolean().optional(),
+  recommendationSnapshot: z.unknown().optional(),
 });
 
 function fallbackTest(subject: string, topic: string, count: number) {
@@ -101,10 +116,16 @@ export async function POST(request: Request) {
     lastError: null as string | null,
     fallback: false,
   };
-  const promptTemplate = await getPromptTemplate("test_generation_v1");
+  const promptTemplate = await getActivePromptTemplate("test_generation_v1");
   const sectionLine = sectionSnapshot
     ? `Section context: ${sectionSnapshot}`
     : "Section context: none";
+  const deliveryLine =
+    payload.delivery && Object.keys(payload.delivery).length > 0
+      ? `Delivery focus: ${Object.entries(payload.delivery)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(", ")}`
+      : "Delivery focus: none";
   const systemPrompt = renderPrompt(promptTemplate.template, {
     declared: JSON.stringify(user.declaredPreferencesJson ?? {}),
     effective: JSON.stringify(user.effectivePreferencesJson ?? {}),
@@ -123,7 +144,7 @@ export async function POST(request: Request) {
           },
           {
             role: "user",
-            content: `Generate ${payload.questionCount} multiple-choice questions on ${payload.topic} for ${subject.title}. ${sectionLine} Keep answers clear.`,
+            content: `Generate ${payload.questionCount} multiple-choice questions on ${payload.topic} for ${subject.title}. ${sectionLine} ${deliveryLine} Keep answers clear.`,
           },
         ],
       },
@@ -162,11 +183,14 @@ export async function POST(request: Request) {
       promptTemplateId: promptTemplate.id,
       llmModel,
       promptTemplateKey: promptTemplate.key,
+      promptTemplateVersion: promptTemplate.version,
       promptTemplateSnapshot: promptTemplate.template,
       rawLlmOutput,
       normalizedJson: normalizedQuestions,
       validationMetaJson: validationMeta,
       sectionSnapshot,
+      recommended: payload.recommended ?? false,
+      recommendationSnapshot: payload.recommendationSnapshot ?? null,
       topic: payload.topic,
       questionCount: payload.questionCount,
       mode: payload.mode,

@@ -26,6 +26,8 @@ type StatsPayload = {
     id: string;
     score: number;
     createdAt: string;
+    subjectId: string;
+    sectionId: string | null;
     subject: string;
     topic: string;
   }[];
@@ -35,24 +37,42 @@ export default function TestStatsPage() {
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subjects, setSubjects] = useState<{ id: string; title: string }[]>(
+    [],
+  );
+  const [sections, setSections] = useState<
+    { id: string; title: string; parentId: string | null }[]
+  >([]);
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [sectionFilter, setSectionFilter] = useState("");
 
   useEffect(() => {
     let active = true;
     async function loadStats() {
       setLoading(true);
       setError(null);
-      const response = await authFetch("/api/users/me/stats");
-      if (!response.ok) {
-        const json = await response.json().catch(() => ({}));
+      const [statsRes, subjectsRes] = await Promise.all([
+        authFetch("/api/users/me/stats"),
+        authFetch("/api/subjects"),
+      ]);
+
+      if (!statsRes.ok) {
+        const json = await statsRes.json().catch(() => ({}));
         if (active) {
           setError(json.message ?? "Failed to load stats.");
           setLoading(false);
         }
         return;
       }
-      const json = (await response.json()) as StatsPayload;
+
+      const json = (await statsRes.json()) as StatsPayload;
+      const subjectsJson = subjectsRes.ok
+        ? ((await subjectsRes.json()) as { id: string; title: string }[])
+        : [];
+
       if (active) {
         setStats(json);
+        setSubjects(subjectsJson);
         setLoading(false);
       }
     }
@@ -73,6 +93,34 @@ export default function TestStatsPage() {
     }
     return map;
   }, [stats]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSections() {
+      if (!subjectFilter) {
+        setSections([]);
+        setSectionFilter("");
+        return;
+      }
+      const response = await authFetch(
+        `/api/subjects/${subjectFilter}/sections`,
+      );
+      if (!response.ok) return;
+      const json = (await response.json()) as {
+        id: string;
+        title: string;
+        parentId: string | null;
+      }[];
+      if (active) {
+        setSections(json);
+        setSectionFilter("");
+      }
+    }
+    loadSections();
+    return () => {
+      active = false;
+    };
+  }, [subjectFilter]);
 
   if (loading) {
     return (
@@ -100,6 +148,12 @@ export default function TestStatsPage() {
       </div>
     );
   }
+
+  const filteredAttempts = stats.attempts.filter((attempt) => {
+    if (subjectFilter && attempt.subjectId !== subjectFilter) return false;
+    if (sectionFilter && attempt.sectionId !== sectionFilter) return false;
+    return true;
+  });
 
   return (
     <section className="grid gap-6">
@@ -179,11 +233,44 @@ export default function TestStatsPage() {
 
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
         <h3 className="text-lg font-semibold">Recent test attempts</h3>
+        <div className="mt-3 grid gap-3 text-sm text-slate-300 md:grid-cols-2">
+          <label className="grid gap-2">
+            Subject filter
+            <select
+              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100"
+              value={subjectFilter}
+              onChange={(event) => setSubjectFilter(event.target.value)}
+            >
+              <option value="">All subjects</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2">
+            Section filter
+            <select
+              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100"
+              value={sectionFilter}
+              onChange={(event) => setSectionFilter(event.target.value)}
+              disabled={!subjectFilter}
+            >
+              <option value="">All sections</option>
+              {sections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="mt-3 grid gap-2 text-sm text-slate-300">
-          {stats.attempts.length === 0 ? (
+          {filteredAttempts.length === 0 ? (
             <p className="text-slate-500">No attempts yet.</p>
           ) : (
-            stats.attempts.map((attempt) => (
+            filteredAttempts.map((attempt) => (
               <div
                 key={attempt.id}
                 className="flex flex-wrap items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3"

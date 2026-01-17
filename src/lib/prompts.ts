@@ -19,21 +19,46 @@ const DEFAULT_TEMPLATES = [
 ];
 
 export async function ensurePromptTemplates() {
-  const created = [];
   for (const template of DEFAULT_TEMPLATES) {
-    const entry = await prisma.promptTemplate.upsert({
-      where: { key: template.key },
-      update: { template: template.template },
-      create: template,
+    const active = await prisma.promptTemplate.findFirst({
+      where: { key: template.key, isActive: true },
+      orderBy: { version: "desc" },
     });
-    created.push(entry);
+    if (active) continue;
+
+    const existing = await prisma.promptTemplate.findFirst({
+      where: { key: template.key, version: 1 },
+    });
+
+    if (existing) {
+      await prisma.promptTemplate.update({
+        where: { id: existing.id },
+        data: { isActive: true },
+      });
+      continue;
+    }
+
+    await prisma.promptTemplate.create({
+      data: {
+        key: template.key,
+        version: 1,
+        template: template.template,
+        isActive: true,
+      },
+    });
   }
-  return created;
+
+  return prisma.promptTemplate.findMany({
+    where: { key: { in: DEFAULT_TEMPLATES.map((template) => template.key) } },
+    orderBy: [{ key: "asc" }, { version: "desc" }],
+  });
 }
 
-export async function getPromptTemplate(key: string) {
+export async function getActivePromptTemplate(key: string) {
   const templates = await ensurePromptTemplates();
-  const match = templates.find((template) => template.key === key);
+  const match = templates.find(
+    (template) => template.key === key && template.isActive,
+  );
   if (!match) {
     throw new Error(`Missing prompt template: ${key}`);
   }

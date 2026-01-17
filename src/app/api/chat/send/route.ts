@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { llmChatText } from "@/lib/llm/provider";
-import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
+import { getActivePromptTemplate, renderPrompt } from "@/lib/prompts";
 
 const ChatSchema = z.object({
   message: z.string().min(1),
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const llmModel = "gpt-4o-mini";
   let promptTemplate;
   try {
-    promptTemplate = await getPromptTemplate("chat_system_v1");
+    promptTemplate = await getActivePromptTemplate("chat_system_v1");
   } catch (error) {
     const message = errorMessage(error);
     console.error("Chat prompt error", error);
@@ -109,6 +109,7 @@ export async function POST(request: Request) {
         promptTemplateId: promptTemplate.id,
         llmModel,
         promptTemplateKey: promptTemplate.key,
+        promptTemplateVersion: promptTemplate.version,
         promptTemplateSnapshot: promptTemplate.template,
         subjectId: subject?.id ?? null,
       },

@@ -14,10 +14,10 @@ const UpdateSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string }> },
 ) {
-  const { id } = await params;
-  if (!id) {
+  const { subjectId } = await params;
+  if (!subjectId) {
     return NextResponse.json(
       { error: "INVALID_INPUT", message: "Missing subject id." },
       { status: 400 },
@@ -61,7 +61,7 @@ export async function PATCH(
   }
 
   const current = await prisma.subject.findFirst({
-    where: { id, userId: user.id },
+    where: { id: subjectId, userId: user.id },
   });
 
   if (!current) {
@@ -100,7 +100,7 @@ export async function PATCH(
   }
 
   const subject = await prisma.subject.updateMany({
-    where: { id, userId: user.id },
+    where: { id: subjectId, userId: user.id },
     data: {
       title: payload.title?.trim(),
       description: payload.description?.trim() || null,
@@ -122,10 +122,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string }> },
 ) {
-  const { id } = await params;
-  if (!id) {
+  const { subjectId } = await params;
+  if (!subjectId) {
     return NextResponse.json(
       { error: "INVALID_INPUT", message: "Missing subject id." },
       { status: 400 },
@@ -141,7 +141,7 @@ export async function DELETE(
   }
 
   await prisma.subject.updateMany({
-    where: { id, userId: user.id },
+    where: { id: subjectId, userId: user.id },
     data: { archivedAt: new Date() },
   });
 
