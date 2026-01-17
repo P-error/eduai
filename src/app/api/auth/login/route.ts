@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { issueToken } from "@/lib/auth";
+import { issueToken, isAdminEmail } from "@/lib/auth";
 
 const LoginSchema = z.object({
   identifier: z.string().min(2),
@@ -28,16 +28,19 @@ export async function POST(request: Request) {
   const externalId = email ? `email:${email}` : `nick:${identifier.toLowerCase()}`;
   const name = email ? identifier.split("@")[0] : identifier;
 
+  const isAdmin = isAdminEmail(email);
   const user = await prisma.user.upsert({
     where: { externalId },
     update: {
       email: email ?? undefined,
       name,
+      isAdmin,
     },
     create: {
       externalId,
       email,
       name,
+      isAdmin,
     },
   });
 
