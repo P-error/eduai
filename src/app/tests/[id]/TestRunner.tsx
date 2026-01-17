@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { authFetch } from "@/lib/client-auth";
 
 type Question = {
   prompt: string;
@@ -34,7 +35,7 @@ export default function TestRunner({
 
   async function handleSubmit() {
     setLoading(true);
-    const response = await fetch(`/api/tests/${testId}/submit`, {
+    const response = await authFetch(`/api/tests/${testId}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers }),

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AuthActions from "./AuthActions";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/chat">
                 Chat
               </a>
+              <AuthActions />
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/admin/analytics">
                 Analytics
               </a>

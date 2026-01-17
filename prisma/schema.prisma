@@ -12,6 +12,7 @@ model User {
   externalId               String?       @unique
   email                    String?       @unique
   name                     String?
+  isAdmin                  Boolean       @default(false)
   declaredPreferencesJson  Json?
   effectivePreferencesJson Json?
   personalizationReady     Boolean       @default(false)

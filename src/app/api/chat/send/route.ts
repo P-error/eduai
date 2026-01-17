@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUser } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 import { llmChatText } from "@/lib/llm/provider";
 import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
 
@@ -39,11 +39,8 @@ export async function POST(request: Request) {
     );
   }
 
-  let user;
-  try {
-    user = await getOrCreateUser(request);
-  } catch (error) {
-    console.error("Chat auth error", error);
+  const user = await getUserFromRequest(request);
+  if (!user) {
     return NextResponse.json(
       { error: "UNAUTHORIZED", message: "Invalid or missing token." },
       { status: 401 },

@@ -11,6 +11,11 @@ const DEFAULT_TEMPLATES = [
     template:
       "You are an educational assistant. Declared preferences: {{declared}}. Effective preferences: {{effective}}. Personalization ready: {{ready}}.",
   },
+  {
+    key: "tagger_v1",
+    template:
+      "You are a tagging assistant. Assign exactly one tag per axis for each question. Axes and allowed tags: {{axes}}. Return strict JSON: {\"tags\": [{\"education_level\": string, \"tone\": string, \"style\": string, \"format\": string, \"depth\": string, \"cognitive_level\": string, \"task_type\": string, \"micro_complexity\": string, \"domain\": string, \"context\": string}]}",
+  },
 ];
 
 export async function ensurePromptTemplates() {

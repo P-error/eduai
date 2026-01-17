@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUser } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 import {
   computeEffectivePreferences,
   isPersonalizationReady,
@@ -24,7 +24,13 @@ export async function POST(
     );
   }
   const payload = SubmitSchema.parse(await request.json());
-  const user = await getOrCreateUser(request);
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Missing or invalid token." },
+      { status: 401 },
+    );
+  }
 
   const test = await prisma.generatedTest.findUnique({
     where: { id },

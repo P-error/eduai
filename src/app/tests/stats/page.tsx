@@ -1,66 +1,117 @@
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { authFetch } from "@/lib/client-auth";
 import { TAG_AXES } from "@/lib/tags";
-import {
-  computeEffectivePreferences,
-  isPersonalizationReady,
-} from "@/lib/statistics";
 
-export default async function TestStatsPage() {
-  const user = await prisma.user.findFirst({
-    include: {
-      attempts: {
-        include: { test: { include: { subject: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-    },
-  });
+type StatsPayload = {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    testsTaken: number;
+    personalizationReady: boolean;
+  };
+  declaredPreferences: Record<string, string>;
+  effectivePreferences: Record<string, string>;
+  axesReady: number;
+  computedReady: boolean;
+  tagStats: {
+    axisKey: string;
+    tagKey: string;
+    correctCount: number;
+    totalCount: number;
+  }[];
+  attempts: {
+    id: string;
+    score: number;
+    createdAt: string;
+    subject: string;
+    topic: string;
+  }[];
+};
 
-  if (!user) {
+export default function TestStatsPage() {
+  const [stats, setStats] = useState<StatsPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function loadStats() {
+      setLoading(true);
+      setError(null);
+      const response = await authFetch("/api/users/me/stats");
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        if (active) {
+          setError(json.message ?? "Failed to load stats.");
+          setLoading(false);
+        }
+        return;
+      }
+      const json = (await response.json()) as StatsPayload;
+      if (active) {
+        setStats(json);
+        setLoading(false);
+      }
+    }
+
+    loadStats();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const tagStatsByAxis = useMemo(() => {
+    const map = new Map<string, StatsPayload["tagStats"]>();
+    if (!stats) return map;
+    for (const stat of stats.tagStats) {
+      const list = map.get(stat.axisKey) ?? [];
+      list.push(stat);
+      map.set(stat.axisKey, list);
+    }
+    return map;
+  }, [stats]);
+
+  if (loading) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <p>No users yet. Generate and submit a test first.</p>
+        <p>Loading stats...</p>
       </div>
     );
   }
 
-  const stats = await prisma.userTagStat.findMany({
-    where: { userId: user.id },
-    include: { axis: true, tag: true },
-  });
-
-  const byAxis = new Map<string, typeof stats>();
-  for (const stat of stats) {
-    const list = byAxis.get(stat.axis.key) ?? [];
-    list.push(stat);
-    byAxis.set(stat.axis.key, list);
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <p className="text-slate-200">Error: {error}</p>
+        <p className="mt-2 text-sm text-slate-400">
+          Log in first to access stats.
+        </p>
+      </div>
+    );
   }
 
-  const declared =
-    (user.declaredPreferencesJson ?? {}) as Record<string, string>;
-  const effective =
-    (user.effectivePreferencesJson ?? {}) as Record<string, string>;
-  const { axesReady } = computeEffectivePreferences(
-    stats.map((stat) => ({
-      axisKey: stat.axis.key,
-      tagKey: stat.tag.key,
-      correctCount: stat.correctCount,
-      totalCount: stat.totalCount,
-    })),
-  );
-  const computedReady = isPersonalizationReady(axesReady, user.testsTaken);
+  if (!stats) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <p>No stats yet.</p>
+      </div>
+    );
+  }
 
   return (
     <section className="grid gap-6">
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8">
         <h2 className="text-2xl font-semibold">Personalization stats</h2>
         <p className="mt-2 text-sm text-slate-300">
-          Tests taken: {user.testsTaken} · Ready:{" "}
-          {user.personalizationReady ? "Yes" : "No"}
+          Tests taken: {stats.user.testsTaken} · Ready:{" "}
+          {stats.user.personalizationReady ? "Yes" : "No"}
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          Axes ready: {axesReady} · Computed ready:{" "}
-          {computedReady ? "Yes" : "No"}
+          Axes ready: {stats.axesReady} · Computed ready:{" "}
+          {stats.computedReady ? "Yes" : "No"}
         </p>
       </div>
 
@@ -71,7 +122,7 @@ export default async function TestStatsPage() {
             {TAG_AXES.map((axis) => (
               <div key={axis} className="flex justify-between">
                 <span className="text-slate-400">{axis}</span>
-                <span>{declared[axis] ?? "-"}</span>
+                <span>{stats.declaredPreferences[axis] ?? "-"}</span>
               </div>
             ))}
           </div>
@@ -82,7 +133,7 @@ export default async function TestStatsPage() {
             {TAG_AXES.map((axis) => (
               <div key={axis} className="flex justify-between">
                 <span className="text-slate-400">{axis}</span>
-                <span>{effective[axis] ?? "-"}</span>
+                <span>{stats.effectivePreferences[axis] ?? "-"}</span>
               </div>
             ))}
           </div>
@@ -93,7 +144,7 @@ export default async function TestStatsPage() {
         <h3 className="text-lg font-semibold">Tag stats by axis</h3>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {TAG_AXES.map((axis) => {
-            const axisStats = byAxis.get(axis) ?? [];
+            const axisStats = tagStatsByAxis.get(axis) ?? [];
             return (
               <div
                 key={axis}
@@ -105,8 +156,8 @@ export default async function TestStatsPage() {
                 ) : (
                   <div className="mt-2 grid gap-1">
                     {axisStats.map((stat) => (
-                      <div key={stat.id} className="flex justify-between">
-                        <span>{stat.tag.key}</span>
+                      <div key={`${stat.axisKey}-${stat.tagKey}`} className="flex justify-between">
+                        <span>{stat.tagKey}</span>
                         <span>
                           {stat.correctCount}/{stat.totalCount} (
                           {stat.totalCount > 0
@@ -129,19 +180,19 @@ export default async function TestStatsPage() {
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
         <h3 className="text-lg font-semibold">Recent test attempts</h3>
         <div className="mt-3 grid gap-2 text-sm text-slate-300">
-          {user.attempts.length === 0 ? (
+          {stats.attempts.length === 0 ? (
             <p className="text-slate-500">No attempts yet.</p>
           ) : (
-            user.attempts.map((attempt) => (
+            stats.attempts.map((attempt) => (
               <div
                 key={attempt.id}
                 className="flex flex-wrap items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3"
               >
                 <div>
                   <p className="text-xs uppercase text-slate-500">
-                    {attempt.test.subject.name}
+                    {attempt.subject}
                   </p>
-                  <p>{attempt.test.topic}</p>
+                  <p>{attempt.topic}</p>
                 </div>
                 <span>{Math.round(attempt.score * 100)}%</span>
               </div>

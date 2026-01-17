@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { authFetch } from "@/lib/client-auth";
 
 export default function CreateTestPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function CreateTestPage() {
     setLoading(true);
     setError(null);
 
-    const response = await fetch("/api/tests/generate", {
+    const response = await authFetch("/api/tests/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

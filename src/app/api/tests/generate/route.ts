@@ -5,8 +5,9 @@ import { ensureTagLegend } from "@/lib/tag-seed";
 import { llmChatJson } from "@/lib/llm/provider";
 import { TestSchema } from "@/lib/test-schema";
 import { tagQuestion } from "@/lib/tagger";
-import { getOrCreateUser } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
+import { tagQuestionsWithLLM } from "@/lib/llm-tagger";
 
 const GenerateSchema = z.object({
   subject: z.string().min(2),
@@ -29,7 +30,13 @@ function fallbackTest(subject: string, topic: string, count: number) {
 
 export async function POST(request: Request) {
   const payload = GenerateSchema.parse(await request.json());
-  const user = await getOrCreateUser(request);
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Missing or invalid token." },
+      { status: 401 },
+    );
+  }
 
   await ensureTagLegend();
 
@@ -101,8 +108,16 @@ export async function POST(request: Request) {
   const axes = await prisma.tagAxis.findMany({ include: { tags: true } });
   const axisMap = new Map(axes.map((axis) => [axis.key, axis]));
 
+  let taggedQuestions: Record<string, string>[] | null = null;
+  try {
+    taggedQuestions = await tagQuestionsWithLLM(normalizedQuestions);
+  } catch (error) {
+    console.error("LLM tagger failed, using fallback", error);
+    taggedQuestions = null;
+  }
+
   const assignments = normalizedQuestions.flatMap((question, index) => {
-    const tags = tagQuestion(question.prompt);
+    const tags = taggedQuestions?.[index] ?? tagQuestion(question.prompt);
     return Object.entries(tags).map(([axisKey, tagKey]) => {
       const axis = axisMap.get(axisKey);
       const tag = axis?.tags.find((entry) => entry.key === tagKey);

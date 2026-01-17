@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { authFetch } from "@/lib/client-auth";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -43,7 +44,7 @@ export default function ChatPage() {
       body.sessionId = sessionId;
     }
 
-    const response = await fetch("/api/chat/send", {
+    const response = await authFetch("/api/chat/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
