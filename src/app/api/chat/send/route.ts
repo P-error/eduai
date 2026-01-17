@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     });
   }
 
+  const llmModel = "gpt-4o-mini";
   let promptTemplate;
   try {
     promptTemplate = await getPromptTemplate("chat_system_v1");
@@ -106,6 +107,9 @@ export async function POST(request: Request) {
         effectivePreferencesJson: effectivePreferences,
         personalizationReady: user.personalizationReady,
         promptTemplateId: promptTemplate.id,
+        llmModel,
+        promptTemplateKey: promptTemplate.key,
+        promptTemplateSnapshot: promptTemplate.template,
         subjectId: subject?.id ?? null,
       },
     }));
@@ -119,7 +123,7 @@ export async function POST(request: Request) {
   let reply: string;
   try {
     reply = await llmChatText({
-      model: "gpt-4o-mini",
+      model: llmModel,
       temperature: 0.6,
       messages: [
         { role: "system", content: systemPrompt },

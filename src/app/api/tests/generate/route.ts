@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ensureTagLegend } from "@/lib/tag-seed";
-import { llmChatJson } from "@/lib/llm/provider";
+import { llmChatJsonWithRaw } from "@/lib/llm/provider";
 import { TestSchema } from "@/lib/test-schema";
 import { tagQuestion } from "@/lib/tagger";
 import { getUserFromRequest } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { tagQuestionsWithLLM } from "@/lib/llm-tagger";
 
 const GenerateSchema = z.object({
   subjectId: z.string().min(1),
+  sectionId: z.string().optional().nullable(),
   topic: z.string().min(2),
   questionCount: z.number().int().min(1).max(20),
   mode: z.enum(["quiz", "exam", "practice"]).default("quiz"),
@@ -55,17 +56,64 @@ export async function POST(request: Request) {
     );
   }
 
+  let sectionSnapshot: string | null = null;
+  let resolvedSectionId: string | null = null;
+  if (payload.sectionId) {
+    const section = await prisma.subjectSection.findFirst({
+      where: { id: payload.sectionId, subjectId: subject.id },
+    });
+
+    if (!section) {
+      return NextResponse.json(
+        { error: "INVALID_INPUT", message: "Section not found." },
+        { status: 400 },
+      );
+    }
+
+    const path: string[] = [];
+    let current: typeof section | null = section;
+    let guard = 0;
+    while (current && guard < 10) {
+      path.unshift(current.title);
+      if (!current.parentId) break;
+      current = await prisma.subjectSection.findFirst({
+        where: { id: current.parentId, subjectId: subject.id },
+      });
+      guard += 1;
+    }
+
+    const description = section.description
+      ? `Description: ${section.description}`
+      : "Description: none";
+    sectionSnapshot = `Section path: ${path.join(" → ")}. ${description}`;
+    resolvedSectionId = section.id;
+  }
+
+  const errorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error);
+
+  const llmModel = "gpt-4o-mini";
   let testPayload;
+  let rawLlmOutput = "";
+  let validationMeta = {
+    attempts: 1,
+    hadRetry: false,
+    lastError: null as string | null,
+    fallback: false,
+  };
   const promptTemplate = await getPromptTemplate("test_generation_v1");
+  const sectionLine = sectionSnapshot
+    ? `Section context: ${sectionSnapshot}`
+    : "Section context: none";
   const systemPrompt = renderPrompt(promptTemplate.template, {
     declared: JSON.stringify(user.declaredPreferencesJson ?? {}),
     effective: JSON.stringify(user.effectivePreferencesJson ?? {}),
     ready: user.personalizationReady,
   });
   try {
-    testPayload = await llmChatJson(
+    const response = await llmChatJsonWithRaw(
       {
-        model: "gpt-4o-mini",
+        model: llmModel,
         temperature: 0.4,
         response_format: { type: "json_object" },
         messages: [
@@ -75,13 +123,22 @@ export async function POST(request: Request) {
           },
           {
             role: "user",
-            content: `Generate ${payload.questionCount} multiple-choice questions on ${payload.topic} for ${payload.subject}. Keep answers clear.`,
+            content: `Generate ${payload.questionCount} multiple-choice questions on ${payload.topic} for ${subject.title}. ${sectionLine} Keep answers clear.`,
           },
         ],
       },
       TestSchema,
     );
+    testPayload = response.data;
+    rawLlmOutput = response.raw;
   } catch (error) {
+    validationMeta = {
+      attempts: 1,
+      hadRetry: false,
+      lastError: errorMessage(error),
+      fallback: true,
+    };
+    rawLlmOutput = "";
     testPayload = fallbackTest(
       subject.title,
       payload.topic,
@@ -101,7 +158,15 @@ export async function POST(request: Request) {
     data: {
       userId: user.id,
       subjectId: subject.id,
+      sectionId: resolvedSectionId,
       promptTemplateId: promptTemplate.id,
+      llmModel,
+      promptTemplateKey: promptTemplate.key,
+      promptTemplateSnapshot: promptTemplate.template,
+      rawLlmOutput,
+      normalizedJson: normalizedQuestions,
+      validationMetaJson: validationMeta,
+      sectionSnapshot,
       topic: payload.topic,
       questionCount: payload.questionCount,
       mode: payload.mode,

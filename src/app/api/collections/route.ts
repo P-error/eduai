@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { ensureDefaultCollection } from "@/lib/collections";
 
 const CreateSchema = z.object({
   name: z.string().min(2),
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
       { status: 401 },
     );
   }
+
+  await ensureDefaultCollection(user.id);
 
   const collections = await prisma.collection.findMany({
     where: { userId: user.id },
@@ -56,6 +59,24 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+  }
+
+  const existing = await prisma.collection.findFirst({
+    where: {
+      userId: user.id,
+      parentId: payload.parentId ?? null,
+      name: {
+        equals: payload.name.trim(),
+        mode: "insensitive",
+      },
+    },
+  });
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Collection name already exists." },
+      { status: 400 },
+    );
   }
 
   const collection = await prisma.collection.create({

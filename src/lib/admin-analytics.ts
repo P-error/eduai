@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { MIN_TOTAL_PER_TAG, TAG_AXES } from "@/lib/tags";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
 type SubjectDelta = {
   subject: string;
@@ -23,7 +24,16 @@ export async function getAdminAnalytics() {
     prisma.user.count(),
     prisma.user.count({ where: { personalizationReady: true } }),
     prisma.testAttempt.findMany({
-      include: { test: { include: { subject: true } } },
+      where: {
+        test: {
+          subject: {
+            collection: {
+              name: { not: DEFAULT_COLLECTION_NAME },
+            },
+          },
+        },
+      },
+      include: { test: { include: { subject: { include: { collection: true } } } } },
       orderBy: { createdAt: "asc" },
     }),
   ]);

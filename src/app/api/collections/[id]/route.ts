@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { isDefaultCollectionName } from "@/lib/collection-constants";
 
 const UpdateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -52,6 +53,49 @@ export async function PATCH(
     }
   }
 
+  const current = await prisma.collection.findFirst({
+    where: { id, userId: user.id },
+  });
+
+  if (!current) {
+    return NextResponse.json(
+      { error: "NOT_FOUND", message: "Collection not found." },
+      { status: 404 },
+    );
+  }
+
+  if (isDefaultCollectionName(current.name) && current.parentId === null) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Default collection is locked." },
+      { status: 400 },
+    );
+  }
+
+  if (payload.name || payload.parentId) {
+    const nextName = payload.name?.trim() ?? current.name;
+    const nextParentId =
+      payload.parentId !== undefined ? payload.parentId : current.parentId;
+
+    const existing = await prisma.collection.findFirst({
+      where: {
+        userId: user.id,
+        parentId: nextParentId ?? null,
+        name: {
+          equals: nextName,
+          mode: "insensitive",
+        },
+        NOT: { id },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "INVALID_INPUT", message: "Collection name already exists." },
+        { status: 400 },
+      );
+    }
+  }
+
   const updated = await prisma.collection.updateMany({
     where: { id, userId: user.id },
     data: {
@@ -60,13 +104,6 @@ export async function PATCH(
       sortOrder: payload.sortOrder ?? undefined,
     },
   });
-
-  if (updated.count === 0) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: "Collection not found." },
-      { status: 404 },
-    );
-  }
 
   return NextResponse.json({ ok: true });
 }
@@ -88,6 +125,24 @@ export async function DELETE(
     return NextResponse.json(
       { error: "UNAUTHORIZED", message: "Missing or invalid token." },
       { status: 401 },
+    );
+  }
+
+  const current = await prisma.collection.findFirst({
+    where: { id, userId: user.id },
+  });
+
+  if (!current) {
+    return NextResponse.json(
+      { error: "NOT_FOUND", message: "Collection not found." },
+      { status: 404 },
+    );
+  }
+
+  if (isDefaultCollectionName(current.name) && current.parentId === null) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Default collection is locked." },
+      { status: 400 },
     );
   }
 

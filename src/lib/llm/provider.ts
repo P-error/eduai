@@ -61,6 +61,37 @@ export async function llmChatJson<T>(
   return schema.parse(parsed);
 }
 
+export async function llmChatJsonWithRaw<T>(
+  payload: z.infer<typeof LLMJsonSchema>,
+  schema: z.ZodSchema<T>,
+): Promise<{ data: T; raw: string }> {
+  const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing OPENAI_API_KEY");
+  }
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`LLM error ${response.status}: ${text}`);
+  }
+
+  const json = LLMResponseSchema.parse(await response.json());
+  const content = json.choices[0].message.content;
+  const parsed = JSON.parse(content);
+  return { data: schema.parse(parsed), raw: content };
+}
+
 export async function llmChatText(payload: z.infer<typeof LLMJsonSchema>) {
   const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
   const apiKey = process.env.OPENAI_API_KEY;

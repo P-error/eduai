@@ -5,6 +5,7 @@ import {
   computeEffectivePreferences,
   isPersonalizationReady,
 } from "@/lib/statistics";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
@@ -21,7 +22,16 @@ export async function GET(request: Request) {
       include: { axis: true, tag: true },
     }),
     prisma.testAttempt.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        test: {
+          subject: {
+            collection: {
+              name: { not: DEFAULT_COLLECTION_NAME },
+            },
+          },
+        },
+      },
       include: { test: { include: { subject: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,

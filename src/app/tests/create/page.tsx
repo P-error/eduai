@@ -1,15 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
 
 export default function CreateTestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [subjects, setSubjects] = useState<{ id: string; title: string }[]>(
     [],
   );
   const [subjectId, setSubjectId] = useState("");
+  const [sections, setSections] = useState<
+    { id: string; title: string; parentId: string | null }[]
+  >([]);
+  const [sectionId, setSectionId] = useState("");
   const [topic, setTopic] = useState("Cell structure");
   const [questionCount, setQuestionCount] = useState(5);
   const [mode, setMode] = useState("quiz");
@@ -24,8 +29,15 @@ export default function CreateTestPage() {
       const json = (await response.json()) as { id: string; title: string }[];
       if (active) {
         setSubjects(json);
-        if (json.length > 0) {
-          setSubjectId(json[0].id);
+        const requested = searchParams.get("subjectId");
+        const initial =
+          (requested && json.find((subject) => subject.id === requested)?.id) ||
+          json[0]?.id ||
+          "";
+        setSubjectId(initial);
+        const selected = json.find((subject) => subject.id === initial);
+        if (selected) {
+          setTopic(selected.title);
         }
       }
     }
@@ -33,18 +45,62 @@ export default function CreateTestPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [searchParams]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSections() {
+      if (!subjectId) {
+        setSections([]);
+        setSectionId("");
+        return;
+      }
+      const response = await authFetch(`/api/subjects/${subjectId}/sections`);
+      if (!response.ok) return;
+      const json = (await response.json()) as {
+        id: string;
+        title: string;
+        parentId: string | null;
+      }[];
+      if (active) {
+        setSections(json);
+        const requested = searchParams.get("sectionId");
+        const initial =
+          (requested && json.find((section) => section.id === requested)?.id) ||
+          "";
+        setSectionId(initial);
+      }
+    }
+    loadSections();
+    return () => {
+      active = false;
+    };
+  }, [searchParams, subjectId]);
+
+  useEffect(() => {
+    const selected = subjects.find((subject) => subject.id === subjectId);
+    if (selected) {
+      setTopic(selected.title);
+    }
+  }, [subjectId, subjects]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
 
+    if (!subjectId) {
+      setError("Select a subject first.");
+      setLoading(false);
+      return;
+    }
+
     const response = await authFetch("/api/tests/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         subjectId,
+        sectionId: sectionId || null,
         topic,
         questionCount,
         mode,
@@ -103,6 +159,21 @@ export default function CreateTestPage() {
               required
             />
           </label>
+          <label className="grid gap-2 text-sm">
+            Section (optional)
+            <select
+              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100"
+              value={sectionId}
+              onChange={(event) => setSectionId(event.target.value)}
+            >
+              <option value="">No section</option>
+              {sections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.title}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm">
               Question count
@@ -133,7 +204,7 @@ export default function CreateTestPage() {
           <button
             className="rounded-full bg-slate-100 px-4 py-2 text-slate-900"
             type="submit"
-            disabled={loading}
+            disabled={loading || !subjectId}
           >
             {loading ? "Generating..." : "Generate test"}
           </button>

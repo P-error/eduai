@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import { ensureDefaultCollection } from "@/lib/collections";
 
 const UpdateSchema = z.object({
   title: z.string().min(2).optional(),
@@ -41,13 +43,57 @@ export async function PATCH(
     );
   }
 
-  if (payload.collectionId) {
-    const collection = await prisma.collection.findFirst({
-      where: { id: payload.collectionId, userId: user.id },
+  let nextCollectionId = payload.collectionId;
+  if (payload.collectionId !== undefined) {
+    if (payload.collectionId) {
+      const collection = await prisma.collection.findFirst({
+        where: { id: payload.collectionId, userId: user.id },
+      });
+      if (!collection) {
+        return NextResponse.json(
+          { error: "INVALID_INPUT", message: "Collection not found." },
+          { status: 400 },
+        );
+      }
+    } else {
+      nextCollectionId = (await ensureDefaultCollection(user.id)).id;
+    }
+  }
+
+  const current = await prisma.subject.findFirst({
+    where: { id, userId: user.id },
+  });
+
+  if (!current) {
+    return NextResponse.json(
+      { error: "NOT_FOUND", message: "Subject not found." },
+      { status: 404 },
+    );
+  }
+
+  if (payload.title || payload.collectionId !== undefined) {
+    const nextTitle = payload.title?.trim() ?? current.title;
+    const resolvedCollectionId =
+      payload.collectionId !== undefined
+        ? (nextCollectionId ?? null)
+        : current.collectionId;
+
+    const existing = await prisma.subject.findFirst({
+      where: {
+        userId: user.id,
+        collectionId: resolvedCollectionId ?? null,
+        archivedAt: null,
+        title: {
+          equals: nextTitle,
+          mode: "insensitive",
+        },
+        NOT: { id },
+      },
     });
-    if (!collection) {
+
+    if (existing) {
       return NextResponse.json(
-        { error: "INVALID_INPUT", message: "Collection not found." },
+        { error: "INVALID_INPUT", message: "Subject already exists." },
         { status: 400 },
       );
     }
@@ -58,7 +104,8 @@ export async function PATCH(
     data: {
       title: payload.title?.trim(),
       description: payload.description?.trim() || null,
-      collectionId: payload.collectionId ?? undefined,
+      collectionId:
+        payload.collectionId !== undefined ? (nextCollectionId ?? null) : undefined,
       archivedAt: payload.archivedAt ? new Date(payload.archivedAt) : undefined,
     },
   });

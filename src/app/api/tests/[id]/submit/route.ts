@@ -6,6 +6,7 @@ import {
   computeEffectivePreferences,
   isPersonalizationReady,
 } from "@/lib/statistics";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
 const SubmitSchema = z.object({
   answers: z.array(z.number().int().nonnegative()),
@@ -35,6 +36,7 @@ export async function POST(
   const test = await prisma.generatedTest.findUnique({
     where: { id },
     include: {
+      subject: { include: { collection: true } },
       tagAssignments: {
         include: {
           axis: true,
@@ -92,6 +94,10 @@ export async function POST(
       ? correctness.filter(Boolean).length / correctness.length
       : 0;
 
+  const isDefaultCollection =
+    test.subject.collection?.name?.toLowerCase() ===
+    DEFAULT_COLLECTION_NAME.toLowerCase();
+
   await prisma.$transaction(async (tx) => {
     await tx.testAttempt.create({
       data: {
@@ -102,6 +108,10 @@ export async function POST(
         byTagJson: byTag,
       },
     });
+
+    if (isDefaultCollection) {
+      return;
+    }
 
     const statUpdates = test.tagAssignments.map((assignment) => {
       const isCorrect = correctness[assignment.questionIndex] ?? false;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
 type Collection = {
   id: string;
@@ -159,34 +160,46 @@ export default function SubjectsPage() {
 
   function renderCollectionTree(parentId: string | null, depth = 0): JSX.Element[] {
     const list = collectionsByParent.get(parentId) ?? [];
-    return list.flatMap((collection) => {
-      const subjectList = subjectsByCollection.get(collection.id) ?? [];
-      return [
-        <div
-          key={collection.id}
-          className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm"
-          style={{ marginLeft: depth * 12 }}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase text-slate-500">Collection</p>
-              <p className="text-base font-semibold">{collection.name}</p>
+      return list.flatMap((collection) => {
+        const isDefault = collection.name === DEFAULT_COLLECTION_NAME && collection.parentId === null;
+        const subjectList = subjectsByCollection.get(collection.id) ?? [];
+        return [
+          <div
+            key={collection.id}
+            className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm"
+            style={{ marginLeft: depth * 12 }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs uppercase text-slate-500">Collection</p>
+                <a
+                  className="text-base font-semibold underline"
+                  href={`/collections/${collection.id}`}
+                >
+                  {collection.name}
+                </a>
+              </div>
+              <div className="flex gap-2 text-xs">
+                {isDefault ? (
+                  <span className="text-slate-500">Default</span>
+                ) : (
+                  <>
+                    <button
+                      className="rounded-full border border-slate-700 px-3 py-1"
+                      onClick={() => renameCollection(collection.id)}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      className="rounded-full border border-slate-700 px-3 py-1"
+                      onClick={() => deleteCollection(collection.id)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2 text-xs">
-              <button
-                className="rounded-full border border-slate-700 px-3 py-1"
-                onClick={() => renameCollection(collection.id)}
-              >
-                Rename
-              </button>
-              <button
-                className="rounded-full border border-slate-700 px-3 py-1"
-                onClick={() => deleteCollection(collection.id)}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
           {subjectList.length > 0 ? (
             <div className="mt-3 grid gap-2 text-xs text-slate-300">
               {subjectList.map((subject) => (
@@ -196,9 +209,20 @@ export default function SubjectsPage() {
                 >
                   <div>
                     <p className="text-xs uppercase text-slate-500">Subject</p>
-                    <p className="text-sm font-semibold">{subject.title}</p>
+                    <a
+                      className="text-sm font-semibold underline"
+                      href={`/subjects/${subject.id}`}
+                    >
+                      {subject.title}
+                    </a>
                   </div>
                   <div className="flex gap-2">
+                    <a
+                      className="rounded-full border border-slate-700 px-3 py-1"
+                      href={`/tests/create?subjectId=${subject.id}`}
+                    >
+                      Start test
+                    </a>
                     <button
                       className="rounded-full border border-slate-700 px-3 py-1"
                       onClick={() => renameSubject(subject.id)}
@@ -231,6 +255,10 @@ export default function SubjectsPage() {
         <p className="mt-2 text-sm text-slate-300">
           Organize your subjects in collections. Tests and chat can reference
           only your own subjects.
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Subjects in the “{DEFAULT_COLLECTION_NAME}” collection are excluded
+          from statistics.
         </p>
       </div>
 
@@ -350,8 +378,16 @@ export default function SubjectsPage() {
                     key={subject.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2"
                   >
-                    <span>{subject.title}</span>
+                    <a className="underline" href={`/subjects/${subject.id}`}>
+                      {subject.title}
+                    </a>
                     <div className="flex gap-2 text-xs">
+                      <a
+                        className="rounded-full border border-slate-700 px-3 py-1"
+                        href={`/tests/create?subjectId=${subject.id}`}
+                      >
+                        Start test
+                      </a>
                       <button
                         className="rounded-full border border-slate-700 px-3 py-1"
                         onClick={() => renameSubject(subject.id)}

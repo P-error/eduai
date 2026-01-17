@@ -42,6 +42,7 @@ model Collection {
   subjects Subject[]
 
   @@index([userId])
+  @@unique([userId, parentId, name])
 }
 
 model Subject {
@@ -56,17 +57,47 @@ model Subject {
 
   user         User?           @relation(fields: [userId], references: [id])
   collection   Collection?     @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  sections     SubjectSection[]
   tests        GeneratedTest[]
   chatSessions ChatSession[]
 
   @@index([userId])
+  @@unique([userId, collectionId, title])
+}
+
+model SubjectSection {
+  id          String          @id @default(cuid())
+  subjectId   String
+  title       String
+  description String?
+  parentId    String?
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  subject Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  parent  SubjectSection? @relation("SubjectSectionHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children SubjectSection[] @relation("SubjectSectionHierarchy")
+  tests   GeneratedTest[]
+
+  @@index([subjectId])
+  @@index([parentId])
+  @@index([subjectId, sortOrder])
 }
 
 model GeneratedTest {
   id                  String          @id @default(cuid())
   userId              String?
   subjectId           String
+  sectionId           String?
   promptTemplateId    String?
+  llmModel            String?
+  promptTemplateKey   String?
+  promptTemplateSnapshot String?
+  rawLlmOutput        String?
+  normalizedJson      Json?
+  validationMetaJson  Json?
+  sectionSnapshot     String?
   topic               String
   questionCount       Int
   mode                String
@@ -76,6 +107,7 @@ model GeneratedTest {
 
   user           User?           @relation(fields: [userId], references: [id])
   subject        Subject         @relation(fields: [subjectId], references: [id])
+  section        SubjectSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   promptTemplate PromptTemplate? @relation(fields: [promptTemplateId], references: [id])
   tagAssignments TagAssignment[]
   attempts       TestAttempt[]
@@ -162,6 +194,9 @@ model ChatSession {
   userId                   String
   subjectId                String?
   promptTemplateId         String?
+  llmModel                 String?
+  promptTemplateKey        String?
+  promptTemplateSnapshot   String?
   declaredPreferencesJson  Json?
   effectivePreferencesJson Json?
   personalizationReady     Boolean    @default(false)
