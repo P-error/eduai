@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String        @id @default(cuid())
+  externalId               String?       @unique
+  email                    String?       @unique
+  name                     String?
+  declaredPreferencesJson  Json?
+  effectivePreferencesJson Json?
+  personalizationReady     Boolean       @default(false)
+  testsTaken               Int           @default(0)
+  createdAt                DateTime      @default(now())
+
+  tests        GeneratedTest[]
+  attempts     TestAttempt[]
+  tagStats     UserTagStat[]
+  chatSessions ChatSession[]
+}
+
+model Subject {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+
+  tests        GeneratedTest[]
+  chatSessions ChatSession[]
+}
+
+model GeneratedTest {
+  id                  String          @id @default(cuid())
+  userId              String?
+  subjectId           String
+  promptTemplateId    String?
+  topic               String
+  questionCount       Int
+  mode                String
+  questionsJson       Json
+  profileSnapshotJson Json?
+  createdAt           DateTime        @default(now())
+
+  user           User?           @relation(fields: [userId], references: [id])
+  subject        Subject         @relation(fields: [subjectId], references: [id])
+  promptTemplate PromptTemplate? @relation(fields: [promptTemplateId], references: [id])
+  tagAssignments TagAssignment[]
+  attempts       TestAttempt[]
+}
+
+model TagLegendVersion {
+  id        String   @id @default(cuid())
+  version   String   @unique
+  createdAt DateTime @default(now())
+}
+
+model TagAxis {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  tags          Tag[]
+  assignments   TagAssignment[]
+  userTagStats  UserTagStat[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  axisId    String
+  key       String
+  label     String
+  createdAt DateTime @default(now())
+
+  axis TagAxis @relation(fields: [axisId], references: [id])
+
+  assignments  TagAssignment[]
+  userTagStats UserTagStat[]
+
+  @@unique([axisId, key])
+}
+
+model TagAssignment {
+  id            String   @id @default(cuid())
+  testId        String
+  questionIndex Int
+  axisId        String
+  tagId         String
+  createdAt     DateTime @default(now())
+
+  test GeneratedTest @relation(fields: [testId], references: [id])
+  axis TagAxis       @relation(fields: [axisId], references: [id])
+  tag  Tag           @relation(fields: [tagId], references: [id])
+
+  @@unique([testId, questionIndex, axisId])
+}
+
+model TestAttempt {
+  id          String   @id @default(cuid())
+  testId      String
+  userId      String
+  answersJson Json
+  score       Float
+  byTagJson   Json
+  createdAt   DateTime @default(now())
+
+  test GeneratedTest @relation(fields: [testId], references: [id])
+  user User          @relation(fields: [userId], references: [id])
+}
+
+model UserTagStat {
+  id           String   @id @default(cuid())
+  userId       String
+  axisId       String
+  tagId        String
+  correctCount Int      @default(0)
+  totalCount   Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  user User    @relation(fields: [userId], references: [id])
+  axis TagAxis @relation(fields: [axisId], references: [id])
+  tag  Tag     @relation(fields: [tagId], references: [id])
+
+  @@unique([userId, axisId, tagId])
+}
+
+model ChatSession {
+  id                       String     @id @default(cuid())
+  userId                   String
+  subjectId                String?
+  promptTemplateId         String?
+  declaredPreferencesJson  Json?
+  effectivePreferencesJson Json?
+  personalizationReady     Boolean    @default(false)
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id])
+  subject        Subject?       @relation(fields: [subjectId], references: [id])
+  promptTemplate PromptTemplate? @relation(fields: [promptTemplateId], references: [id])
+  messages       ChatMessage[]
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  sessionId   String
+  role        String
+  content     String
+  signalsJson Json?
+  createdAt   DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id])
+}
+
+model PromptTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  template  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tests        GeneratedTest[]
+  chatSessions ChatSession[]
+}
