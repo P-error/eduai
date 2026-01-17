@@ -13,9 +13,16 @@ const SubmitSchema = z.object({
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = params;
+  const { id } = await params;
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message: "Missing test id." },
+      { status: 400 },
+    );
+  }
   const payload = SubmitSchema.parse(await request.json());
   const user = await getOrCreateUser(request);
 

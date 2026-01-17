@@ -39,6 +39,9 @@ export default function RootLayout({
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/tests/create">
                 Create Test
               </a>
+              <a className="rounded-full border border-slate-700 px-4 py-2" href="/tests/stats">
+                Stats
+              </a>
               <a className="rounded-full border border-slate-700 px-4 py-2" href="/chat">
                 Chat
               </a>

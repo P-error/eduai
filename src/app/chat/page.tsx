@@ -28,15 +28,25 @@ export default function ChatPage() {
       declaredPreferences = undefined;
     }
 
+    const body: {
+      message: string;
+      sessionId?: string;
+      subject: string;
+      declaredPreferences?: Record<string, string>;
+    } = {
+      message: outgoing,
+      subject,
+      declaredPreferences,
+    };
+
+    if (sessionId) {
+      body.sessionId = sessionId;
+    }
+
     const response = await fetch("/api/chat/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: outgoing,
-        sessionId,
-        subject,
-        declaredPreferences,
-      }),
+      body: JSON.stringify(body),
     });
     const json = await response.json();
     setSessionId(json.sessionId);

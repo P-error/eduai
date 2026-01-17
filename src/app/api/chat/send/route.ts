@@ -7,7 +7,7 @@ import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
 
 const ChatSchema = z.object({
   message: z.string().min(1),
-  sessionId: z.string().optional(),
+  sessionId: z.string().optional().nullable(),
   subject: z.string().optional(),
   declaredPreferences: z.record(z.string()).optional(),
 });
@@ -24,8 +24,31 @@ function extractSignals(message: string) {
 }
 
 export async function POST(request: Request) {
-  const payload = ChatSchema.parse(await request.json());
-  const user = await getOrCreateUser(request);
+  const errorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error);
+
+  let payload: z.infer<typeof ChatSchema>;
+  try {
+    payload = ChatSchema.parse(await request.json());
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error("Chat input error", error);
+    return NextResponse.json(
+      { error: "INVALID_INPUT", message },
+      { status: 400 },
+    );
+  }
+
+  let user;
+  try {
+    user = await getOrCreateUser(request);
+  } catch (error) {
+    console.error("Chat auth error", error);
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Invalid or missing token." },
+      { status: 401 },
+    );
+  }
 
   const effectivePreferences = (user.effectivePreferencesJson ?? {}) as Record<
     string,
@@ -43,10 +66,21 @@ export async function POST(request: Request) {
     });
   }
 
-  const promptTemplate = await getPromptTemplate("chat_system_v1");
+  let promptTemplate;
+  try {
+    promptTemplate = await getPromptTemplate("chat_system_v1");
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error("Chat prompt error", error);
+    return NextResponse.json(
+      { error: "INTERNAL_ERROR", message },
+      { status: 500 },
+    );
+  }
   const session =
-    payload.sessionId &&
-    (await prisma.chatSession.findUnique({ where: { id: payload.sessionId } }));
+    payload.sessionId != null
+      ? await prisma.chatSession.findUnique({ where: { id: payload.sessionId } })
+      : null;
 
   const activeSession =
     session ??
@@ -75,35 +109,54 @@ export async function POST(request: Request) {
     ready: user.personalizationReady,
   });
 
-  const reply = await llmChatText({
-    model: "gpt-4o-mini",
-    temperature: 0.6,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: payload.message },
-    ],
-  });
+  let reply: string;
+  try {
+    reply = await llmChatText({
+      model: "gpt-4o-mini",
+      temperature: 0.6,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: payload.message },
+      ],
+    });
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error("Chat LLM error", error);
+    return NextResponse.json(
+      { error: "LLM_BAD_RESPONSE", message },
+      { status: 502 },
+    );
+  }
 
   const signals = extractSignals(payload.message);
 
-  await prisma.chatMessage.createMany({
-    data: [
-      {
-        sessionId: activeSession.id,
-        role: "user",
-        content: payload.message,
-        signalsJson: signals,
-      },
-      {
-        sessionId: activeSession.id,
-        role: "assistant",
-        content: reply,
-      },
-    ],
-  });
+  try {
+    await prisma.chatMessage.createMany({
+      data: [
+        {
+          sessionId: activeSession.id,
+          role: "user",
+          content: payload.message,
+          signalsJson: signals,
+        },
+        {
+          sessionId: activeSession.id,
+          role: "assistant",
+          content: reply,
+        },
+      ],
+    });
 
-  return NextResponse.json({
-    sessionId: activeSession.id,
-    reply,
-  });
+    return NextResponse.json({
+      sessionId: activeSession.id,
+      reply,
+    });
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error("Chat persistence error", error);
+    return NextResponse.json(
+      { error: "INTERNAL_ERROR", message },
+      { status: 500 },
+    );
+  }
 }

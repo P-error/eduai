@@ -104,6 +104,34 @@ export default function TestRunner({
           <p className="mt-2 text-sm text-slate-300">
             Tag breakdown is saved for personalization analytics.
           </p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-200">
+            {Object.keys(result.byTag).length === 0 ? (
+              <p className="text-slate-400">No tag stats returned.</p>
+            ) : (
+              Object.entries(result.byTag).map(([axisKey, tags]) => (
+                <div
+                  key={axisKey}
+                  className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3"
+                >
+                  <p className="text-xs uppercase text-slate-400">{axisKey}</p>
+                  <div className="mt-2 grid gap-1">
+                    {Object.entries(tags).map(([tagKey, stats]) => (
+                      <div key={tagKey} className="flex justify-between">
+                        <span>{tagKey}</span>
+                        <span>{(stats.accuracy * 100).toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <a
+            className="mt-4 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm"
+            href="/tests/stats"
+          >
+            View stats
+          </a>
         </div>
       ) : null}
     </section>

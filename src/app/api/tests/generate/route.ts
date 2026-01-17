@@ -6,7 +6,7 @@ import { llmChatJson } from "@/lib/llm/provider";
 import { TestSchema } from "@/lib/test-schema";
 import { tagQuestion } from "@/lib/tagger";
 import { getOrCreateUser } from "@/lib/auth";
-import { getPromptTemplate } from "@/lib/prompts";
+import { getPromptTemplate, renderPrompt } from "@/lib/prompts";
 
 const GenerateSchema = z.object({
   subject: z.string().min(2),
@@ -41,6 +41,11 @@ export async function POST(request: Request) {
 
   let testPayload;
   const promptTemplate = await getPromptTemplate("test_generation_v1");
+  const systemPrompt = renderPrompt(promptTemplate.template, {
+    declared: JSON.stringify(user.declaredPreferencesJson ?? {}),
+    effective: JSON.stringify(user.effectivePreferencesJson ?? {}),
+    ready: user.personalizationReady,
+  });
   try {
     testPayload = await llmChatJson(
       {
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: promptTemplate.template,
+            content: systemPrompt,
           },
           {
             role: "user",

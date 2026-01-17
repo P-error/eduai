@@ -4,9 +4,9 @@ import TestRunner from "./TestRunner";
 export default async function TestPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = await params;
   const test = await prisma.generatedTest.findUnique({
     where: { id },
   });
