@@ -8,6 +8,7 @@ Stack:
 
 Rules:
 - Keep changes small and runnable.
+- Write code in English; communicate with the user in the CLI in Russian.
 - Use src/ structure (already enabled).
 - API routes must be app/api/**/route.ts.
 - All LLM calls go through src/lib/llm/provider.ts (create if missing).
