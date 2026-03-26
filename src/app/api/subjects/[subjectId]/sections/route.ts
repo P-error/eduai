@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 
+export const runtime = "nodejs";
+
 const CreateSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional().nullable(),

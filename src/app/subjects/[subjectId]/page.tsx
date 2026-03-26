@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/client-auth";
@@ -45,7 +46,8 @@ export default function SubjectDetailsPage() {
       topic: string;
       questionCount: number;
       mode: "quiz" | "exam" | "practice";
-      delivery?: Record<string, string>;
+      uxPreset?: Record<string, string>;
+      pedagogyPreset?: Record<string, string>;
     };
     rationale: string;
     dataStatus: "OK" | "INSUFFICIENT";
@@ -238,7 +240,10 @@ export default function SubjectDetailsPage() {
         topic: recommendation.preset.topic,
         questionCount: recommendation.preset.questionCount,
         mode: recommendation.preset.mode,
-        delivery: recommendation.preset.delivery ?? {},
+        delivery: {
+          ...(recommendation.preset.uxPreset ?? {}),
+          ...(recommendation.preset.pedagogyPreset ?? {}),
+        },
         recommended: true,
         recommendationSnapshot: recommendation,
       }),
@@ -282,18 +287,18 @@ export default function SubjectDetailsPage() {
           </p>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <a
+          <Link
             className="rounded-full bg-slate-100 px-4 py-2 text-slate-900"
             href={`/tests/create?subjectId=${data.subject.id}`}
           >
             Start test
-          </a>
-          <a
+          </Link>
+          <Link
             className="rounded-full border border-slate-700 px-4 py-2"
             href="/subjects"
           >
             Back to subjects
-          </a>
+          </Link>
         </div>
       </div>
 

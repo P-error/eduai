@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { isDefaultCollectionName } from "@/lib/collection-constants";
 
+export const runtime = "nodejs";
+
 const UpdateSchema = z.object({
   name: z.string().min(2).optional(),
   parentId: z.string().optional().nullable(),
@@ -96,7 +98,7 @@ export async function PATCH(
     }
   }
 
-  const updated = await prisma.collection.updateMany({
+  await prisma.collection.updateMany({
     where: { id, userId: user.id },
     data: {
       name: payload.name?.trim(),

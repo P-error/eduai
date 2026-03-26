@@ -6,26 +6,32 @@ import { getAuthToken } from "@/lib/client-auth";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const token = getAuthToken();
+  const [adminCheck, setAdminCheck] = useState<{
+    token: string | null;
+    status: "unknown" | "allowed" | "forbidden";
+  }>({ token: null, status: "unknown" });
+  const isPublicPath = pathname === "/login" || pathname === "/" || pathname === "/register";
+  const isAdminPath = pathname.startsWith("/admin");
+  const adminStatus =
+    isAdminPath && token && adminCheck.token === token ? adminCheck.status : "unknown";
 
   useEffect(() => {
-    if (pathname === "/login" || pathname === "/") {
-      setReady(true);
+    if (isPublicPath || token) {
+      return;
+    }
+    window.location.href = "/login";
+  }, [isPublicPath, token]);
+
+  useEffect(() => {
+    if (!isAdminPath || !token) {
+      return;
+    }
+    if (adminCheck.token === token && adminCheck.status !== "unknown") {
       return;
     }
 
-    const token = getAuthToken();
-    if (!token) {
-      window.location.href = "/login";
-      return;
-    }
-
-    if (!pathname.startsWith("/admin")) {
-      setReady(true);
-      return;
-    }
-
+    let active = true;
     fetch("/api/users/me", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -33,25 +39,34 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
+        if (!active) return;
         const adminFlag = Boolean(data?.isAdmin);
-        setIsAdmin(adminFlag);
+        setAdminCheck({
+          token,
+          status: adminFlag ? "allowed" : "forbidden",
+        });
         if (!adminFlag) {
           window.location.href = "/login";
-          return;
         }
-        setReady(true);
       })
       .catch(() => {
-        setIsAdmin(false);
+        if (!active) return;
+        setAdminCheck({
+          token,
+          status: "forbidden",
+        });
         window.location.href = "/login";
       });
-  }, [pathname]);
+    return () => {
+      active = false;
+    };
+  }, [adminCheck.status, adminCheck.token, isAdminPath, token]);
 
-  if (pathname === "/login" || pathname === "/") {
+  if (isPublicPath) {
     return <>{children}</>;
   }
 
-  if (!ready) {
+  if (!token) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
         <p>Checking authorization...</p>
@@ -59,7 +74,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (pathname.startsWith("/admin") && isAdmin === false) {
+  if (isAdminPath && adminStatus === "unknown") {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <p>Checking authorization...</p>
+      </div>
+    );
+  }
+
+  if (isAdminPath && adminStatus === "forbidden") {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
         <p>Admin access required.</p>

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 import { ensureDefaultCollection } from "@/lib/collections";
+
+export const runtime = "nodejs";
 
 const UpdateSchema = z.object({
   title: z.string().min(2).optional(),
@@ -87,7 +88,7 @@ export async function PATCH(
           equals: nextTitle,
           mode: "insensitive",
         },
-        NOT: { id },
+        NOT: { id: subjectId },
       },
     });
 

@@ -40,7 +40,13 @@ export default function PromptTemplatesPage() {
   }
 
   useEffect(() => {
-    loadTemplates();
+    const timer = window.setTimeout(() => {
+      void loadTemplates();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, []);
 
   const keys = useMemo(() => {
@@ -56,9 +62,15 @@ export default function PromptTemplatesPage() {
   useEffect(() => {
     if (selectedKey && versions.length > 0) {
       const active = versions.find((template) => template.isActive) ?? versions[0];
-      setSelectedId(active.id);
-      setContent(active.template);
-      setNotes(active.notes ?? "");
+      const timer = window.setTimeout(() => {
+        setSelectedId(active.id);
+        setContent(active.template);
+        setNotes(active.notes ?? "");
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
     }
   }, [selectedKey, versions]);
 

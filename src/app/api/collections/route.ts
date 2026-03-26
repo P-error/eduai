@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { ensureDefaultCollection } from "@/lib/collections";
 
+export const runtime = "nodejs";
+
 const CreateSchema = z.object({
   name: z.string().trim().min(2),
   parentId: z.string().optional().nullable(),

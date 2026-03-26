@@ -6,6 +6,8 @@ import { getUserFromRequest } from "@/lib/auth";
 import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 import { ensureDefaultCollection } from "@/lib/collections";
 
+export const runtime = "nodejs";
+
 const CreateSchema = z.object({
   title: z.string().trim().min(2),
   description: z.string().optional().nullable(),

@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { optionalEnv, requireEnv } from "../env";
 
-const LLMMessageSchema = z.object({
-  role: z.enum(["system", "user", "assistant"]),
-  content: z.string(),
-});
-
-export type LLMMessage = z.infer<typeof LLMMessageSchema>;
+export type LLMMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
 
 const LLMResponseSchema = z.object({
   choices: z
@@ -19,27 +18,21 @@ const LLMResponseSchema = z.object({
     .min(1),
 });
 
-const LLMJsonSchema = z.object({
-  model: z.string(),
-  messages: z.array(LLMMessageSchema),
-  temperature: z.number().optional(),
-  response_format: z
-    .object({
-      type: z.literal("json_object"),
-    })
-    .optional(),
-});
+type LLMJsonPayload = {
+  model: string;
+  messages: LLMMessage[];
+  temperature?: number;
+  response_format?: {
+    type: "json_object";
+  };
+};
 
 export async function llmChatJson<T>(
-  payload: z.infer<typeof LLMJsonSchema>,
+  payload: LLMJsonPayload,
   schema: z.ZodSchema<T>,
 ): Promise<T> {
-  const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY");
-  }
+  const baseUrl = optionalEnv("OPENAI_BASE_URL") ?? "https://api.openai.com/v1";
+  const apiKey = requireEnv("OPENAI_API_KEY");
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -62,15 +55,11 @@ export async function llmChatJson<T>(
 }
 
 export async function llmChatJsonWithRaw<T>(
-  payload: z.infer<typeof LLMJsonSchema>,
+  payload: LLMJsonPayload,
   schema: z.ZodSchema<T>,
 ): Promise<{ data: T; raw: string }> {
-  const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY");
-  }
+  const baseUrl = optionalEnv("OPENAI_BASE_URL") ?? "https://api.openai.com/v1";
+  const apiKey = requireEnv("OPENAI_API_KEY");
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -92,13 +81,9 @@ export async function llmChatJsonWithRaw<T>(
   return { data: schema.parse(parsed), raw: content };
 }
 
-export async function llmChatText(payload: z.infer<typeof LLMJsonSchema>) {
-  const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY");
-  }
+export async function llmChatText(payload: LLMJsonPayload) {
+  const baseUrl = optionalEnv("OPENAI_BASE_URL") ?? "https://api.openai.com/v1";
+  const apiKey = requireEnv("OPENAI_API_KEY");
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",

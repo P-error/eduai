@@ -1,0 +1,1 @@
+export const RESEARCH_CONSENT_VERSION = "v1_2026_02";

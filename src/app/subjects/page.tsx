@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
 import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
 
@@ -174,48 +175,50 @@ export default function SubjectsPage() {
     await loadData();
   }
 
-  function renderCollectionTree(parentId: string | null, depth = 0): JSX.Element[] {
+  function renderCollectionTree(parentId: string | null, depth = 0): ReactNode[] {
     const list = collectionsByParent.get(parentId) ?? [];
-      return list.flatMap((collection) => {
-        const isDefault = collection.name === DEFAULT_COLLECTION_NAME && collection.parentId === null;
-        const subjectList = subjectsByCollection.get(collection.id) ?? [];
-        return [
-          <div
-            key={collection.id}
-            className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm"
-            style={{ marginLeft: depth * 12 }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs uppercase text-slate-500">Collection</p>
-                <a
-                  className="text-base font-semibold underline"
-                  href={`/collections/${collection.id}`}
-                >
-                  {collection.name}
-                </a>
-              </div>
-              <div className="flex gap-2 text-xs">
-                {isDefault ? (
-                  <span className="text-slate-500">Default</span>
-                ) : (
-                  <>
-                    <button
-                      className="rounded-full border border-slate-700 px-3 py-1"
-                      onClick={() => renameCollection(collection.id)}
-                    >
-                      Rename
-                    </button>
-                    <button
-                      className="rounded-full border border-slate-700 px-3 py-1"
-                      onClick={() => deleteCollection(collection.id)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
+    return list.flatMap((collection) => {
+      const isDefault =
+        collection.name === DEFAULT_COLLECTION_NAME &&
+        collection.parentId === null;
+      const subjectList = subjectsByCollection.get(collection.id) ?? [];
+      return [
+        <div
+          key={collection.id}
+          className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm"
+          style={{ marginLeft: depth * 12 }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase text-slate-500">Collection</p>
+              <Link
+                className="text-base font-semibold underline"
+                href={`/collections/${collection.id}`}
+              >
+                {collection.name}
+              </Link>
             </div>
+            <div className="flex gap-2 text-xs">
+              {isDefault ? (
+                <span className="text-slate-500">Default</span>
+              ) : (
+                <>
+                  <button
+                    className="rounded-full border border-slate-700 px-3 py-1"
+                    onClick={() => renameCollection(collection.id)}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    className="rounded-full border border-slate-700 px-3 py-1"
+                    onClick={() => deleteCollection(collection.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
           {subjectList.length > 0 ? (
             <div className="mt-3 grid gap-2 text-xs text-slate-300">
               {subjectList.map((subject) => (
@@ -225,20 +228,20 @@ export default function SubjectsPage() {
                 >
                   <div>
                     <p className="text-xs uppercase text-slate-500">Subject</p>
-                    <a
+                    <Link
                       className="text-sm font-semibold underline"
                       href={`/subjects/${subject.id}`}
                     >
                       {subject.title}
-                    </a>
+                    </Link>
                   </div>
                   <div className="flex gap-2">
-                    <a
+                    <Link
                       className="rounded-full border border-slate-700 px-3 py-1"
                       href={`/tests/create?subjectId=${subject.id}`}
                     >
                       Start test
-                    </a>
+                    </Link>
                     <button
                       className="rounded-full border border-slate-700 px-3 py-1"
                       onClick={() => renameSubject(subject.id)}

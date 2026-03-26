@@ -6,7 +6,6 @@ import { authFetch } from "@/lib/client-auth";
 type Question = {
   prompt: string;
   options: string[];
-  answerIndex: number;
   explanation?: string;
 };
 
@@ -25,8 +24,30 @@ export default function TestRunner({
   const [result, setResult] = useState<null | {
     score: number;
     byTag: Record<string, Record<string, { accuracy: number }>>;
+    meta?: {
+      predictionVsActual?: {
+        expectedAccuracy: number | null;
+        actualAccuracy: number;
+        expectedTotalDurationMs: number | null;
+        actualTotalDurationMs: number | null;
+      };
+      nextDifficultySuggestion?: {
+        value: string | null;
+        reason: string;
+      };
+      dataQuality?: {
+        excludedFromLearning: boolean;
+        reasonCode: string | null;
+        reasonLabel: string | null;
+      };
+    } | null;
   }>(null);
   const [loading, setLoading] = useState(false);
+  const [startedAt] = useState<number>(() => Date.now());
+  const [answerChangeCount, setAnswerChangeCount] = useState(0);
+  const [firstAnswerMs, setFirstAnswerMs] = useState<Array<number | null>>(
+    () => new Array(questions.length).fill(null),
+  );
 
   const answeredCount = useMemo(
     () => answers.filter((answer) => answer >= 0).length,
@@ -35,10 +56,19 @@ export default function TestRunner({
 
   async function handleSubmit() {
     setLoading(true);
+    const totalDurationMs = Math.max(0, Date.now() - startedAt);
+    const perQuestionFirstAnswerMs = firstAnswerMs.map((value) =>
+      value == null ? totalDurationMs : value,
+    );
     const response = await authFetch(`/api/tests/${testId}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({
+        answers,
+        totalDurationMs,
+        perQuestionFirstAnswerMs,
+        answerChangeCount,
+      }),
     });
     const json = await response.json();
     setResult(json);
@@ -77,6 +107,13 @@ export default function TestRunner({
                     checked={answers[index] === optionIndex}
                     onChange={() =>
                       setAnswers((prev) => {
+                        setAnswerChangeCount((value) => value + 1);
+                        setFirstAnswerMs((timings) => {
+                          if (timings[index] != null) return timings;
+                          const next = [...timings];
+                          next[index] = Math.max(0, Date.now() - startedAt);
+                          return next;
+                        });
                         const next = [...prev];
                         next[index] = optionIndex;
                         return next;
@@ -102,9 +139,70 @@ export default function TestRunner({
           <h3 className="text-lg font-semibold">
             Score: {(result.score * 100).toFixed(0)}%
           </h3>
-          <p className="mt-2 text-sm text-slate-300">
-            Tag breakdown is saved for personalization analytics.
-          </p>
+          <p className="mt-2 text-sm text-slate-300">Your attempt has been recorded.</p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm">
+              <p className="text-xs uppercase text-slate-400">Prediction vs Actual</p>
+              <div className="mt-2 grid gap-1">
+                <div className="flex justify-between">
+                  <span>Expected accuracy</span>
+                  <span>
+                    {result.meta?.predictionVsActual?.expectedAccuracy == null
+                      ? "-"
+                      : `${(result.meta.predictionVsActual.expectedAccuracy * 100).toFixed(0)}%`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Actual accuracy</span>
+                  <span>
+                    {result.meta?.predictionVsActual?.actualAccuracy == null
+                      ? "-"
+                      : `${(result.meta.predictionVsActual.actualAccuracy * 100).toFixed(0)}%`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Expected time</span>
+                  <span>
+                    {result.meta?.predictionVsActual?.expectedTotalDurationMs == null
+                      ? "-"
+                      : `${Math.round(
+                          result.meta.predictionVsActual.expectedTotalDurationMs / 1000,
+                        )} sec`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Actual time</span>
+                  <span>
+                    {result.meta?.predictionVsActual?.actualTotalDurationMs == null
+                      ? "-"
+                      : `${Math.round(
+                          result.meta.predictionVsActual.actualTotalDurationMs / 1000,
+                        )} sec`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm">
+              <p className="text-xs uppercase text-slate-400">Next suggestion</p>
+              <p className="mt-2 text-base font-medium">
+                Suggested next difficulty:{" "}
+                {result.meta?.nextDifficultySuggestion?.value ?? "keep current"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {result.meta?.nextDifficultySuggestion?.reason ??
+                  "More evidence is needed to adjust difficulty."}
+              </p>
+              {result.meta?.dataQuality?.excludedFromLearning ? (
+                <p className="mt-3 rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                  Excluded from learning (data quality):{" "}
+                  {result.meta.dataQuality.reasonLabel ?? result.meta.dataQuality.reasonCode}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
           <div className="mt-4 grid gap-3 text-sm text-slate-200">
             {Object.keys(result.byTag).length === 0 ? (
               <p className="text-slate-400">No tag stats returned.</p>
@@ -127,12 +225,17 @@ export default function TestRunner({
               ))
             )}
           </div>
-          <a
-            className="mt-4 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm"
-            href="/tests/stats"
-          >
-            View stats
-          </a>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a className="inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm" href="/practice">
+              Continue practice
+            </a>
+            <a className="inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm" href="/learn">
+              Continue learning in chat
+            </a>
+            <a className="inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm" href="/insights">
+              Open insights
+            </a>
+          </div>
         </div>
       ) : null}
     </section>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/client-auth";
-import { TAG_AXES } from "@/lib/tags";
+import { LOW_N_THRESHOLD, PED_AXES, UX_AXES } from "@/lib/tags";
 
 type StatsPayload = {
   user: {
@@ -31,6 +31,14 @@ type StatsPayload = {
     subject: string;
     topic: string;
   }[];
+  policyMetrics?: {
+    averageUxReward: number | null;
+    uxRewardSamples: number;
+    difficultyTransitions: number;
+    explorationCount: number;
+    explorationRate: number;
+    attemptsAnalyzed: number;
+  };
 };
 
 export default function TestStatsPage() {
@@ -171,9 +179,18 @@ export default function TestStatsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-          <h3 className="text-lg font-semibold">Declared preferences</h3>
+          <h3 className="text-lg font-semibold">Declared preferences (UX)</h3>
           <div className="mt-3 grid gap-2 text-sm">
-            {TAG_AXES.map((axis) => (
+            {UX_AXES.map((axis) => (
+              <div key={axis} className="flex justify-between">
+                <span className="text-slate-400">{axis}</span>
+                <span>{stats.declaredPreferences[axis] ?? "-"}</span>
+              </div>
+            ))}
+          </div>
+          <h4 className="mt-4 text-xs uppercase text-slate-500">Pedagogy</h4>
+          <div className="mt-2 grid gap-2 text-sm">
+            {PED_AXES.map((axis) => (
               <div key={axis} className="flex justify-between">
                 <span className="text-slate-400">{axis}</span>
                 <span>{stats.declaredPreferences[axis] ?? "-"}</span>
@@ -182,9 +199,18 @@ export default function TestStatsPage() {
           </div>
         </div>
         <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-          <h3 className="text-lg font-semibold">Effective preferences</h3>
+          <h3 className="text-lg font-semibold">Effective preferences (UX)</h3>
           <div className="mt-3 grid gap-2 text-sm">
-            {TAG_AXES.map((axis) => (
+            {UX_AXES.map((axis) => (
+              <div key={axis} className="flex justify-between">
+                <span className="text-slate-400">{axis}</span>
+                <span>{stats.effectivePreferences[axis] ?? "-"}</span>
+              </div>
+            ))}
+          </div>
+          <h4 className="mt-4 text-xs uppercase text-slate-500">Pedagogy</h4>
+          <div className="mt-2 grid gap-2 text-sm">
+            {PED_AXES.map((axis) => (
               <div key={axis} className="flex justify-between">
                 <span className="text-slate-400">{axis}</span>
                 <span>{stats.effectivePreferences[axis] ?? "-"}</span>
@@ -195,16 +221,52 @@ export default function TestStatsPage() {
       </div>
 
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+        <h3 className="text-lg font-semibold">Policy transparency</h3>
+        <div className="mt-3 grid gap-2 text-sm text-slate-300">
+          <div className="flex justify-between">
+            <span>Average UX reward</span>
+            <span>
+              {stats.policyMetrics?.averageUxReward != null
+                ? stats.policyMetrics.averageUxReward.toFixed(3)
+                : "-"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>UX reward samples</span>
+            <span>{stats.policyMetrics?.uxRewardSamples ?? 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Difficulty transitions</span>
+            <span>{stats.policyMetrics?.difficultyTransitions ?? 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Exploration rate</span>
+            <span>
+              {(((stats.policyMetrics?.explorationRate ?? 0) * 100).toFixed(1))}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
         <h3 className="text-lg font-semibold">Tag stats by axis</h3>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {TAG_AXES.map((axis) => {
+          {[...UX_AXES, ...PED_AXES].map((axis) => {
             const axisStats = tagStatsByAxis.get(axis) ?? [];
+            const totalSamples = axisStats.reduce(
+              (sum, stat) => sum + stat.totalCount,
+              0,
+            );
             return (
               <div
                 key={axis}
                 className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm"
               >
                 <p className="text-xs uppercase text-slate-400">{axis}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  samples: {totalSamples}
+                  {totalSamples < LOW_N_THRESHOLD ? " · low-N warning" : ""}
+                </p>
                 {axisStats.length === 0 ? (
                   <p className="mt-2 text-slate-500">No data yet.</p>
                 ) : (

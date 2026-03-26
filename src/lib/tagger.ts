@@ -3,27 +3,28 @@ import { TAGS_BY_AXIS, TagAxisKey } from "./tags";
 export type QuestionTagging = Record<TagAxisKey, string>;
 
 const keywordMap: Partial<Record<TagAxisKey, Record<string, string>>> = {
-  domain: {
-    math: "stem",
-    physics: "stem",
-    chemistry: "stem",
-    history: "humanities",
-    literature: "humanities",
-    economics: "business",
-    finance: "business",
+  cognitive_process: {
+    define: "recall",
+    list: "recall",
+    apply: "apply",
+    solve: "apply",
+    analyze: "analyze",
+    compare: "analyze",
+    evaluate: "analyze",
   },
-  depth: {
-    "why": "conceptual",
-    "how": "conceptual",
-    "apply": "applied",
-    "calculate": "applied",
+  task_family: {
+    definition: "definition",
+    compare: "comparison",
+    versus: "comparison",
+    solve: "problem_solving",
+    calculate: "problem_solving",
   },
-  cognitive_level: {
-    "define": "recall",
-    "list": "recall",
-    "compare": "analyze",
-    "evaluate": "analyze",
-    "design": "create",
+  context: {
+    exam: "abstract",
+    theorem: "abstract",
+    real: "real_world",
+    scenario: "real_world",
+    case: "real_world",
   },
 };
 

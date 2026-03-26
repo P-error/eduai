@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 
+export const runtime = "nodejs";
+
 const UpdateSchema = z.object({
   title: z.string().min(2).optional(),
   description: z.string().optional().nullable(),
@@ -57,7 +59,8 @@ export async function PATCH(
     let guard = 0;
     while (currentId && guard < 20) {
       if (currentId === targetId) return true;
-      const current = await prisma.subjectSection.findFirst({
+      const current: { parentId: string | null } | null =
+        await prisma.subjectSection.findFirst({
         where: { id: currentId, subjectId },
         select: { parentId: true },
       });

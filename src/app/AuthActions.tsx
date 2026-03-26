@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { clearAuthToken, getAuthToken } from "@/lib/client-auth";
 
@@ -9,17 +10,16 @@ type MeResponse = {
 };
 
 export default function AuthActions() {
-  const [hasToken, setHasToken] = useState(false);
+  const token = getAuthToken();
+  const hasToken = Boolean(token);
   const [label, setLabel] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getAuthToken();
-    const isAuthed = Boolean(token);
-    setHasToken(isAuthed);
-    if (!isAuthed) {
-      setLabel(null);
+    if (!token) {
       return;
     }
+
+    let active = true;
 
     fetch("/api/users/me", {
       headers: {
@@ -28,19 +28,29 @@ export default function AuthActions() {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: MeResponse | null) => {
-        if (!data) return;
+        if (!active || !data) return;
         setLabel(data.name ?? data.email ?? "User");
       })
       .catch(() => {
+        if (!active) return;
         setLabel("User");
       });
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   if (!hasToken) {
     return (
-      <a className="rounded-full border border-slate-700 px-4 py-2" href="/login">
-        Login
-      </a>
+      <div className="flex items-center gap-2">
+        <Link className="rounded-full border border-slate-700 px-4 py-2" href="/login">
+          Login
+        </Link>
+        <Link className="rounded-full border border-slate-700 px-4 py-2" href="/register">
+          Register
+        </Link>
+      </div>
     );
   }
 

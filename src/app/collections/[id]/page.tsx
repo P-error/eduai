@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { authFetch } from "@/lib/client-auth";
 
@@ -84,9 +85,9 @@ export default function CollectionDetailsPage() {
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8">
         <h2 className="text-2xl font-semibold">{collection.name}</h2>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <a className="rounded-full border border-slate-700 px-4 py-2" href="/subjects">
+          <Link className="rounded-full border border-slate-700 px-4 py-2" href="/subjects">
             Back to subjects
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -101,16 +102,16 @@ export default function CollectionDetailsPage() {
                 key={subject.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2"
               >
-                <a className="underline" href={`/subjects/${subject.id}`}>
+                <Link className="underline" href={`/subjects/${subject.id}`}>
                   {subject.title}
-                </a>
+                </Link>
                 <div className="flex gap-2 text-xs">
-                  <a
+                  <Link
                     className="rounded-full border border-slate-700 px-3 py-1"
                     href={`/tests/create?subjectId=${subject.id}`}
                   >
                     Start test
-                  </a>
+                  </Link>
                 </div>
               </div>
             ))
@@ -125,13 +126,13 @@ export default function CollectionDetailsPage() {
             <p className="text-slate-500">No sub-collections.</p>
           ) : (
             children.map((child) => (
-              <a
+              <Link
                 key={child.id}
                 className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 underline"
                 href={`/collections/${child.id}`}
               >
                 {child.name}
-              </a>
+              </Link>
             ))
           )}
         </div>

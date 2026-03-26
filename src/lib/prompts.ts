@@ -14,7 +14,7 @@ const DEFAULT_TEMPLATES = [
   {
     key: "tagger_v1",
     template:
-      "You are a tagging assistant. Assign exactly one tag per axis for each question. Axes and allowed tags: {{axes}}. Return strict JSON: {\"tags\": [{\"education_level\": string, \"tone\": string, \"style\": string, \"format\": string, \"depth\": string, \"cognitive_level\": string, \"task_type\": string, \"micro_complexity\": string, \"domain\": string, \"context\": string}]}",
+      "You are a tagging assistant. Assign exactly one tag per axis for each question. Axes and allowed tags: {{axes}}. Return strict JSON: {\"tags\": [{\"tone\": string, \"explanation_style\": string, \"response_format\": string, \"difficulty_target\": string, \"cognitive_process\": string, \"task_family\": string, \"context\": string}]}",
   },
 ];
 
