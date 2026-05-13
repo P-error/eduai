@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { sanitizePreferenceMap } from "@/lib/tags";
 
 export const runtime = "nodejs";
 
@@ -13,8 +14,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const effective = (user.effectivePreferencesJson ??
-    {}) as Record<string, string>;
+  const effective = sanitizePreferenceMap(
+    (user.effectivePreferencesJson ?? {}) as Record<string, unknown>,
+  );
 
   if (Object.keys(effective).length === 0) {
     return NextResponse.json(

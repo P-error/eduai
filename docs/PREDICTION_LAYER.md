@@ -2,202 +2,217 @@
 
 Prediction implementation:
 - `src/lib/prediction.ts`
+- `src/lib/prediction-runtime.ts`
+- `src/lib/prediction-contract.ts`
+- `src/lib/prediction-feature-layer.ts`
+- `src/lib/prediction-ml.ts`
+- `src/lib/personalization-runtime.ts`
+- `src/lib/evaluation.ts`
 - `src/lib/prediction-duration.ts`
 - `src/lib/prediction-backtest.ts`
 - `src/lib/prediction-calibration.ts`
 - `src/lib/prediction-params.ts`
-- `src/lib/prediction-baselines.ts`
-- `src/lib/statistics.ts`
 - `src/app/api/users/me/predictions/route.ts`
-- logging in `src/app/api/tests/[id]/submit/route.ts`
+- submit-time logging in `src/app/api/tests/[id]/submit/route.ts`
 
-## What Is Predicted
+## Research Contract
 
-For tests:
-- `expectedAccuracy` (proxy)
-- `expectedTotalDurationMs` (proxy)
-- `nextDifficultySuggestion`
+The prediction layer exists to infer effective preference, not merely to echo declared preference.
 
-For chat:
-- `predictedEngagement` (proxy)
+Core distinction:
+- declared preference = what the learner says they prefer;
+- effective preference = what leads to the best measurable learning result.
 
-These are not causal claims; they are heuristic, behavior-based estimates.
+Current dissertation ML focus:
+- `difficulty`;
+- `explanation depth`.
 
-## Heuristics
+Optional future ML axis:
+- `instructional_mode`.
 
-### Expected Accuracy
+Tone, style, and formatting are not current dissertation ML targets.
+They belong to the rule-based rendering layer described in `docs/ARCHITECTURE.md`.
 
-Current implementation uses Beta-Binomial smoothing over recent attempt history.
+## Current Runtime Decision Alignment
 
-Data source priority (`N=10` attempts window):
-1. `subject_lastN_clean`
-2. `subject_lastN_fallback`
-3. `global_lastN_clean`
-4. `insufficient_data`
+The current runtime now exposes an explicit two-step contract:
+- decision layer output: `difficulty` and `depth`;
+- rendering/materialization output: tone, explanation style, and response format.
 
-Attempt evidence mapping:
-- `totalQuestions = clampFloor(test.questionCount, min=1)`
-- `correct = clamp(round(score * totalQuestions), 0..totalQuestions)`
+Current implementation detail:
+- `src/lib/personalization-runtime.ts` evaluates candidate `difficulty` values by calling the active runtime backend for `expectedAccuracy`;
+- it then selects `depth` through an explicit, labeled heuristic or stub rule, depending on backend state;
+- routes such as `POST /api/tests/generate` and `POST /api/chat` consume the materialized rendering output instead of mixing wide axis presets directly into core decision logic.
 
-Posterior and adjustment:
-- prior: `Beta(a=1, b=1)`
-- posterior mean: `(a + correctSum) / (a + b + totalQuestionsSum)`
-- temporary difficulty adjust after posterior:
-  - easy: `+diffAdjustMag` (default `+0.07`)
-  - medium: `+0.00`
-  - hard: `-diffAdjustMag` (default `-0.07`)
-- final value: `clamp01(posterior + difficultyAdjust)`
+Compatibility note:
+- legacy `uxPreset`, `pedagogyPreset`, and delivery payload fields still exist for route/storage compatibility;
+- they now act as adapters over the narrower pedagogical decision contract rather than as the canonical decision space.
 
-Calibrated controls:
-- `betaA`, `betaB` (defaults `1`, `1`)
-- `diffAdjustMag` (default `0.07`)
-- active values are resolved by `src/lib/prediction-params.ts` with fallback to defaults when config is absent/invalid.
+## Definition Of Optimal Content
 
-Confidence:
-- `confidence = clamp01(totalQuestionsSum / 100)`
-- confidence depends on question-level evidence, not attempt count.
+Conceptual objective:
+- optimal educational content = content that maximizes learning gain.
 
-Basis:
-- `<scope>|beta_binomial_posterior + difficulty_adjust`
-- `insufficient_data` when no usable evidence.
+Current practical baseline proxy:
+- next-task success probability.
 
-Notes:
-- this remains a heuristic proxy, not a causal model;
-- difficulty adjustment is temporary and will be replaced by learned calibration later.
+Secondary support metric:
+- expected time or duration may be used as a constraint, efficiency signal, or audit metric;
+- it is not the primary educational objective.
 
-### Expected Total Duration
+## Current Runtime Boundary
 
-Single source-of-truth function:
-- `predictExpectedTotalDurationMsUnified(...)` in `src/lib/prediction-duration.ts`
-- predictor version: `v3_duration_unified_2026_02`
+The current repository contains prediction-runtime machinery for operational support signals such as:
+- `expectedAccuracy`;
+- `expectedTotalDurationMs`.
 
-Used by:
-- UI predictions (`buildUserPredictions` in `src/lib/prediction.ts`)
-- submit-time logging (`src/app/api/tests/[id]/submit/route.ts`)
+These outputs are useful for monitoring, calibration, and baseline comparisons.
+They do not replace the pedagogical target definition above.
 
-No separate UI-only or submit-only duration formula is used.
+Current runtime modes may include:
+- heuristic baselines;
+- stub model paths;
+- artifact-backed ML paths.
 
-Baseline definition (authoritative):
-- `BASELINE_QUESTION_COUNT = 5`
-- `EXPECTED_TIME_MS[difficulty][format]` is interpreted as baseline for a 5-question test.
-- scaling for arbitrary length:
-  - `expected = EXPECTED_TIME_MS[difficulty][format] * (questionCount / 5)`
-  - with clamps: `questionCount = max(1, floor(questionCount))`, difficulty/format clamped to supported values.
+Honesty rule:
+- heuristic or stub outputs must never be presented as ML;
+- if a trained artifact is absent or invalid, runtime must report that state explicitly;
+- no hidden heuristic substitution is allowed for an unavailable ML slot.
+- if `depth` is selected by a rule over backend support signals rather than by a trained artifact, that source must remain labeled as heuristic or stub.
 
-Unified blending:
-- collect per-question first-answer telemetry from recent attempts
-- recent attempt window: `DURATION_HISTORY_WINDOW_ATTEMPTS = 50`
-- posterior per-question mean with baseline prior
-- `evidenceWeight = clamp01(totalQuestions / 100)`
-- `final = baseline * (1 - evidenceWeight) + telemetry * evidenceWeight`
+## Policy And Versioning
 
-No telemetry:
-- `value = baseline`
-- `confidence = 0`
-- `basis = v3_duration_unified_2026_02|baseline_only`
+Prediction policies must remain versioned and comparable.
+Current runtime configuration is selected via:
+- `configs/active_policy.json`
 
-Confidence:
-- `confidence = evidenceWeight = clamp01(totalQuestions / 100)`
+Current runtime contract carries explicit metadata such as:
+- `runtimePolicyId`;
+- backend kind and backend id;
+- source type (`heuristic`, `stub`, `ml_artifact`);
+- artifact state snapshot when relevant.
 
-Calibrated controls:
-- `durationPriorQuestions` (default `20`)
-- `durationFullEvidenceQuestions` (default `100`)
-- active values are resolved by `src/lib/prediction-params.ts`.
+This versioning requirement applies both to:
+- current heuristic or stub baselines;
+- future dissertation ML policies for `difficulty` and `depth`.
 
-### Next Difficulty Suggestion
+## Replay-Safe Feature Rules
 
-Uses band constants from policy:
-- if `recentAccuracy > HIGH` -> suggest harder
-- if `recentAccuracy < LOW` -> suggest easier
-- else keep current
+Feature construction must use only information available before the current prediction decision.
 
-## Logging Predicted vs Actual
+Required constraints:
+- no future leakage;
+- no UI-side core prediction logic;
+- no hidden fallback behavior;
+- shared, auditable feature definitions between offline evaluation and runtime;
+- explicit distinction between support metrics and pedagogical decision targets.
 
-Written into `TestAttempt.byTagJson._meta.prediction` on submit:
-- `expectedAccuracy`
-- `expectedTotalDurationMs`
-- `durationConfidence`
-- `durationBasis`
-- `durationComponents` (`baseline`, optional `telemetryAdjustment`)
-- `predictorVersion`
-- `computedAtIso`
-- `policyMode`
-- `policyId`
-- `actualAccuracy`
-- `actualTotalDurationMs`
+Current feature payload builder:
+- `src/lib/prediction-feature-layer.ts`
 
-This supports post-hoc calibration metrics without schema migration.
+Current shared feature schema used by the accuracy artifact path:
+- `accuracy_ml_features_v1`
 
-## Confidence Calculation
+## Runtime Backends
 
-Confidence is heuristic and evidence-based:
-- accuracy: `clamp(totalQuestionsSum / 100, 0, 1)`
-- duration: `clamp(totalQuestions / 100, 0, 1)` where `totalQuestions` is telemetry evidence count used by unified duration predictor.
+### Heuristic baseline backend
 
-## Output API
+Supported comparison policies include:
+- `v1_accuracy_raw_duration_baseline`
+- `v2_accuracy_beta_duration_unified`
 
-`GET /api/users/me/predictions` returns:
-- recommended preset snapshot
-- predicted test outcomes + confidence + basis
-- chat recommended UX + engagement proxy
-- disclaimers and limitations
+These are explicit heuristic baselines.
+They are useful for comparison and fallback behavior, but they are not ML.
 
-## Backtesting (Replay Evaluation)
+### Stub model backend
 
-Backtesting is implemented in:
+This path exercises the runtime contract with hardcoded placeholder coefficients.
+It exists to validate the model slot honestly before a trained artifact is mandatory.
+It is not ML.
+
+### Artifact-backed ML backend
+
+This path loads an offline JSON artifact and evaluates a shared feature vector.
+Current repository support is focused on operational outcome prediction artifacts.
+Future dissertation-policy artifacts for `difficulty` and `depth` must follow the same honesty, versioning, and replay constraints.
+
+Artifact slot states are explicit:
+- `ready`
+- `missing`
+- `invalid`
+
+If the artifact is not `ready`, runtime must expose that state rather than silently substituting another backend.
+
+## Current Artifact Path
+
+Default local artifact path:
+- `configs/ml_accuracy_logreg_artifact.local.json`
+
+Current artifact-backed implementation in the repository:
+- offline logistic regression for `expectedAccuracy`;
+- auditable JSON artifact;
+- no external serving layer.
+
+Offline commands:
+- `npm run ml-accuracy:train`
+- `npm run ml-accuracy:eval`
+- `npm run ml-accuracy:self-check`
+
+These commands document the current operational ML slot.
+They do not by themselves mean the full dissertation prediction layer is complete.
+
+## Operational Support Signals
+
+Current operational runtime outputs remain:
+- `expectedAccuracy`;
+- `expectedTotalDurationMs`.
+
+Interpretation rule:
+- `expectedAccuracy` is the closest current operational approximation to the next-task success baseline proxy;
+- `expectedTotalDurationMs` is a secondary operational signal;
+- neither output should be described as the full pedagogical policy by itself.
+
+## Logging, Backtesting, And Calibration
+
+Submit-time logging writes predicted versus actual outcome metadata into:
+- `TestAttempt.byTagJson._meta.prediction`
+
+Backtesting and calibration are implemented in:
 - `src/lib/prediction-backtest.ts`
-- API: `GET /api/admin/prediction-backtest`
-- UI: `/admin/prediction-backtest`
-
-Strict replay definition:
-- for each attempt `i`, policy prediction is computed with history from attempts `< i` only;
-- metrics aggregate prediction vs actual over that replay timeline.
-
-Policies currently supported:
-- `v1_accuracy_raw_duration_baseline` (baseline)
-- `v2_accuracy_beta_duration_unified` (current)
-
-Default sample filter:
-- include only `learningEligible === true`
-- optional overrides:
-  - `includeExcluded=1`
-  - `includeUnknownEligibility=1`
-
-Backtest output contract includes:
-- `engineVersion`
-- `policyIds`
-- `filters`
-- `timeRange`
-- `generatedAt`
-- per-policy accuracy/duration metrics + calibration + stratifications.
-
-## Calibration Runner
-
-Calibration is implemented in:
 - `src/lib/prediction-calibration.ts`
-- API: `GET /api/admin/prediction-calibration`
-- UI: `/admin/prediction-calibration`
+- `GET /api/admin/prediction-backtest`
+- `GET /api/admin/prediction-calibration`
 
-Method:
-- deterministic grid search over policy-B tuning params;
-- objective tuple (lexicographic):
-  1. Accuracy RMSE
-  2. |Accuracy Bias|
-  3. Duration RMSE
-  4. |Duration Bias|
-  5. calibration proxy
-- chronological split:
-  - first 70% of attempts in range: calibration
-  - later 30%: holdout
-- stability guard:
-  - if best holdout Accuracy RMSE degrades >5% vs default, recommend default params.
+Replay rule:
+- for attempt `i`, prediction must be computed only from history with index `< i`.
 
-Apply mode:
-- `apply=1` writes `configs/calibrated_params.json`;
-- runtime predictors read that config when present, otherwise use built-in defaults.
+Comparison requirement:
+- heuristic baselines, declared-preference baselines, and ML policies must be distinguishable and comparable in evaluation artifacts;
+- no document or UI should imply that a heuristic baseline is already an ML policy.
 
-## Honesty Constraints
+## Evaluation Provenance Support
 
-- No "learning gain" or "mastery" claims.
-- All predictions are framed as proxies.
-- Null values are returned when data is insufficient.
+The runtime now stores compact evaluation provenance alongside prediction/runtime metadata.
+
+Current support includes:
+- an explicit evaluation episode record that can link pre-check, content delivery, post-check, and delayed re-check touchpoints;
+- policy-arm assignment metadata so baseline heuristic, self-report-driven, predicted-personalized, manual override, and observational modes remain distinguishable;
+- item-role and item-variant metadata so future analysis can separate training items, direct repeats, isomorphic same-skill checks, unseen holdouts, and delayed holdouts;
+- topic, concept, and skill linkage so prediction outcomes can later be compared within a meaningful instructional scope.
+
+Primary storage surfaces:
+- `GeneratedTest.validationMetaJson.evaluation`
+- `TestAttempt.byTagJson._meta.evaluation`
+- `ChatMessage.signalsJson.evaluationSignal`
+
+Interpretation rule:
+- tests are the primary signal for learning evaluation;
+- chat remains a secondary support signal and must not be treated as an equal measure of learning gain;
+- adding evaluation provenance does not itself claim that effectiveness has already been proven.
+
+## Practical Interpretation
+
+Use this document with `docs/AXIS_SCHEMA_V2.md` and `docs/LEARNING_POLICY_V2.md`:
+- `docs/AXIS_SCHEMA_V2.md` explains which axes are taxonomy, constraints, or rendering decisions;
+- `docs/LEARNING_POLICY_V2.md` records the current heuristic baseline logic;
+- this document defines the research prediction contract and the honesty rules for all runtime modes.

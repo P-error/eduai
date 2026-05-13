@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results/
+.pytest_cache/
+**/.pytest_cache/
 
 # next.js
 /.next/
@@ -30,6 +33,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 .logs/
 
 # env files
@@ -44,8 +48,52 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 __pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
 ml/exports/
 exports/
 *.sqlite
 *.sqlite3
 configs/*.local.json
+
+# local Python environments
+.venv/
+venv/
+env/
+**/.venv/
+**/venv/
+**/env/
+
+# generated review/export packs
+/outputs/
+
+# local artifacts
+/codex_report_*.md
+/eduai_clean_*.tar.gz
+/codex-report/*
+!/codex-report/.gitkeep
+/reports/codex/codex_report_*.md
+/reports/archive/**/codex_report_*.md
+/tmp/
+/eduai-clean/*
+!/eduai-clean/.gitkeep
+/training_datasets/*
+!/training_datasets/README.md
+!/training_datasets/synthetic/
+!/training_datasets/real/
+/training_datasets/synthetic/*
+!/training_datasets/synthetic/README.md
+/training_datasets/real/*
+!/training_datasets/real/README.md
+/bootstrap_training/eduai_native_synthetic/.venv/
+/bootstrap_training/eduai_native_synthetic/data/
+/artifacts/*
+!/artifacts/runtime/
+/artifacts/runtime/*
+!/artifacts/runtime/eduai_native_pedagogy/
+/artifacts/runtime/eduai_native_pedagogy/*
+!/artifacts/runtime/eduai_native_pedagogy/current/
+/artifacts/runtime/eduai_native_pedagogy/current/*
+!/artifacts/runtime/eduai_native_pedagogy/current/README.md
+!/artifacts/runtime/eduai_native_pedagogy/current/slot_metadata.json

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import {
+  buildLearnerTruthOverview,
+  buildLearnerTruthScopeSummary,
+} from "@/lib/learner-truth";
 
 export const runtime = "nodejs";
 
@@ -37,40 +40,11 @@ export async function GET(
     );
   }
 
-  const isDefaultCollection =
-    subject.collection?.name?.toLowerCase() ===
-    DEFAULT_COLLECTION_NAME.toLowerCase();
-
-  if (isDefaultCollection) {
-    return NextResponse.json({
-      subject: {
-        id: subject.id,
-        title: subject.title,
-        description: subject.description,
-        collectionId: subject.collectionId,
-      },
-      totals: {
-        tests: 0,
-        avgScore: 0,
-      },
-      attempts: [],
-      excludedFromStats: true,
-    });
-  }
-
-  const [attempts, aggregate] = await Promise.all([
-    prisma.testAttempt.findMany({
-      where: { userId: user.id, test: { subjectId: subject.id } },
-      include: { test: true },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    }),
-    prisma.testAttempt.aggregate({
-      where: { userId: user.id, test: { subjectId: subject.id } },
-      _count: { id: true },
-      _avg: { score: true },
-    }),
-  ]);
+  const overview = await buildLearnerTruthOverview(prisma, user.id);
+  const attempts = overview.attempts.filter((attempt) => attempt.subjectId === subject.id);
+  const summary = buildLearnerTruthScopeSummary({
+    attempts,
+  });
 
   return NextResponse.json({
     subject: {
@@ -78,17 +52,23 @@ export async function GET(
       title: subject.title,
       description: subject.description,
       collectionId: subject.collectionId,
+      collectionName: subject.collection?.name ?? null,
     },
     totals: {
-      tests: aggregate._count.id ?? 0,
-      avgScore: aggregate._avg.score ?? 0,
+      attemptsRecorded: summary.attemptsRecorded,
+      attemptsLearningEligible: summary.attemptsLearningEligible,
+      attemptsExcluded: summary.attemptsExcluded,
+      recentAccuracy: summary.recentAccuracy,
+      recentEvidence: summary.recentEvidence,
+      currentDifficultyTarget: summary.currentDifficultyTarget,
     },
-    attempts: attempts.map((attempt) => ({
+    attempts: attempts.slice(0, 8).map((attempt) => ({
       id: attempt.id,
       score: attempt.score,
-      createdAt: attempt.createdAt,
-      topic: attempt.test.topic,
+      createdAt: attempt.createdAt.toISOString(),
+      topic: attempt.topic,
+      learningEligible: attempt.evidence.learning.eligible,
+      exclusionReasonCode: attempt.evidence.learning.exclusionReasonCode,
     })),
-    excludedFromStats: false,
   });
 }

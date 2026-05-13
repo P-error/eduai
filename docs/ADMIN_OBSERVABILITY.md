@@ -169,7 +169,7 @@ Leakage control:
 
 Record contract includes:
 - metadata: `datasetVersion`, `generatedAtIso`, `policyId`, `predictorVersion`
-- context: `difficultyTarget`, `responseFormat`, `questionCount`
+- context: `difficultyTarget`, normalized active `responseFormat` (`mcq` in current runtime), `questionCount`
 - replay-safe history features:
   - `userHistory_totalQuestionsBefore`
   - `userHistory_recentAccuracy`

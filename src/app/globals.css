@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
-:root {
+:root,
+html[data-ui-theme="light"] {
   --bg: 216 33% 97%;
   --surface: 0 0% 100%;
   --surface2: 214 35% 94%;
   --text: 224 71% 9%;
   --muted: 220 15% 46%;
   --border: 220 18% 83%;
+  --border-strong: 220 16% 72%;
   --primary: 211 100% 45%;
   --primary-foreground: 210 40% 98%;
   --accent: 194 100% 33%;
@@ -15,13 +17,23 @@
   --warning: 34 94% 44%;
   --danger: 0 72% 45%;
   --ring: 211 100% 45%;
+  --surface-shell: 0 0% 100%;
+  --surface-inset: 214 35% 94%;
+  --text-soft: 224 38% 18%;
+  --text-muted: 220 12% 38%;
   --shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.08);
   --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.12);
   --shadow-lg: 0 18px 38px rgba(15, 23, 42, 0.18);
+  --shadow-focus: 0 0 0 4px hsl(var(--ring) / 0.18);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-xl: 26px;
+  --space-1: 0.75rem;
+  --space-2: 1rem;
+  --space-3: 1.25rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
   --background: hsl(var(--bg));
   --foreground: hsl(var(--text));
   --font-sans-stack:
@@ -40,6 +52,7 @@
     "Liberation Mono",
     "Courier New",
     monospace;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -62,14 +75,47 @@
   --font-mono: var(--font-mono-stack);
 }
 
+html[data-ui-theme="dark"] {
+  --bg: 224 42% 7%;
+  --surface: 222 40% 12%;
+  --surface2: 223 33% 16%;
+  --text: 210 40% 96%;
+  --muted: 217 18% 68%;
+  --border: 218 24% 28%;
+  --border-strong: 217 22% 36%;
+  --primary: 198 93% 58%;
+  --primary-foreground: 224 42% 7%;
+  --accent: 172 74% 42%;
+  --accent-foreground: 221 39% 11%;
+  --success: 147 70% 40%;
+  --warning: 40 96% 56%;
+  --danger: 0 84% 62%;
+  --ring: 198 93% 58%;
+  --surface-shell: 222 40% 12%;
+  --surface-inset: 224 38% 9%;
+  --text-soft: 210 30% 90%;
+  --text-muted: 217 15% 74%;
+  --shadow-sm: 0 2px 12px rgba(2, 6, 23, 0.45);
+  --shadow-md: 0 12px 30px rgba(2, 6, 23, 0.5);
+  --shadow-lg: 0 24px 46px rgba(2, 6, 23, 0.6);
+  --background: hsl(var(--bg));
+  --foreground: hsl(var(--text));
+  color-scheme: dark;
+}
+
+html[data-ui-theme="system"] {
+  color-scheme: light dark;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  html[data-ui-theme="system"] {
     --bg: 224 42% 7%;
     --surface: 222 40% 12%;
     --surface2: 223 33% 16%;
     --text: 210 40% 96%;
     --muted: 217 18% 68%;
     --border: 218 24% 28%;
+    --border-strong: 217 22% 36%;
     --primary: 198 93% 58%;
     --primary-foreground: 224 42% 7%;
     --accent: 172 74% 42%;
@@ -78,6 +124,10 @@
     --warning: 40 96% 56%;
     --danger: 0 84% 62%;
     --ring: 198 93% 58%;
+    --surface-shell: 222 40% 12%;
+    --surface-inset: 224 38% 9%;
+    --text-soft: 210 30% 90%;
+    --text-muted: 217 15% 74%;
     --shadow-sm: 0 2px 12px rgba(2, 6, 23, 0.45);
     --shadow-md: 0 12px 30px rgba(2, 6, 23, 0.5);
     --shadow-lg: 0 24px 46px rgba(2, 6, 23, 0.6);
@@ -86,18 +136,59 @@
   }
 }
 
+html[data-ui-font-scale="100"] {
+  font-size: 100%;
+}
+
+html[data-ui-font-scale="110"] {
+  font-size: 110%;
+}
+
+html[data-ui-font-scale="125"] {
+  font-size: 125%;
+}
+
+html[data-ui-font-scale="140"] {
+  font-size: 140%;
+}
+
+html[data-ui-contrast="high"] {
+  --text-soft: var(--text);
+  --text-muted: var(--text);
+  --border: var(--text);
+  --border-strong: var(--text);
+  --ring: 48 100% 50%;
+  --shadow-sm: 0 0 0 1px hsl(var(--text) / 0.14);
+  --shadow-md: 0 0 0 2px hsl(var(--text) / 0.14);
+  --shadow-lg: 0 0 0 2px hsl(var(--text) / 0.22);
+}
+
 * {
   border-color: hsl(var(--border));
 }
 
 body {
   min-height: 100vh;
+  font-family: var(--font-sans-stack);
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+body.eduai-main-ui {
   background:
     radial-gradient(1200px 540px at 0% 0%, hsl(var(--primary) / 0.08), transparent 60%),
     radial-gradient(900px 480px at 100% 100%, hsl(var(--accent) / 0.08), transparent 58%),
     hsl(var(--bg));
   color: hsl(var(--text));
-  font-family: var(--font-sans-stack);
+}
+
+body.eduai-main-ui ::selection {
+  background: hsl(var(--primary) / 0.18);
+  color: hsl(var(--text));
+}
+
+html[data-ui-contrast="high"] body.eduai-main-ui {
+  background: hsl(var(--bg));
 }
 
 a:focus-visible,
@@ -110,6 +201,47 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
+body.eduai-main-ui button,
+body.eduai-main-ui a,
+body.eduai-main-ui input,
+body.eduai-main-ui select,
+body.eduai-main-ui textarea {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+body.eduai-main-ui button:disabled,
+body.eduai-main-ui input:disabled,
+body.eduai-main-ui select:disabled,
+body.eduai-main-ui textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+body.eduai-main-ui a {
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+}
+
+body.eduai-main-ui [class*="overflow-x-auto"] {
+  scrollbar-gutter: stable;
+}
+
+html[data-ui-contrast="high"] a:focus-visible,
+html[data-ui-contrast="high"] button:focus-visible,
+html[data-ui-contrast="high"] input:focus-visible,
+html[data-ui-contrast="high"] select:focus-visible,
+html[data-ui-contrast="high"] textarea:focus-visible,
+html[data-ui-contrast="high"] summary:focus-visible {
+  outline-width: 3px;
+  outline-offset: 3px;
+}
+
 .page-shell {
   margin-inline: auto;
   width: 100%;
@@ -120,6 +252,440 @@ summary:focus-visible {
 .section-stack {
   display: grid;
   gap: clamp(1rem, 2.4vw, 1.5rem);
+}
+
+.ui-panel {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--surface) / 0.96),
+      hsl(var(--surface) / 0.9)
+    );
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-panel-soft {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--surface2) / 0.92),
+      hsl(var(--surface) / 0.88)
+    );
+}
+
+.ui-panel-hero {
+  border-radius: var(--radius-xl);
+  border-color: transparent;
+  background:
+    linear-gradient(
+      155deg,
+      hsl(var(--surface) / 0.97),
+      hsl(var(--surface) / 0.9)
+    ) padding-box,
+    linear-gradient(
+      140deg,
+      hsl(var(--primary) / 0.52),
+      hsl(var(--accent) / 0.4)
+    ) border-box;
+  box-shadow: var(--shadow-md);
+}
+
+.ui-panel-danger {
+  border-color: hsl(var(--danger) / 0.45);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--danger) / 0.14),
+      hsl(var(--surface) / 0.92)
+    );
+}
+
+.ui-panel-success {
+  border-color: hsl(var(--success) / 0.42);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--success) / 0.14),
+      hsl(var(--surface) / 0.92)
+    );
+}
+
+.ui-panel-body {
+  padding: clamp(1.1rem, 2vw, 1.6rem);
+}
+
+.ui-panel-tight {
+  padding: clamp(0.9rem, 1.8vw, 1.2rem);
+}
+
+.ui-panel-muted {
+  color: hsl(var(--text-soft));
+}
+
+.ui-eyebrow {
+  font-size: 0.72rem;
+  line-height: 1.1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: hsl(var(--text-muted));
+}
+
+.ui-title-xl {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.ui-title-lg {
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.ui-title-md {
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.ui-copy {
+  color: hsl(var(--text-soft));
+  font-size: 0.96rem;
+  line-height: 1.62;
+  text-wrap: pretty;
+}
+
+.ui-copy-sm {
+  color: hsl(var(--text-soft));
+  font-size: 0.88rem;
+  line-height: 1.58;
+  text-wrap: pretty;
+}
+
+.ui-meta {
+  color: hsl(var(--text-muted));
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.ui-action-primary,
+.ui-action-secondary,
+.ui-action-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ui-action-sm {
+  min-height: 2.4rem;
+  padding-inline: 0.95rem;
+  font-size: 0.84rem;
+}
+
+.ui-action-xs {
+  min-height: 2.1rem;
+  padding-inline: 0.82rem;
+  font-size: 0.76rem;
+}
+
+.ui-action-primary {
+  border: 1px solid hsl(var(--primary) / 0.52);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.9)
+    );
+  color: hsl(var(--primary-foreground));
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-action-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  filter: saturate(1.03);
+}
+
+.ui-action-secondary {
+  border: 1px solid hsl(var(--border-strong));
+  background: hsl(var(--surface2) / 0.86);
+  color: hsl(var(--text));
+}
+
+.ui-action-secondary:hover,
+.ui-action-ghost:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--primary) / 0.35);
+  background: hsl(var(--surface) / 0.94);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-action-ghost {
+  border: 1px dashed hsl(var(--border-strong));
+  background: transparent;
+  color: hsl(var(--text-soft));
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border-strong));
+  background: hsl(var(--surface2) / 0.88);
+  padding: 0.38rem 0.78rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--text-soft));
+}
+
+.ui-chip-accent {
+  border-color: hsl(var(--primary) / 0.36);
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.ui-chip-info {
+  border-color: hsl(var(--accent) / 0.34);
+  background: hsl(var(--accent) / 0.12);
+  color: hsl(var(--accent));
+}
+
+.ui-chip-success {
+  border-color: hsl(var(--success) / 0.34);
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+
+.ui-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.ui-label {
+  display: grid;
+  gap: 0.55rem;
+  font-size: 0.92rem;
+  color: hsl(var(--text-soft));
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea,
+body.eduai-main-ui input.border-slate-700:not([type="checkbox"]):not([type="radio"]),
+body.eduai-main-ui select.border-slate-700,
+body.eduai-main-ui textarea.border-slate-700 {
+  width: 100%;
+  border: 1px solid hsl(var(--border-strong));
+  border-radius: var(--radius-md);
+  background: hsl(var(--surface-inset) / 0.96);
+  color: hsl(var(--text));
+  box-shadow: inset 0 1px 0 hsl(var(--surface) / 0.24);
+}
+
+.ui-input,
+.ui-select,
+body.eduai-main-ui input.border-slate-700:not([type="checkbox"]):not([type="radio"]),
+body.eduai-main-ui select.border-slate-700 {
+  min-height: 2.8rem;
+  padding: 0.72rem 0.95rem;
+}
+
+.ui-textarea,
+body.eduai-main-ui textarea.border-slate-700 {
+  min-height: 7rem;
+  padding: 0.8rem 0.95rem;
+  resize: vertical;
+}
+
+.ui-input:hover,
+.ui-select:hover,
+.ui-textarea:hover,
+body.eduai-main-ui input.border-slate-700:not([type="checkbox"]):not([type="radio"]):hover,
+body.eduai-main-ui select.border-slate-700:hover,
+body.eduai-main-ui textarea.border-slate-700:hover {
+  border-color: hsl(var(--primary) / 0.32);
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder,
+body.eduai-main-ui input.border-slate-700:not([type="checkbox"]):not([type="radio"])::placeholder,
+body.eduai-main-ui textarea.border-slate-700::placeholder {
+  color: hsl(var(--text-muted));
+}
+
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus,
+body.eduai-main-ui input.border-slate-700:not([type="checkbox"]):not([type="radio"]):focus,
+body.eduai-main-ui select.border-slate-700:focus,
+body.eduai-main-ui textarea.border-slate-700:focus {
+  box-shadow: var(--shadow-focus);
+}
+
+.ui-check,
+body.eduai-main-ui input[type="checkbox"] {
+  accent-color: hsl(var(--primary));
+}
+
+.ui-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.ui-segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  padding-inline: 0.95rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border-strong));
+  background: hsl(var(--surface2) / 0.84);
+  color: hsl(var(--text-soft));
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ui-segment-sm {
+  min-height: 2.1rem;
+  padding-inline: 0.82rem;
+  font-size: 0.76rem;
+}
+
+.ui-segment:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--primary) / 0.34);
+}
+
+.ui-segment[data-active="true"] {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-metric-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ui-metric-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--surface-inset) / 0.74);
+  padding: 0.8rem 0.95rem;
+  font-size: 0.92rem;
+  color: hsl(var(--text-soft));
+}
+
+.ui-metric-item > span:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: hsl(var(--text));
+}
+
+.ui-detail-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.ui-detail-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  font-size: 0.92rem;
+  color: hsl(var(--text-soft));
+}
+
+.ui-detail-row > span:last-child {
+  text-align: right;
+  color: hsl(var(--text));
+}
+
+.ui-table-wrap {
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--surface-inset) / 0.62);
+  box-shadow: inset 0 1px 0 hsl(var(--surface) / 0.16);
+}
+
+.ui-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.ui-table thead th {
+  padding: 0.9rem 0.95rem;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.72rem;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--text-muted));
+}
+
+.ui-table tbody td {
+  padding: 0.9rem 0.95rem;
+  border-top: 1px solid hsl(var(--border));
+  vertical-align: top;
+  font-size: 0.84rem;
+  color: hsl(var(--text-soft));
+}
+
+.ui-table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.ui-break-anywhere {
+  overflow-wrap: anywhere;
+}
+
+body.eduai-main-ui button.bg-slate-100,
+body.eduai-main-ui a.bg-slate-100,
+body.eduai-main-ui button.border-slate-700,
+body.eduai-main-ui a.border-slate-700 {
+  box-shadow: none;
+}
+
+body.eduai-main-ui button.bg-slate-100:hover,
+body.eduai-main-ui a.bg-slate-100:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+body.eduai-main-ui button.border-slate-700:hover,
+body.eduai-main-ui a.border-slate-700:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--primary) / 0.32) !important;
+  background-color: hsl(var(--surface2) / 0.88) !important;
 }
 
 .sys-card {
@@ -276,6 +842,134 @@ summary:focus-visible {
   font-weight: 500;
 }
 
+.sys-control-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sys-control-header {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.sys-control-label {
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: hsl(var(--text));
+}
+
+.sys-control-helper {
+  font-size: 0.82rem;
+  color: hsl(var(--text-muted));
+}
+
+.sys-control-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.sys-control-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border-strong));
+  background: hsl(var(--surface2) / 0.92);
+  color: hsl(var(--text));
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sys-control-option:hover {
+  transform: translateY(-1px);
+}
+
+.sys-control-option[aria-pressed="true"] {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.sys-control-option[aria-pressed="false"] {
+  color: hsl(var(--text-soft));
+}
+
+body.eduai-main-ui .border-slate-800 {
+  border-color: hsl(var(--border)) !important;
+}
+
+body.eduai-main-ui .border-slate-700,
+body.eduai-main-ui .border-slate-600,
+body.eduai-main-ui .border-slate-500 {
+  border-color: hsl(var(--border-strong)) !important;
+}
+
+body.eduai-main-ui .border-slate-100 {
+  border-color: hsl(var(--primary)) !important;
+}
+
+body.eduai-main-ui .bg-slate-900,
+body.eduai-main-ui .bg-slate-900\/90,
+body.eduai-main-ui .bg-slate-900\/70,
+body.eduai-main-ui .bg-slate-900\/60,
+body.eduai-main-ui .bg-slate-900\/50 {
+  background-color: hsl(var(--surface-shell) / 0.92) !important;
+}
+
+body.eduai-main-ui .bg-slate-950,
+body.eduai-main-ui .bg-slate-950\/70,
+body.eduai-main-ui .bg-slate-950\/60,
+body.eduai-main-ui .bg-slate-950\/30 {
+  background-color: hsl(var(--surface-inset) / 0.96) !important;
+}
+
+body.eduai-main-ui .bg-slate-100 {
+  background-color: hsl(var(--primary)) !important;
+}
+
+body.eduai-main-ui .bg-slate-100.text-slate-900,
+body.eduai-main-ui .bg-slate-100.text-slate-950,
+body.eduai-main-ui .bg-slate-100 .text-slate-900,
+body.eduai-main-ui .bg-slate-100 .text-slate-950 {
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+body.eduai-main-ui .text-slate-500,
+body.eduai-main-ui .text-slate-400 {
+  color: hsl(var(--text-muted)) !important;
+}
+
+body.eduai-main-ui .text-slate-300 {
+  color: hsl(var(--text-soft)) !important;
+}
+
+body.eduai-main-ui .text-slate-200,
+body.eduai-main-ui .text-slate-100 {
+  color: hsl(var(--text)) !important;
+}
+
+body.eduai-main-ui .from-slate-900 {
+  --tw-gradient-from: hsl(var(--surface-shell)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--surface-shell) / 0) var(--tw-gradient-to-position) !important;
+}
+
+body.eduai-main-ui .via-slate-900\/60 {
+  --tw-gradient-via:
+    hsl(var(--surface-shell) / 0.88) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--surface-shell) / 0) var(--tw-gradient-to-position) !important;
+}
+
+body.eduai-main-ui .to-slate-950 {
+  --tw-gradient-to: hsl(var(--surface-inset)) var(--tw-gradient-to-position) !important;
+}
+
 .radius-sm {
   border-radius: var(--radius-sm);
 }
@@ -302,6 +996,16 @@ summary:focus-visible {
 
 .elevation-lg {
   box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    padding-inline: 1rem;
+  }
+
+  .ui-panel-body {
+    padding: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

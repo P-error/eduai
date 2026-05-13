@@ -2,12 +2,15 @@ import {
   ALL_AXES,
   DIFF_COOLDOWN_ATTEMPTS,
   DIFFICULTY_ORDER,
+  isSupportedTagForAxis,
   MIN_ATTEMPTS_PER_DIFF,
   MIN_AXES_READY,
   MIN_TESTS_FOR_READY,
   MIN_TOTAL_PER_TAG,
   PED_AXES,
+  sanitizePreferenceMap,
   TAGS_BY_AXIS,
+  type TagAxisKey,
   TARGET_SCORE_BAND,
   UX_AXES,
 } from "./tags";
@@ -193,6 +196,14 @@ function buildAccuracyByAxis(stats: TagStat[]) {
   >();
 
   stats.forEach((stat) => {
+    if (!ALL_AXES.includes(stat.axisKey as TagAxisKey)) {
+      return;
+    }
+
+    if (!isSupportedTagForAxis(stat.axisKey as TagAxisKey, stat.tagKey)) {
+      return;
+    }
+
     const accuracy =
       stat.totalCount > 0 ? stat.correctCount / stat.totalCount : 0;
     const entries = byAxis.get(stat.axisKey) ?? [];
@@ -224,7 +235,7 @@ export function computeLayeredPreferences(
   latestScore: number,
 ) {
   const byAxis = buildAccuracyByAxis(stats);
-  const effective: Record<string, string> = { ...currentEffective };
+  const effective = sanitizePreferenceMap(currentEffective);
   let axesReady = 0;
 
   for (const axis of ALL_AXES) {

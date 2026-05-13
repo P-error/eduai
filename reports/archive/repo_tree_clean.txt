@@ -1,0 +1,481 @@
+Clean tree for architecture audit
+Scope: current filesystem/worktree, source/docs/contracts focused.
+Excluded: node_modules, .next, dist, build, coverage, .git, __pycache__, .logs, test-results, codex-report, eduai-clean, real .env files, .venv, cache/system noise.
+Omitted as bulky/generated: screenshots, binaries, large dataset payloads, repeated snapshot internals, archive outputs.
+
+.
+|-- .env.example
+|-- .env.production.example
+|-- .gitignore
+|-- AGENTS.md
+|-- README.md
+|-- SECURITY.md
+|-- VISION.md
+|-- context_seed.md
+|-- docker-compose.yml
+|-- eslint.config.mjs
+|-- next-env.d.ts
+|-- next.config.ts
+|-- package-lock.json
+|-- package.json
+|-- postcss.config.mjs
+|-- sync_docs.py
+|-- tsconfig.json
+|-- artifacts/
+|   |-- runtime/
+|   |   `-- eduai_native_pedagogy/
+|   |       `-- current/
+|   |           |-- README.md
+|   |           |-- artifact.json
+|   |           |-- slot_metadata.json
+|   |           `-- files/ [support files omitted]
+|   `-- ui-audit-20260402/ [generated UI audit evidence]
+|       |-- run-ui-audit.mjs
+|       |-- ui-audit.spec.js
+|       |-- pre-fix/
+|       |   `-- ui-audit-results.json
+|       |-- pre-fix-run2/
+|       |   `-- ui-audit-results.json
+|       |-- pre-fix-run3/
+|       |   `-- ui-audit-results.json
+|       |-- admin-post-fix/
+|       |   `-- summary.json
+|       `-- post-fix/
+|           `-- summary.json
+|-- bootstrap_training/
+|   |-- assistments_2009_2010/
+|   |   |-- .gitignore
+|   |   |-- README.md
+|   |   |-- requirements.txt
+|   |   |-- configs/
+|   |   |   `-- default.json
+|   |   |-- scripts/
+|   |   |   |-- download.sh
+|   |   |   |-- evaluate.sh
+|   |   |   |-- inspect.sh
+|   |   |   |-- prepare.sh
+|   |   |   |-- run_full_pipeline.sh
+|   |   |   |-- setup_env.sh
+|   |   |   `-- train.sh
+|   |   |-- src/
+|   |   |   |-- common.py
+|   |   |   |-- download_dataset.py
+|   |   |   |-- evaluate_models.py
+|   |   |   |-- feature_engineering.py
+|   |   |   |-- inspect_dataset.py
+|   |   |   |-- prepare_dataset.py
+|   |   |   `-- train_models.py
+|   |   `-- data/ [raw/interim/processed/reports/artifacts present; bulky payloads omitted]
+|   `-- eduai_native_synthetic/
+|       |-- README.md
+|       |-- requirements.txt
+|       |-- scripts/
+|       |   `-- run_full_pipeline.sh
+|       |-- src/
+|       |   `-- run_pipeline.py
+|       `-- data/ [generation_runs/training_runs present; bulky payloads omitted]
+|-- configs/
+|   `-- active_policy.json
+|-- docs/
+|   |-- ADMIN_OBSERVABILITY.md
+|   |-- API_REFERENCE.md
+|   |-- ARCHITECTURE.md
+|   |-- AXIS_SCHEMA_V2.md
+|   |-- DATA_MODEL.md
+|   |-- DEPLOYMENT.md
+|   |-- GLOSSARY.md
+|   |-- INDEX.md
+|   |-- LEARNING_POLICY_V2.md
+|   |-- LEGACY_REMOVAL.md
+|   |-- LIMITATIONS_ETHICS.md
+|   |-- LOCAL_DEV.md
+|   |-- PREDICTION_LAYER.md
+|   |-- RELEASE_CHECKLIST.md
+|   |-- REPRODUCIBILITY.md
+|   |-- RESEARCH_SPEC.md
+|   |-- ROADMAP.md
+|   |-- TRAINING_DATASET_EXPORT.md
+|   `-- UX_INFORMATION_ARCHITECTURE.md
+|-- ml/
+|   `-- AGENTS.md
+|-- prisma/
+|   |-- schema.prisma
+|   `-- migrations/
+|       |-- 20260117155702_first/
+|       |   `-- migration.sql
+|       |-- 20260117160714_2/
+|       |   `-- migration.sql
+|       |-- 20260117165448_4/
+|       |   `-- migration.sql
+|       |-- 20260117171411_7/
+|       |   `-- migration.sql
+|       |-- 20260117173047_new/
+|       |   `-- migration.sql
+|       |-- 20260117184737_/
+|       |   `-- migration.sql
+|       |-- 20260117185422_99/
+|       |   `-- migration.sql
+|       |-- 20260117193050_/
+|       |   `-- migration.sql
+|       |-- 20260117193823_/
+|       |   `-- migration.sql
+|       |-- 20260211142500_axis_schema_v2_telemetry/
+|       |   `-- migration.sql
+|       |-- 20260211203000_test_attempt_user_test_unique/
+|       |   `-- migration.sql
+|       |-- 20260211233200_user_password_hash/
+|       |   `-- migration.sql
+|       |-- 20260212000500_user_research_consent/
+|       |   `-- migration.sql
+|       |-- 20260326204916_user_tag_stat_correct_count_float/
+|       |   `-- migration.sql
+|       |-- 20260327050000_evaluation_episode_support/
+|       |   `-- migration.sql
+|       |-- 20260327103000_evaluation_protocol_engine/
+|       |   `-- migration.sql
+|       |-- 20260327113500_training_dataset_phase_support/
+|       |   `-- migration.sql
+|       |-- 20260402223000_episode_idempotency_guards/
+|       |   `-- migration.sql
+|       |-- 20260402230000_pilot_operational_infra/
+|       |   `-- migration.sql
+|       `-- migration_lock.toml
+|-- public/
+|   |-- file.svg
+|   |-- globe.svg
+|   |-- next.svg
+|   |-- vercel.svg
+|   `-- window.svg
+|-- scripts/
+|   |-- dataset-export-self-check.sh
+|   |-- eduai-native-synthetic-generate.sh
+|   |-- evaluation-protocol-self-check.sh
+|   |-- learner-facing-mvp-self-check.sh
+|   |-- learning-episode-self-check.sh
+|   |-- ml-accuracy-eval.sh
+|   |-- ml-accuracy-self-check.sh
+|   |-- ml-accuracy-train.sh
+|   |-- operator-research-self-check.sh
+|   |-- pilot-readiness-smoke.sh
+|   |-- prediction-backtest-self-check.sh
+|   |-- prediction-calibration-self-check.sh
+|   |-- rate-limit-self-check.sh
+|   |-- training-dataset-export.sh
+|   `-- training-dataset-self-check.sh
+|-- src/
+|   |-- app/
+|   |   |-- (demo)/
+|   |   |   |-- layout.tsx
+|   |   |   `-- demo/
+|   |   |       `-- page.tsx
+|   |   |-- (main)/
+|   |   |   |-- layout.tsx
+|   |   |   |-- page.tsx
+|   |   |   |-- admin/
+|   |   |   |   |-- page.tsx
+|   |   |   |   |-- _components/
+|   |   |   |   |   |-- AdminFilters.tsx
+|   |   |   |   |   `-- ChartBlocks.tsx
+|   |   |   |   |-- analytics/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- chat/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- data-quality/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- episodes/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- personalization/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- prediction-backtest/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- prediction-calibration/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- predictions/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- prompt-templates/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   `-- tests/
+|   |   |   |       `-- page.tsx
+|   |   |   |-- analytics/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- chat/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- collections/
+|   |   |   |   `-- [id]/
+|   |   |   |       `-- page.tsx
+|   |   |   |-- dashboard/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- insights/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- learn/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- login/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- practice/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- profile/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- progress/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- register/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- subjects/
+|   |   |   |   |-- page.tsx
+|   |   |   |   `-- [subjectId]/
+|   |   |   |       `-- page.tsx
+|   |   |   |-- tests/
+|   |   |   |   |-- page.tsx
+|   |   |   |   |-- create/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- stats/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   `-- [id]/
+|   |   |   |       |-- page.tsx
+|   |   |   |       `-- TestRunner.tsx
+|   |   |   `-- topics/
+|   |   |       |-- page.tsx
+|   |   |       `-- [topicId]/
+|   |   |           `-- page.tsx
+|   |   |-- api/
+|   |   |   |-- admin/
+|   |   |   |   |-- analytics/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- audit-events/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- chat-metrics/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- data-quality-metrics/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- dataset-export/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- evaluation-export/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- operational-summary/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- personalization-metrics/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- prediction-backtest/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- prediction-calibration/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- prediction-metrics/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- prompt-templates/
+|   |   |   |   |   |-- route.ts
+|   |   |   |   |   `-- [id]/
+|   |   |   |   |       |-- route.ts
+|   |   |   |   |       `-- activate/
+|   |   |   |   |           `-- route.ts
+|   |   |   |   `-- tests-metrics/
+|   |   |   |       `-- route.ts
+|   |   |   |-- auth/
+|   |   |   |   |-- login/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   |-- logout/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   `-- register/
+|   |   |   |       `-- route.ts
+|   |   |   |-- chat/
+|   |   |   |   |-- route.ts
+|   |   |   |   `-- send/
+|   |   |   |       `-- route.ts
+|   |   |   |-- collections/
+|   |   |   |   |-- route.ts
+|   |   |   |   `-- [id]/
+|   |   |   |       `-- route.ts
+|   |   |   |-- evaluation/
+|   |   |   |   `-- episodes/
+|   |   |   |       |-- route.ts
+|   |   |   |       `-- [id]/
+|   |   |   |           |-- route.ts
+|   |   |   |           |-- dialogue/
+|   |   |   |           |   `-- route.ts
+|   |   |   |           `-- next/
+|   |   |   |               `-- route.ts
+|   |   |   |-- health/
+|   |   |   |   `-- route.ts
+|   |   |   |-- ready/
+|   |   |   |   `-- route.ts
+|   |   |   |-- subjects/
+|   |   |   |   |-- route.ts
+|   |   |   |   |-- sections/ [empty directory]
+|   |   |   |   `-- [subjectId]/
+|   |   |   |       |-- route.ts
+|   |   |   |       |-- recommendation/
+|   |   |   |       |   `-- route.ts
+|   |   |   |       |-- stats/
+|   |   |   |       |   `-- route.ts
+|   |   |   |       `-- sections/
+|   |   |   |           |-- route.ts
+|   |   |   |           `-- [sectionId]/
+|   |   |   |               `-- route.ts
+|   |   |   |-- tests/
+|   |   |   |   |-- generate/
+|   |   |   |   |   `-- route.ts
+|   |   |   |   `-- [id]/
+|   |   |   |       `-- submit/
+|   |   |   |           `-- route.ts
+|   |   |   `-- users/
+|   |   |       `-- me/
+|   |   |           |-- route.ts
+|   |   |           |-- dashboard/
+|   |   |           |   `-- route.ts
+|   |   |           |-- prediction-metrics/
+|   |   |           |   `-- route.ts
+|   |   |           |-- predictions/
+|   |   |           |   `-- route.ts
+|   |   |           |-- preferences/
+|   |   |           |   |-- route.ts
+|   |   |           |   `-- apply/
+|   |   |           |       `-- route.ts
+|   |   |           |-- profile/
+|   |   |           |   `-- route.ts
+|   |   |           |-- research-consent/
+|   |   |           |   `-- route.ts
+|   |   |           `-- stats/
+|   |   |               `-- route.ts
+|   |   |-- AppShellNav.tsx
+|   |   |-- AuthActions.tsx
+|   |   |-- AuthGate.tsx
+|   |   |-- StatusPanel.tsx
+|   |   |-- favicon.ico
+|   |   `-- globals.css
+|   |-- components/
+|   |   |-- dashboard/
+|   |   |   |-- ConsistencyPanel.tsx
+|   |   |   |-- DifficultyStatusCard.tsx
+|   |   |   |-- ForecastCard.tsx
+|   |   |   |-- MasterySummaryCard.tsx
+|   |   |   |-- TrendMiniChart.tsx
+|   |   |   `-- types.ts
+|   |   |-- demo/
+|   |   |   `-- DemoWorkspace.tsx
+|   |   |-- i18n/
+|   |   |   `-- UiLocaleProvider.tsx
+|   |   |-- learner/
+|   |   |   `-- LearnerEpisodeWorkspace.tsx
+|   |   |-- settings/
+|   |   |   `-- UiPreferencesProvider.tsx
+|   |   `-- system/
+|   |       |-- Card.tsx
+|   |       |-- PageShell.tsx
+|   |       |-- Pill.tsx
+|   |       |-- Section.tsx
+|   |       `-- Stat.tsx
+|   `-- lib/
+|       |-- llm/
+|       |   `-- provider.ts
+|       |-- active-policy.ts
+|       |-- admin-observability.ts
+|       |-- admin-operational.ts
+|       |-- auth-constants.ts
+|       |-- auth-password.ts
+|       |-- auth.ts
+|       |-- chat.ts
+|       |-- client-auth.ts
+|       |-- collection-constants.ts
+|       |-- collections.ts
+|       |-- cx.ts
+|       |-- dataset-export.ts
+|       |-- demo-script.ts
+|       |-- eduai-native-synthetic-world.ts
+|       |-- eduai-native-synthetic.ts
+|       |-- env.ts
+|       |-- episode-generation.ts
+|       |-- evaluation.ts
+|       |-- learner-episode-client.ts
+|       |-- learner-facing-mvp-self-check.ts
+|       |-- learning-content-generation.ts
+|       |-- learning-dialogue.ts
+|       |-- learning-episode-self-check.ts
+|       |-- learning-episode.ts
+|       |-- llm-tagger.ts
+|       |-- model-artifact-slot.ts
+|       |-- motion.ts
+|       |-- operational-readiness.ts
+|       |-- operator-audit.ts
+|       |-- operator-episodes.ts
+|       |-- operator-research-self-check.ts
+|       |-- personalization-runtime.ts
+|       |-- pilot-readiness-smoke.ts
+|       |-- prediction-backtest.ts
+|       |-- prediction-baselines.ts
+|       |-- prediction-calibration.ts
+|       |-- prediction-contract.ts
+|       |-- prediction-duration.ts
+|       |-- prediction-feature-layer.ts
+|       |-- prediction-metrics.ts
+|       |-- prediction-ml.ts
+|       |-- prediction-params.ts
+|       |-- prediction-runtime.ts
+|       |-- prediction.ts
+|       |-- prisma.ts
+|       |-- profile.ts
+|       |-- prompts.ts
+|       |-- rate-limit.ts
+|       |-- recommendation.ts
+|       |-- research-consent.ts
+|       |-- startup-env.ts
+|       |-- statistics.ts
+|       |-- tag-seed.ts
+|       |-- tagger.ts
+|       |-- tags.ts
+|       |-- test-generation.ts
+|       |-- test-payload.ts
+|       |-- test-schema.ts
+|       |-- training-dataset-contract.ts
+|       |-- training-dataset-self-check.ts
+|       |-- training-dataset.ts
+|       |-- training-eligibility.ts
+|       |-- ui-locale.ts
+|       `-- ui-preferences.ts
+|-- training_datasets/
+|   |-- README.md
+|   |-- real/
+|   |   `-- README.md
+|   `-- synthetic/
+|       |-- README.md
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T053211Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T053421Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T053549Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T082311Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T082515Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T082754Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T083429Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T084010Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T084600Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       |-- eduai_training_dataset_v1_2026_03__synthetic__20260327T085208Z/
+|       |   |-- manifest.json
+|       |   |-- metadata.json
+|       |   `-- schema.json
+|       `-- eduai_training_dataset_v1_2026_03__synthetic__20260327T085903Z/
+|           |-- manifest.json
+|           |-- metadata.json
+|           `-- schema.json

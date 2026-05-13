@@ -1,5 +1,10 @@
 # Learning Policy v2
 
+Status:
+- current implemented heuristic baseline;
+- historical/reference policy for comparison;
+- not the target dissertation ML policy.
+
 Implementation sources:
 - `src/lib/statistics.ts`
 - `src/lib/recommendation.ts`
@@ -7,11 +12,23 @@ Implementation sources:
 - `src/app/api/tests/generate/route.ts`
 - `src/lib/chat.ts` (chat UX-only weak signal)
 
-## Objectives
+This document records the transparent heuristic update logic currently used in parts of the repository.
+It remains useful as a reproducible baseline and comparison policy.
+It must not be presented as machine learning.
 
-- UX layer: optimize delivery fit using conservative engagement proxy.
-- Pedagogy layer: keep learner in target accuracy band with controlled difficulty transitions.
-- Keep updates transparent and gated by data quality.
+## Position In The Research Stack
+
+- declared preference and effective preference are conceptually distinct;
+- this policy is a heuristic attempt to update user-facing personalization state from observed outcomes;
+- it is a baseline for comparison against future ML policies focused on `difficulty` and `explanation depth`;
+- tone/style/format decisions remain rendering-layer concerns, even when some current logic stores related stats.
+
+## Baseline Objectives
+
+- keep learner challenge within a target success band through explicit difficulty transitions;
+- maintain transparent, auditable update formulas;
+- gate updates on data quality;
+- provide a comparison layer against future ML policies.
 
 ## UX Reward Formula (tests)
 
@@ -20,15 +37,15 @@ Implementation sources:
 - `answerChangeCount`
 - `questionCount`
 - dominant `difficulty_target` tag
-- dominant `response_format` tag
+- active `response_format` tag (`mcq` only)
 
 Expected time lookup (`EXPECTED_TIME_MS`):
-- easy: mcq 70000, short 90000, multipart 120000
-- medium: mcq 100000, short 130000, multipart 170000
-- hard: mcq 130000, short 170000, multipart 220000
+- easy: mcq 70000
+- medium: mcq 100000
+- hard: mcq 130000
 - values are baseline totals for a 5-question test (`BASELINE_QUESTION_COUNT=5`)
 - runtime baseline scales by question count:
-  - `expectedTimeMs = EXPECTED_TIME_MS[difficulty][format] * (questionCount / 5)`
+  - `expectedTimeMs = EXPECTED_TIME_MS[difficulty].mcq * (questionCount / 5)`
   - with clamp `questionCount = max(1, floor(questionCount))`
 
 Formula:
@@ -66,6 +83,9 @@ Pedagogy exploration (`src/lib/recommendation.ts`):
 - when exploring: random tags for those axes
 - `difficulty_target` remains policy-driven
 
+This exploration logic is heuristic baseline behavior.
+It is not evidence that those axes are equal dissertation ML targets.
+
 ## Compliance and Gating
 
 From generate pipeline:
@@ -100,21 +120,21 @@ on submit:
   write attempt with _meta (learning/ux/pedagogy/policy/prediction)
   if skipReason != null: stop
   update UserTagStat:
-    UX axes use uxReward as correct increment
+    UX axes use fractional uxReward as correct increment
     Ped axes use binary correctness increment
   recompute effective prefs
   force difficulty_target = difficultyDecision.difficulty
 ```
 
-## Why This Is Thesis-Defensible
+## Interpretation Rules
 
-- explicit quality gates block contaminated learning updates,
-- formulas are simple, auditable, and bounded,
-- confidence/sample-size framing is exposed in user/admin surfaces,
-- prediction is labeled as heuristic proxy, not causal effect.
+- treat this policy as an explicit heuristic baseline and comparison layer;
+- do not describe it as the dissertation ML solution;
+- do not infer from this document that tone/style/format are current ML targets;
+- if future ML policies replace parts of this behavior, keep versioned comparison against this baseline.
 
 ## Known Policy Limitations
 
-- response-format taxonomy includes non-mcq tags while runtime blocks them in tests,
 - telemetry quality directly impacts UX update coverage,
 - epsilon exploration can add noise for very low-N users.
+- heuristic update formulas can diverge from the true effective preference signal.

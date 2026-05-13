@@ -1,0 +1,477 @@
+{
+  "baseline_comparison": {
+    "heuristic_baseline_observed_states": 240,
+    "interpretation": "Synthetic counterfactual diagnostic only; not real-world causal evidence.",
+    "random_baseline_observed_states": 240,
+    "static_baseline_observed_states": 240
+  },
+  "candidate_set_size_summary": {
+    "average": 18.0333,
+    "max": 20,
+    "min": 14
+  },
+  "class_balance_notes": {
+    "candidate_outcome_positive_rate": 0.316081
+  },
+  "dataset_summary": {
+    "candidate_count": 4328,
+    "candidate_outcome_positive_rate": 0.316081,
+    "candidate_set_size": {
+      "average": 18.0333,
+      "max": 20,
+      "min": 14
+    },
+    "state_count": 240
+  },
+  "diagnostic_examples": [
+    {
+      "model_top1_candidate": {
+        "candidate_config": {
+          "depth": "standard",
+          "difficulty": "hard",
+          "examples_level": "single",
+          "presentation_format": "paragraph",
+          "support_level": "guided",
+          "terminology_level": "technical"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.5013021299352337,
+          "expected_learning_gain_proxy": 0.4785386603242075,
+          "expected_next_step_success": 0.6014129096213777
+        },
+        "true_combined_outcome_score": 0.1511
+      },
+      "regret": 0.23,
+      "state_id": "cf_s42_l0001_d0001",
+      "top3_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5013021299352337,
+            "expected_learning_gain_proxy": 0.4785386603242075,
+            "expected_next_step_success": 0.6014129096213777
+          },
+          "true_combined_outcome_score": 0.1511
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "qa",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.39033409013523374,
+            "expected_learning_gain_proxy": 0.4295937733742075,
+            "expected_next_step_success": 0.24160453962231587
+          },
+          "true_combined_outcome_score": 0.3245
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "structured_list",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3696875079019004,
+            "expected_learning_gain_proxy": 0.41500755364087416,
+            "expected_next_step_success": 0.18681835439462113
+          },
+          "true_combined_outcome_score": 0.3508
+        }
+      ],
+      "true_best_candidate": {
+        "candidate_config": {
+          "depth": "brief",
+          "difficulty": "hard",
+          "examples_level": "none",
+          "presentation_format": "step_by_step",
+          "support_level": "minimal",
+          "terminology_level": "balanced"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.36087016571856706,
+          "expected_learning_gain_proxy": 0.4181149491075408,
+          "expected_next_step_success": 0.2241363488058579
+        },
+        "true_combined_outcome_score": 0.3811
+      }
+    },
+    {
+      "model_top1_candidate": {
+        "candidate_config": {
+          "depth": "standard",
+          "difficulty": "hard",
+          "examples_level": "single",
+          "presentation_format": "paragraph",
+          "support_level": "guided",
+          "terminology_level": "technical"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.44264214008480207,
+          "expected_learning_gain_proxy": 0.44848646133993747,
+          "expected_next_step_success": 0.4604693209588878
+        },
+        "true_combined_outcome_score": 0.1394
+      },
+      "regret": 0.1253,
+      "state_id": "cf_s42_l0001_d0002",
+      "top3_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.44264214008480207,
+            "expected_learning_gain_proxy": 0.44848646133993747,
+            "expected_next_step_success": 0.4604693209588878
+          },
+          "true_combined_outcome_score": 0.1394
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "step_by_step",
+            "support_level": "minimal",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.35610034711813543,
+            "expected_learning_gain_proxy": 0.4073973304232708,
+            "expected_next_step_success": 0.2048043431648079
+          },
+          "true_combined_outcome_score": 0.1883
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3290547728848021,
+            "expected_learning_gain_proxy": 0.3460989426399375,
+            "expected_next_step_success": 0.34436041647370524
+          },
+          "true_combined_outcome_score": 0.0855
+        }
+      ],
+      "true_best_candidate": {
+        "candidate_config": {
+          "depth": "brief",
+          "difficulty": "medium",
+          "examples_level": "single",
+          "presentation_format": "structured_list",
+          "support_level": "minimal",
+          "terminology_level": "simple"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.17182208630146875,
+          "expected_learning_gain_proxy": 0.23879669985660415,
+          "expected_next_step_success": 0.06520613958332842
+        },
+        "true_combined_outcome_score": 0.2647
+      }
+    },
+    {
+      "model_top1_candidate": {
+        "candidate_config": {
+          "depth": "standard",
+          "difficulty": "hard",
+          "examples_level": "single",
+          "presentation_format": "paragraph",
+          "support_level": "guided",
+          "terminology_level": "technical"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.45726383476331667,
+          "expected_learning_gain_proxy": 0.4587082740119333,
+          "expected_next_step_success": 0.4738386716132451
+        },
+        "true_combined_outcome_score": 0.0814
+      },
+      "regret": 0.1849,
+      "state_id": "cf_s42_l0001_d0003",
+      "top3_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.45726383476331667,
+            "expected_learning_gain_proxy": 0.4587082740119333,
+            "expected_next_step_success": 0.4738386716132451
+          },
+          "true_combined_outcome_score": 0.0814
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "easy",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.31639823971331665,
+            "expected_learning_gain_proxy": 0.3161758344119333,
+            "expected_next_step_success": 0.298619202941757
+          },
+          "true_combined_outcome_score": 0.1128
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "hard",
+            "examples_level": "multiple",
+            "presentation_format": "qa",
+            "support_level": "scaffolded",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3140175206633167,
+            "expected_learning_gain_proxy": 0.3358905449619333,
+            "expected_next_step_success": 0.17125794332426175
+          },
+          "true_combined_outcome_score": 0.0162
+        }
+      ],
+      "true_best_candidate": {
+        "candidate_config": {
+          "depth": "brief",
+          "difficulty": "easy",
+          "examples_level": "none",
+          "presentation_format": "paragraph",
+          "support_level": "minimal",
+          "terminology_level": "simple"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.31355311296331667,
+          "expected_learning_gain_proxy": 0.35583772296193333,
+          "expected_next_step_success": 0.19274582614678004
+        },
+        "true_combined_outcome_score": 0.2663
+      }
+    },
+    {
+      "model_top1_candidate": {
+        "candidate_config": {
+          "depth": "standard",
+          "difficulty": "hard",
+          "examples_level": "single",
+          "presentation_format": "paragraph",
+          "support_level": "guided",
+          "terminology_level": "technical"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.42214057435908336,
+          "expected_learning_gain_proxy": 0.4332733935775833,
+          "expected_next_step_success": 0.4365057318693668
+        },
+        "true_combined_outcome_score": 0.1175
+      },
+      "regret": 0.1385,
+      "state_id": "cf_s42_l0001_d0004",
+      "top3_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.42214057435908336,
+            "expected_learning_gain_proxy": 0.4332733935775833,
+            "expected_next_step_success": 0.4365057318693668
+          },
+          "true_combined_outcome_score": 0.1175
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.27842985255908337,
+            "expected_learning_gain_proxy": 0.33040284252758334,
+            "expected_next_step_success": 0.17038786152567426
+          },
+          "true_combined_outcome_score": 0.2433
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "easy",
+            "examples_level": "multiple",
+            "presentation_format": "paragraph",
+            "support_level": "scaffolded",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.24615157825908335,
+            "expected_learning_gain_proxy": 0.25653000042758334,
+            "expected_next_step_success": 0.18248226341266402
+          },
+          "true_combined_outcome_score": 0.0
+        }
+      ],
+      "true_best_candidate": {
+        "candidate_config": {
+          "depth": "brief",
+          "difficulty": "medium",
+          "examples_level": "single",
+          "presentation_format": "structured_list",
+          "support_level": "minimal",
+          "terminology_level": "simple"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.15132052057575,
+          "expected_learning_gain_proxy": 0.22358363209425,
+          "expected_next_step_success": 0.05954258244515056
+        },
+        "true_combined_outcome_score": 0.256
+      }
+    },
+    {
+      "model_top1_candidate": {
+        "candidate_config": {
+          "depth": "standard",
+          "difficulty": "hard",
+          "examples_level": "single",
+          "presentation_format": "paragraph",
+          "support_level": "guided",
+          "terminology_level": "technical"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.4876041579242708,
+          "expected_learning_gain_proxy": 0.4787200856010416,
+          "expected_next_step_success": 0.5014419136076446
+        },
+        "true_combined_outcome_score": 0.1252
+      },
+      "regret": 0.2312,
+      "state_id": "cf_s42_l0001_d0005",
+      "top3_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.4876041579242708,
+            "expected_learning_gain_proxy": 0.4787200856010416,
+            "expected_next_step_success": 0.5014419136076446
+          },
+          "true_combined_outcome_score": 0.1252
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "qa",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3692564438742708,
+            "expected_learning_gain_proxy": 0.42380544655104163,
+            "expected_next_step_success": 0.1801278932261109
+          },
+          "true_combined_outcome_score": 0.3189
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "structured_list",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3486098616409375,
+            "expected_learning_gain_proxy": 0.40921922681770834,
+            "expected_next_step_success": 0.1367681366092443
+          },
+          "true_combined_outcome_score": 0.3255
+        }
+      ],
+      "true_best_candidate": {
+        "candidate_config": {
+          "depth": "brief",
+          "difficulty": "hard",
+          "examples_level": "none",
+          "presentation_format": "step_by_step",
+          "support_level": "minimal",
+          "terminology_level": "simple"
+        },
+        "prediction": {
+          "combined_outcome_score": 0.28569613785760417,
+          "expected_learning_gain_proxy": 0.377533526984375,
+          "expected_next_step_success": 0.08702504038812195
+        },
+        "true_combined_outcome_score": 0.3564
+      }
+    }
+  ],
+  "limitations": [
+    "Synthetic ranking quality is not proof of real educational effect.",
+    "diagnostic_truth and synthetic_outcome labels are never used as training features.",
+    "Counterfactual labels come from the synthetic outcome function only."
+  ],
+  "ranking_metrics": {
+    "average_true_score_of_heuristic_baseline": 0.296013,
+    "average_true_score_of_model_top1": 0.381638,
+    "average_true_score_of_random_baseline": 0.267115,
+    "average_true_score_of_static_baseline": 0.355242,
+    "improvement_over_heuristic": 0.085625,
+    "improvement_over_static": 0.026396,
+    "mean_top1_regret": 0.148854,
+    "median_top1_regret": 0.09865,
+    "spearman_rank_correlation": 0.230211,
+    "state_count": 240,
+    "top1_match_rate": 0.108333,
+    "top3_contains_best_rate": 0.266667
+  }
+}

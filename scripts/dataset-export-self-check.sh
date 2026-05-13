@@ -14,21 +14,10 @@ npx tsc \
   --skipLibCheck \
   --rootDir src \
   --outDir "$TMP_DIR" \
-  src/lib/tags.ts \
-  src/lib/prediction-params.ts \
-  src/lib/prediction-baselines.ts \
-  src/lib/prediction-duration.ts \
-  src/lib/prediction-backtest.ts \
-  src/lib/dataset-export.ts
+  src/lib/*.ts
 
-mkdir -p "$TMP_DIR/node_modules/@/lib"
-cp "$TMP_DIR/lib/tags.js" "$TMP_DIR/node_modules/@/lib/tags.js"
-cat > "$TMP_DIR/node_modules/@/lib/prediction-backtest.js" <<'JS'
-module.exports = require("../../../lib/prediction-backtest.js");
-JS
-cat > "$TMP_DIR/node_modules/@/lib/prediction-params.js" <<'JS'
-module.exports = require("../../../lib/prediction-params.js");
-JS
+mkdir -p "$TMP_DIR/node_modules/@"
+ln -sfn "$TMP_DIR/lib" "$TMP_DIR/node_modules/@/lib"
 
 CHECK_MODULE="$TMP_DIR/lib/dataset-export.js" node -e '
   const modulePath = process.env.CHECK_MODULE;

@@ -1,0 +1,510 @@
+{
+  "artifact_kind": "eduai_native_pedagogy_artifact",
+  "artifact_schema_version": "model_artifact.v1",
+  "candidate_schema": {
+    "factor_space_version": "factor_space.v1",
+    "factor_values": {
+      "depth": [
+        "brief",
+        "standard",
+        "detailed"
+      ],
+      "difficulty": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "examples_level": [
+        "none",
+        "single",
+        "multiple"
+      ],
+      "presentation_format": [
+        "paragraph",
+        "structured_list",
+        "step_by_step",
+        "qa"
+      ],
+      "support_level": [
+        "minimal",
+        "guided",
+        "scaffolded"
+      ],
+      "terminology_level": [
+        "simple",
+        "balanced",
+        "technical"
+      ]
+    },
+    "required_factors": [
+      "difficulty",
+      "depth",
+      "support_level",
+      "presentation_format",
+      "examples_level",
+      "terminology_level"
+    ]
+  },
+  "compatibility": {
+    "app_min_version": null,
+    "contract_version": "pedagogy_policy_contract_v1"
+  },
+  "created_at": "2026-05-07T11:53:49Z",
+  "evaluation": {
+    "baseline_comparison": {
+      "heuristic_like_baseline": {
+        "average_combined_outcome_score": 0.126975,
+        "average_learning_gain_proxy": 0.1693,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 1,
+        "next_step_success_rate": 0.0
+      },
+      "limitations": [
+        "Baseline comparison uses only rows whose delivered candidate matches the baseline candidate.",
+        "No counterfactual outcomes are available for unserved candidates in this dataset."
+      ],
+      "oracle_upper_bound_for_synthetic": {
+        "available": false,
+        "reason": "oracle not available in current synthetic export because hidden effective_config is not emitted"
+      },
+      "random_candidate_baseline": {
+        "average_combined_outcome_score": null,
+        "average_learning_gain_proxy": null,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 0,
+        "next_step_success_rate": null
+      },
+      "static_baseline": {
+        "average_combined_outcome_score": null,
+        "average_learning_gain_proxy": null,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 0,
+        "next_step_success_rate": null
+      }
+    },
+    "metrics": {
+      "test": {
+        "combined_outcome_score": {
+          "mae": 0.148918,
+          "rmse": 0.183672
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.114381,
+          "rmse": 0.143959
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.79798,
+          "balanced_accuracy": 0.796965,
+          "log_loss": 0.438172,
+          "majority_class_accuracy": 0.535354,
+          "positive_rate": 0.464646,
+          "warnings": []
+        },
+        "row_count": 99,
+        "skipped_count": 0,
+        "usable_count": 99
+      },
+      "train": {
+        "combined_outcome_score": {
+          "mae": 0.145336,
+          "rmse": 0.176514
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.107846,
+          "rmse": 0.134507
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.793839,
+          "balanced_accuracy": 0.792769,
+          "log_loss": 0.459555,
+          "majority_class_accuracy": 0.533175,
+          "positive_rate": 0.466825,
+          "warnings": []
+        },
+        "row_count": 422,
+        "skipped_count": 0,
+        "usable_count": 422
+      },
+      "validation": {
+        "combined_outcome_score": {
+          "mae": 0.145818,
+          "rmse": 0.176719
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.114822,
+          "rmse": 0.14588
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.835443,
+          "balanced_accuracy": 0.833977,
+          "log_loss": 0.438322,
+          "majority_class_accuracy": 0.531646,
+          "positive_rate": 0.468354,
+          "warnings": []
+        },
+        "row_count": 79,
+        "skipped_count": 0,
+        "usable_count": 79
+      }
+    },
+    "split_strategy": "deterministic_hash_by_observation_id_70_15_15_default"
+  },
+  "factor_space_version": "factor_space.v1",
+  "feature_schema": {
+    "encoding": "stable numeric + one-hot features; no post-decision fields",
+    "feature_names": [
+      "prior_attempts_count_scaled",
+      "prior_correct_rate",
+      "recent_correct_rate",
+      "recent_attempts_count_scaled",
+      "topic_seen_count_scaled",
+      "minutes_since_last_activity_missing",
+      "minutes_since_last_activity_scaled",
+      "session_position_scaled",
+      "declared_difficulty_missing",
+      "declared_depth_missing",
+      "declared_format_missing",
+      "declared_candidate_difficulty_match",
+      "declared_candidate_depth_match",
+      "declared_candidate_format_match",
+      "subject_hash_scaled",
+      "topic_hash_scaled",
+      "candidate_difficulty_ordinal",
+      "candidate_difficulty__easy",
+      "candidate_difficulty__medium",
+      "candidate_difficulty__hard",
+      "candidate_depth_ordinal",
+      "candidate_depth__brief",
+      "candidate_depth__standard",
+      "candidate_depth__detailed",
+      "candidate_support_level_ordinal",
+      "candidate_support_level__minimal",
+      "candidate_support_level__guided",
+      "candidate_support_level__scaffolded",
+      "candidate_presentation_format_ordinal",
+      "candidate_presentation_format__paragraph",
+      "candidate_presentation_format__structured_list",
+      "candidate_presentation_format__step_by_step",
+      "candidate_presentation_format__qa",
+      "candidate_examples_level_ordinal",
+      "candidate_examples_level__none",
+      "candidate_examples_level__single",
+      "candidate_examples_level__multiple",
+      "candidate_terminology_level_ordinal",
+      "candidate_terminology_level__simple",
+      "candidate_terminology_level__balanced",
+      "candidate_terminology_level__technical",
+      "declared_difficulty__easy",
+      "declared_difficulty__medium",
+      "declared_difficulty__hard",
+      "declared_depth__brief",
+      "declared_depth__standard",
+      "declared_depth__detailed",
+      "declared_format__paragraph",
+      "declared_format__structured_list",
+      "declared_format__step_by_step",
+      "declared_format__qa",
+      "source_kind__synthetic",
+      "source_kind__open_dataset",
+      "source_kind__real_user"
+    ],
+    "forbidden_blocks": [
+      "outcome",
+      "delivered_config"
+    ],
+    "forbidden_fields": [
+      "max_score",
+      "next_step_success",
+      "normalized_learning_gain",
+      "outcome",
+      "outcome_available",
+      "post_score",
+      "pre_score"
+    ],
+    "schema_version": "candidate_scorer_features.v1",
+    "source_blocks": [
+      "pre_decision_features",
+      "candidate_config",
+      "source.source_kind",
+      "ids.subject_ref",
+      "ids.topic_ref"
+    ]
+  },
+  "limitations": [
+    "V1 artifact is trained only on synthetic observations.",
+    "JSON weights are used instead of pickle for auditability and portability.",
+    "The scorer predicts outcomes for candidate ranking diagnostics; it is not integrated into runtime.",
+    "Synthetic fit does not prove real educational effectiveness."
+  ],
+  "model": {
+    "model_family": "linear_candidate_scorer_v1",
+    "parameters": {
+      "epochs": 700,
+      "l2": 0.001,
+      "learning_rate": 0.08,
+      "optimizer": "batch_gradient_descent",
+      "seed": 42,
+      "uses_external_ml_library": false
+    },
+    "weights_or_serialized_payload": {
+      "feature_names": [
+        "prior_attempts_count_scaled",
+        "prior_correct_rate",
+        "recent_correct_rate",
+        "recent_attempts_count_scaled",
+        "topic_seen_count_scaled",
+        "minutes_since_last_activity_missing",
+        "minutes_since_last_activity_scaled",
+        "session_position_scaled",
+        "declared_difficulty_missing",
+        "declared_depth_missing",
+        "declared_format_missing",
+        "declared_candidate_difficulty_match",
+        "declared_candidate_depth_match",
+        "declared_candidate_format_match",
+        "subject_hash_scaled",
+        "topic_hash_scaled",
+        "candidate_difficulty_ordinal",
+        "candidate_difficulty__easy",
+        "candidate_difficulty__medium",
+        "candidate_difficulty__hard",
+        "candidate_depth_ordinal",
+        "candidate_depth__brief",
+        "candidate_depth__standard",
+        "candidate_depth__detailed",
+        "candidate_support_level_ordinal",
+        "candidate_support_level__minimal",
+        "candidate_support_level__guided",
+        "candidate_support_level__scaffolded",
+        "candidate_presentation_format_ordinal",
+        "candidate_presentation_format__paragraph",
+        "candidate_presentation_format__structured_list",
+        "candidate_presentation_format__step_by_step",
+        "candidate_presentation_format__qa",
+        "candidate_examples_level_ordinal",
+        "candidate_examples_level__none",
+        "candidate_examples_level__single",
+        "candidate_examples_level__multiple",
+        "candidate_terminology_level_ordinal",
+        "candidate_terminology_level__simple",
+        "candidate_terminology_level__balanced",
+        "candidate_terminology_level__technical",
+        "declared_difficulty__easy",
+        "declared_difficulty__medium",
+        "declared_difficulty__hard",
+        "declared_depth__brief",
+        "declared_depth__standard",
+        "declared_depth__detailed",
+        "declared_format__paragraph",
+        "declared_format__structured_list",
+        "declared_format__step_by_step",
+        "declared_format__qa",
+        "source_kind__synthetic",
+        "source_kind__open_dataset",
+        "source_kind__real_user"
+      ],
+      "parameters": {
+        "epochs": 700,
+        "l2": 0.001,
+        "learning_rate": 0.08,
+        "optimizer": "batch_gradient_descent",
+        "uses_external_ml_library": false
+      },
+      "payload_schema_version": "linear_candidate_scorer_payload.v1",
+      "target_names": [
+        "expected_learning_gain_proxy",
+        "expected_next_step_success",
+        "combined_outcome_score"
+      ],
+      "weights": {
+        "combined_outcome_score": [
+          0.0208156247,
+          -0.0488942356,
+          0.1074138188,
+          0.1222613263,
+          -0.1181555413,
+          -0.0048979651,
+          0.0,
+          0.0265654397,
+          -0.1303846283,
+          0.0,
+          0.0,
+          0.0,
+          0.0798059072,
+          0.0020215226,
+          0.1890308541,
+          0.0052358377,
+          0.1000044765,
+          0.0285812373,
+          -0.0111010041,
+          0.0043083163,
+          0.0264270792,
+          0.0260580023,
+          0.0018466437,
+          -0.0165405091,
+          0.0343282568,
+          -0.0108021179,
+          0.0287182609,
+          0.0034364968,
+          -0.0125203663,
+          0.0231626465,
+          -0.0125071695,
+          0.0349836744,
+          -0.0430306058,
+          0.0401884923,
+          -0.0253231216,
+          0.0334145361,
+          0.0230859539,
+          -0.0368660986,
+          0.0261608419,
+          -0.0204828453,
+          0.0279127896,
+          0.0122044471,
+          0.0105550545,
+          0.0008586185,
+          0.0082207184,
+          -0.0075335557,
+          0.0251855393,
+          0.0019824078,
+          0.0295306398,
+          -0.0204936544,
+          -0.0162467671,
+          0.0268441731,
+          0.0196343914,
+          0.0,
+          0.0
+        ],
+        "expected_learning_gain_proxy": [
+          0.0352498922,
+          -0.0378427519,
+          0.0488738879,
+          0.0603472094,
+          -0.0742924949,
+          -0.0097970875,
+          0.0,
+          0.0041304898,
+          -0.1009140052,
+          0.0,
+          0.0,
+          0.0,
+          0.0646244486,
+          0.0163042956,
+          0.148051823,
+          0.008908223,
+          0.066208959,
+          0.034837527,
+          -0.0048198861,
+          0.0067763907,
+          0.0314493317,
+          0.0244577822,
+          0.0065968186,
+          0.004702471,
+          0.0221065467,
+          0.0004162357,
+          0.0300233068,
+          0.0059325874,
+          -0.002550058,
+          0.0279965291,
+          -0.0106280238,
+          0.0316998738,
+          -0.0152877545,
+          0.0276217408,
+          -0.0228024348,
+          0.0468192755,
+          0.0187779912,
+          -0.0321914304,
+          0.0232800164,
+          -0.0029570665,
+          0.0261657727,
+          0.0101971301,
+          0.0119361658,
+          0.0025884753,
+          0.0188811952,
+          -0.0083077952,
+          0.0332177775,
+          0.008495854,
+          0.028175708,
+          -0.0148533703,
+          -0.0115395701,
+          0.0316230687,
+          0.0334058362,
+          0.0,
+          0.0
+        ],
+        "expected_next_step_success_logit": [
+          -0.4629081311,
+          -0.2301260563,
+          1.1894265368,
+          1.3639440943,
+          -0.5423010459,
+          -0.0306669985,
+          0.0,
+          0.0957051239,
+          -0.6136694833,
+          0.0,
+          0.0,
+          0.0,
+          0.6093026534,
+          -0.1545746767,
+          1.483054382,
+          -0.119053451,
+          0.4049271506,
+          -0.0581331529,
+          -0.3314575454,
+          -0.1137194856,
+          -0.0012734101,
+          0.0203954432,
+          -0.2676429605,
+          -0.3984058476,
+          0.219598367,
+          -0.3712339745,
+          -0.0605621051,
+          -0.0293087229,
+          -0.3565796131,
+          -0.074095218,
+          -0.1471516962,
+          -0.0754007365,
+          -0.5248091074,
+          0.3009110991,
+          -0.2847127376,
+          -0.178789463,
+          0.0341035192,
+          -0.3017644972,
+          0.0165128868,
+          -0.5402908305,
+          0.1546550052,
+          -0.0608146157,
+          -0.0802319433,
+          -0.0804725024,
+          -0.2857459953,
+          -0.1257592926,
+          -0.1288904178,
+          -0.1918007308,
+          0.0094789396,
+          -0.1487073332,
+          -0.2512154497,
+          -0.0560065979,
+          -0.4464504411,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "model_version": "linear_candidate_scorer_v1_seed_42",
+  "target_definition": {
+    "formula_description": "combined_outcome_score = 0.75 * normalized_learning_gain + 0.25 * next_step_success",
+    "primary_target": "expected_learning_gain_proxy",
+    "secondary_targets": [
+      "expected_next_step_success",
+      "combined_outcome_score"
+    ]
+  },
+  "training_data": {
+    "observation_count": 600,
+    "source_kinds": [
+      "synthetic"
+    ],
+    "source_summary": "{\"synthetic\": 600}"
+  }
+}

@@ -5,21 +5,47 @@ import { requireEnvWithDevFallback } from "./env";
 
 const JWT_SECRET = requireEnvWithDevFallback("JWT_SECRET", "dev-secret");
 
-export function isAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return email.toLowerCase().endsWith("@eduai.com");
+type AuthTokenPayload = {
+  sub: string;
+  ver: 1;
+  type: "user_session";
+};
+
+export function issueToken(payload: { userId: string }) {
+  return jwt.sign(
+    {
+      sub: payload.userId,
+      ver: 1,
+      type: "user_session",
+    } satisfies AuthTokenPayload,
+    JWT_SECRET,
+    { expiresIn: "30d" },
+  );
 }
 
-export function issueToken(payload: { sub: string; email?: string; name?: string }) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+export function buildAuthCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  };
 }
 
-function parseBearerToken(authHeader: string | null) {
-  if (!authHeader) return null;
-  const [scheme, value] = authHeader.trim().split(/\s+/, 2);
-  if (!scheme || !value) return null;
-  if (scheme.toLowerCase() !== "bearer") return null;
-  return value;
+export function clearAuthCookie(response: {
+  cookies: {
+    set: (
+      name: string,
+      value: string,
+      options: ReturnType<typeof buildAuthCookieOptions> & { maxAge: number },
+    ) => void;
+  };
+}) {
+  response.cookies.set(AUTH_COOKIE_NAME, "", {
+    ...buildAuthCookieOptions(),
+    maxAge: 0,
+  });
 }
 
 function parseCookieToken(cookieHeader: string | null) {
@@ -42,32 +68,28 @@ function parseCookieToken(cookieHeader: string | null) {
 }
 
 function parseJwtPayload(token: string) {
-  let payload: jwt.JwtPayload;
+  let payload: jwt.JwtPayload | string;
   try {
-    payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    payload = jwt.verify(token, JWT_SECRET);
   } catch {
+    return null;
+  }
+  if (!payload || typeof payload === "string") {
     return null;
   }
   return payload;
 }
 
 async function resolveUserFromPayload(payload: jwt.JwtPayload) {
-  const externalId = payload.sub ?? payload.userId;
-  if (!externalId) return null;
+  const subject = typeof payload.sub === "string" ? payload.sub : null;
+  if (!subject) return null;
 
-  const existing = await prisma.user.findUnique({
-    where: { externalId: String(externalId) },
-  });
-
-  if (existing) return existing;
-
-  return prisma.user.create({
-    data: {
-      externalId: String(externalId),
-      email: payload.email as string | undefined,
-      name: (payload.name as string | undefined) ?? "User",
-    },
-  });
+  if (payload.ver === 1 && payload.type === "user_session") {
+    return prisma.user.findUnique({
+      where: { id: subject },
+    });
+  }
+  return null;
 }
 
 export async function getUserFromToken(token?: string | null) {
@@ -78,9 +100,7 @@ export async function getUserFromToken(token?: string | null) {
 }
 
 export async function getUserFromRequest(request: Request) {
-  const token =
-    parseBearerToken(request.headers.get("authorization")) ??
-    parseCookieToken(request.headers.get("cookie"));
+  const token = parseCookieToken(request.headers.get("cookie"));
   return getUserFromToken(token);
 }
 

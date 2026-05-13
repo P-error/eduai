@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduai.local/schemas/app_inference_features.v1.schema.json",
+  "title": "EduAI app inference features v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ids",
+    "context",
+    "pre_decision_features",
+    "current_or_previous_config",
+    "runtime_context",
+    "leakage_guard",
+    "availability_notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "app_inference_features.v1"
+    },
+    "ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_ref",
+        "subject_ref",
+        "topic_ref",
+        "session_ref",
+        "content_event_ref",
+        "test_event_ref"
+      ],
+      "properties": {
+        "user_ref": { "type": "string", "minLength": 1 },
+        "subject_ref": { "type": ["string", "null"], "minLength": 1 },
+        "topic_ref": { "type": ["string", "null"], "minLength": 1 },
+        "session_ref": { "type": ["string", "null"], "minLength": 1 },
+        "content_event_ref": { "type": ["string", "null"], "minLength": 1 },
+        "test_event_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "task_type",
+        "subject_title",
+        "topic_text",
+        "section_ref",
+        "concept_ref",
+        "skill_ref"
+      ],
+      "properties": {
+        "surface": {
+          "type": "string",
+          "enum": ["test", "chat", "learning_content", "unknown"]
+        },
+        "task_type": {
+          "type": "string",
+          "enum": ["quiz", "exam", "practice", "chat", "unknown"]
+        },
+        "subject_title": { "type": ["string", "null"], "minLength": 1 },
+        "topic_text": { "type": ["string", "null"], "minLength": 1 },
+        "section_ref": { "type": ["string", "null"], "minLength": 1 },
+        "concept_ref": { "type": ["string", "null"], "minLength": 1 },
+        "skill_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "pre_decision_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "not": {
+        "anyOf": [
+          { "required": ["pre_score"] },
+          { "required": ["post_score"] },
+          { "required": ["max_score"] },
+          { "required": ["next_step_success"] },
+          { "required": ["normalized_learning_gain"] },
+          { "required": ["outcome_available"] },
+          { "required": ["outcome"] }
+        ]
+      },
+      "required": [
+        "prior_attempts_count",
+        "prior_correct_rate",
+        "recent_correct_rate",
+        "recent_attempts_count",
+        "topic_seen_count",
+        "minutes_since_last_activity",
+        "session_position",
+        "declared_preference_difficulty",
+        "declared_preference_depth",
+        "declared_preference_format"
+      ],
+      "properties": {
+        "prior_attempts_count": { "type": "integer", "minimum": 0 },
+        "prior_correct_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "recent_correct_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "recent_attempts_count": { "type": "integer", "minimum": 0 },
+        "topic_seen_count": { "type": "integer", "minimum": 0 },
+        "minutes_since_last_activity": { "type": ["number", "null"], "minimum": 0 },
+        "session_position": { "type": "integer", "minimum": 0 },
+        "declared_preference_difficulty": {
+          "type": ["string", "null"],
+          "enum": ["easy", "medium", "hard", null]
+        },
+        "declared_preference_depth": {
+          "type": ["string", "null"],
+          "enum": ["brief", "standard", "detailed", null]
+        },
+        "declared_preference_format": {
+          "type": ["string", "null"],
+          "enum": ["paragraph", "structured_list", "step_by_step", "qa", null]
+        }
+      }
+    },
+    "current_or_previous_config": {
+      "anyOf": [
+        { "$ref": "#/$defs/factor_config" },
+        { "type": "null" }
+      ]
+    },
+    "runtime_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "model_version",
+        "backend_kind",
+        "artifact_path",
+        "fallback_available",
+        "experimental_enabled"
+      ],
+      "properties": {
+        "policy_id": { "type": ["string", "null"], "minLength": 1 },
+        "model_version": { "type": ["string", "null"], "minLength": 1 },
+        "backend_kind": { "type": ["string", "null"], "minLength": 1 },
+        "artifact_path": { "type": ["string", "null"], "minLength": 1 },
+        "fallback_available": { "type": "boolean" },
+        "experimental_enabled": { "type": "boolean" }
+      }
+    },
+    "leakage_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "features_cutoff_at",
+        "uses_only_pre_decision_data",
+        "forbidden_outcome_fields_absent",
+        "notes"
+      ],
+      "properties": {
+        "features_cutoff_at": { "type": "string", "format": "date-time" },
+        "uses_only_pre_decision_data": { "const": true },
+        "forbidden_outcome_fields_absent": { "const": true },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "availability_notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "factor_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "difficulty",
+        "depth",
+        "support_level",
+        "presentation_format",
+        "examples_level",
+        "terminology_level"
+      ],
+      "properties": {
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "depth": { "type": "string", "enum": ["brief", "standard", "detailed"] },
+        "support_level": { "type": "string", "enum": ["minimal", "guided", "scaffolded"] },
+        "presentation_format": { "type": "string", "enum": ["paragraph", "structured_list", "step_by_step", "qa"] },
+        "examples_level": { "type": "string", "enum": ["none", "single", "multiple"] },
+        "terminology_level": { "type": "string", "enum": ["simple", "balanced", "technical"] }
+      }
+    }
+  }
+}

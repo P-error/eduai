@@ -1,0 +1,26 @@
+{
+  "slotKind": "eduai_native_pedagogy_artifact_slot",
+  "slotSchemaVersion": "eduai_native_pedagogy_artifact_slot_v1_2026_03",
+  "slotStatus": "artifact_present",
+  "runtimeIntegrationStatus": "inactive_pending_activation",
+  "expectedTargets": [
+    "difficulty",
+    "depth"
+  ],
+  "expectedTrainingDatasetSchemaVersion": "eduai_training_dataset_v1_2026_03",
+  "artifactRelativePath": "artifacts/runtime/eduai_native_pedagogy/current/artifact.json",
+  "metadataRelativePath": "artifacts/runtime/eduai_native_pedagogy/current/slot_metadata.json",
+  "supportFilesRelativeDir": "artifacts/runtime/eduai_native_pedagogy/current/files",
+  "provenance": {
+    "sourcePhase": "synthetic",
+    "datasetOrigin": "synthetic_internal_bridge_eduai_native_full_bridge_20260327",
+    "generationRunId": "eduai_native_full_bridge_20260327",
+    "trainingRunId": "20260327_053628",
+    "handedOffAtIso": "2026-03-27T05:36:29+00:00"
+  },
+  "notes": [
+    "Runtime slot now contains a synthetic internal EduAI-native artifact package.",
+    "Serving is still inactive and requires an explicit later activation step.",
+    "This artifact must not be presented as real-user validation."
+  ]
+}

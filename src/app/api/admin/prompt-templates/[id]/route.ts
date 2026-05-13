@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import {
+  OPERATOR_AUDIT_ACTIONS,
+  writeOperatorAuditEvent,
+} from "@/lib/operator-audit";
+import {
+  buildRateLimitErrorResponse,
+  rateLimitRouteOrThrow,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -61,24 +69,86 @@ export async function PATCH(
     );
   }
 
+  try {
+    await rateLimitRouteOrThrow({
+      routeClass: "admin_prompt_template_mutation",
+      request,
+      userId: user.id,
+    });
+  } catch (error) {
+    const response = buildRateLimitErrorResponse(
+      error,
+      "Prompt template change rate limit reached. Please try again later.",
+    );
+    if (response) {
+      return response;
+    }
+    throw error;
+  }
+
   let payload: z.infer<typeof UpdateSchema>;
   try {
     payload = UpdateSchema.parse(await request.json());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    await writeOperatorAuditEvent({
+      prisma,
+      request,
+      actorUserId: user.id,
+      action: OPERATOR_AUDIT_ACTIONS.PROMPT_TEMPLATE_UPDATE,
+      targetType: "prompt_template",
+      targetId: id,
+      result: "rejected",
+      summary: {
+        reason: "invalid_input",
+        message,
+      },
+    });
     return NextResponse.json(
       { ok: false, error: { code: "INVALID_INPUT", message } },
       { status: 400 },
     );
   }
 
-  const template = await prisma.promptTemplate.update({
-    where: { id },
-    data: {
-      template: payload.content ?? undefined,
-      notes: payload.notes ?? undefined,
-    },
-  });
+  try {
+    const template = await prisma.promptTemplate.update({
+      where: { id },
+      data: {
+        template: payload.content ?? undefined,
+        notes: payload.notes ?? undefined,
+      },
+    });
 
-  return NextResponse.json({ ok: true, data: template });
+    await writeOperatorAuditEvent({
+      prisma,
+      request,
+      actorUserId: user.id,
+      action: OPERATOR_AUDIT_ACTIONS.PROMPT_TEMPLATE_UPDATE,
+      targetType: "prompt_template",
+      targetId: template.id,
+      result: "success",
+      summary: {
+        updatedFields: {
+          content: typeof payload.content === "string",
+          notes: payload.notes !== undefined,
+        },
+      },
+    });
+
+    return NextResponse.json({ ok: true, data: template });
+  } catch (error) {
+    await writeOperatorAuditEvent({
+      prisma,
+      request,
+      actorUserId: user.id,
+      action: OPERATOR_AUDIT_ACTIONS.PROMPT_TEMPLATE_UPDATE,
+      targetType: "prompt_template",
+      targetId: id,
+      result: "failed",
+      summary: {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
 }

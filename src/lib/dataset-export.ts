@@ -1,11 +1,13 @@
 import { createHmac } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { clampResponseFormat } from "@/lib/prediction-baselines";
 import {
   loadPredictionBacktestRows,
   type BacktestAttemptRow,
 } from "@/lib/prediction-backtest";
 import { optionalEnv, requireEnvWithDevFallback } from "@/lib/env";
 import { getActivePredictionModelParams } from "@/lib/prediction-params";
+import { getTrainingEligibilitySnapshot } from "@/lib/training-eligibility";
 
 export const DATASET_VERSION = "eduai_dataset_v1_2026_02";
 
@@ -35,6 +37,9 @@ type NormalizedDatasetExportOptions = {
 type UserConsentMeta = {
   researchConsentAt: Date | null;
   researchConsentVersion: string | null;
+  researchConsentWithdrawnAt: Date | null;
+  trainingDataExclusionAt: Date | null;
+  trainingDataExclusionReason: string | null;
 };
 
 type ExportHistoryState = {
@@ -50,11 +55,31 @@ export type DatasetExportRecord = {
   generatedAtIso: string;
   userKey: string;
   subjectKey: string;
+  evaluationEpisodeId: string | null;
+  evaluationProtocolKey: string | null;
+  evaluationPolicyArm: string | null;
+  evaluationTouchpointType: string | null;
+  evaluationSequenceRole: string | null;
+  evaluationItemRole: string | null;
+  evaluationItemVariant: string | null;
+  evaluationLinkageKind: string | null;
+  evaluationLinkedContentId: string | null;
+  evaluationSignalQuality: string | null;
+  evaluationHoldoutStrategy: string | null;
+  evaluationAssignmentSource: string | null;
+  evaluationConceptKey: string | null;
+  evaluationSkillKey: string | null;
+  evaluationFamilyKey: string | null;
   policyId: string | null;
   predictorVersion: string | null;
   learningEligible: boolean | null;
   consentGranted: boolean;
   consentVersion: string | null;
+  consentWithdrawnAtIso: string | null;
+  futureTrainingEligible: boolean;
+  excludedFromFutureTraining: boolean;
+  excludedFromFutureTrainingAtIso: string | null;
+  trainingExclusionReason: string | null;
   difficultyTarget: string | null;
   responseFormat: string | null;
   questionCount: number;
@@ -89,6 +114,25 @@ export type DatasetExportResult = {
     until: string;
   };
   content: string;
+};
+
+export type DatasetExportRecordsResult = {
+  datasetVersion: string;
+  generatedAtIso: string;
+  filters: {
+    timeRangeDays: number;
+    maxAttempts: number;
+    eligibleOnly: boolean;
+    consentOnly: boolean;
+    format: ExportFormat;
+  };
+  counts: BuildRecordsResult["counts"];
+  timeRange: {
+    days: number;
+    since: string;
+    until: string;
+  };
+  records: DatasetExportRecord[];
 };
 
 function parsePositiveInt(value: unknown, fallback: number, min: number, max: number) {
@@ -134,6 +178,10 @@ function parsePredictionMeta(byTagJson: unknown) {
     meta.prediction && typeof meta.prediction === "object"
       ? (meta.prediction as Record<string, unknown>)
       : {};
+  const evaluation =
+    meta.evaluation && typeof meta.evaluation === "object"
+      ? (meta.evaluation as Record<string, unknown>)
+      : {};
 
   const policyIdFromPrediction =
     typeof prediction.policyId === "string" ? prediction.policyId : null;
@@ -141,6 +189,57 @@ function parsePredictionMeta(byTagJson: unknown) {
     typeof policy.policyId === "string" ? policy.policyId : null;
 
   return {
+    evaluationEpisodeId:
+      typeof evaluation.episodeId === "string" ? evaluation.episodeId : null,
+    evaluationProtocolKey:
+      typeof evaluation.protocolKey === "string" ? evaluation.protocolKey : null,
+    evaluationPolicyArm:
+      typeof evaluation.policyArm === "string" ? evaluation.policyArm : null,
+    evaluationTouchpointType:
+      typeof evaluation.touchpointType === "string"
+        ? evaluation.touchpointType
+        : null,
+    evaluationSequenceRole:
+      typeof evaluation.sequenceRole === "string"
+        ? evaluation.sequenceRole
+        : null,
+    evaluationItemRole:
+      typeof evaluation.itemRole === "string" ? evaluation.itemRole : null,
+    evaluationItemVariant:
+      typeof evaluation.itemVariant === "string"
+        ? evaluation.itemVariant
+        : null,
+    evaluationLinkageKind:
+      typeof evaluation.linkageKind === "string"
+        ? evaluation.linkageKind
+        : null,
+    evaluationLinkedContentId:
+      typeof evaluation.linkedContentId === "string"
+        ? evaluation.linkedContentId
+        : null,
+    evaluationSignalQuality:
+      typeof evaluation.signalQuality === "string"
+        ? evaluation.signalQuality
+        : null,
+    evaluationHoldoutStrategy:
+      typeof evaluation.holdoutStrategy === "string"
+        ? evaluation.holdoutStrategy
+        : null,
+    evaluationAssignmentSource:
+      evaluation.assignment && typeof evaluation.assignment === "object"
+        ? typeof (evaluation.assignment as Record<string, unknown>).assignmentSource ===
+          "string"
+          ? String(
+              (evaluation.assignment as Record<string, unknown>).assignmentSource,
+            )
+          : null
+        : null,
+    evaluationConceptKey:
+      typeof evaluation.conceptKey === "string" ? evaluation.conceptKey : null,
+    evaluationSkillKey:
+      typeof evaluation.skillKey === "string" ? evaluation.skillKey : null,
+    evaluationFamilyKey:
+      typeof evaluation.familyKey === "string" ? evaluation.familyKey : null,
     policyId: policyIdFromPrediction ?? policyIdFromPolicy,
     predictorVersion:
       typeof prediction.predictorVersion === "string"
@@ -250,11 +349,15 @@ export function buildDatasetExportRecordsFromRows(params: {
     const consent = consentByUserId.get(row.userId) ?? {
       researchConsentAt: null,
       researchConsentVersion: null,
+      researchConsentWithdrawnAt: null,
+      trainingDataExclusionAt: null,
+      trainingDataExclusionReason: null,
     };
-    const consentGranted = Boolean(consent.researchConsentAt);
+    const eligibility = getTrainingEligibilitySnapshot(consent);
 
     const includeByEligibility = !options.eligibleOnly || row.learningEligible === true;
-    const includeByConsent = !options.consentOnly || consentGranted;
+    const includeByConsent =
+      !options.consentOnly || eligibility.futureTrainingEligible;
 
     if (!includeByEligibility) {
       counts.filteredByEligibility += 1;
@@ -280,13 +383,34 @@ export function buildDatasetExportRecordsFromRows(params: {
         generatedAtIso,
         userKey: pseudonymize(secret, "user", row.userId),
         subjectKey: pseudonymize(secret, "subject", row.subjectId),
+        evaluationEpisodeId: meta.evaluationEpisodeId,
+        evaluationProtocolKey: meta.evaluationProtocolKey,
+        evaluationPolicyArm: meta.evaluationPolicyArm,
+        evaluationTouchpointType: meta.evaluationTouchpointType,
+        evaluationSequenceRole: meta.evaluationSequenceRole,
+        evaluationItemRole: meta.evaluationItemRole,
+        evaluationItemVariant: meta.evaluationItemVariant,
+        evaluationLinkageKind: meta.evaluationLinkageKind,
+        evaluationLinkedContentId: meta.evaluationLinkedContentId,
+        evaluationSignalQuality: meta.evaluationSignalQuality,
+        evaluationHoldoutStrategy: meta.evaluationHoldoutStrategy,
+        evaluationAssignmentSource: meta.evaluationAssignmentSource,
+        evaluationConceptKey: meta.evaluationConceptKey,
+        evaluationSkillKey: meta.evaluationSkillKey,
+        evaluationFamilyKey: meta.evaluationFamilyKey,
         policyId: meta.policyId,
         predictorVersion: meta.predictorVersion,
         learningEligible: row.learningEligible,
-        consentGranted,
-        consentVersion: consent.researchConsentVersion,
+        consentGranted: eligibility.consentGranted,
+        consentVersion: eligibility.consentVersion,
+        consentWithdrawnAtIso: eligibility.consentWithdrawnAtIso,
+        futureTrainingEligible: eligibility.futureTrainingEligible,
+        excludedFromFutureTraining: eligibility.excludedFromFutureTraining,
+        excludedFromFutureTrainingAtIso:
+          eligibility.excludedFromFutureTrainingAtIso,
+        trainingExclusionReason: eligibility.exclusionReason,
         difficultyTarget: row.difficultyTarget,
-        responseFormat: row.responseFormat,
+        responseFormat: clampResponseFormat(row.responseFormat),
         questionCount: row.questionCount,
         userHistory_totalQuestionsBefore: history.totalQuestions,
         userHistory_recentAccuracy: userHistoryRecentAccuracy,
@@ -362,11 +486,31 @@ function toCsv(records: DatasetExportRecord[]) {
     "generatedAtIso",
     "userKey",
     "subjectKey",
+    "evaluationEpisodeId",
+    "evaluationProtocolKey",
+    "evaluationPolicyArm",
+    "evaluationTouchpointType",
+    "evaluationSequenceRole",
+    "evaluationItemRole",
+    "evaluationItemVariant",
+    "evaluationLinkageKind",
+    "evaluationLinkedContentId",
+    "evaluationSignalQuality",
+    "evaluationHoldoutStrategy",
+    "evaluationAssignmentSource",
+    "evaluationConceptKey",
+    "evaluationSkillKey",
+    "evaluationFamilyKey",
     "policyId",
     "predictorVersion",
     "learningEligible",
     "consentGranted",
     "consentVersion",
+    "consentWithdrawnAtIso",
+    "futureTrainingEligible",
+    "excludedFromFutureTraining",
+    "excludedFromFutureTrainingAtIso",
+    "trainingExclusionReason",
     "difficultyTarget",
     "responseFormat",
     "questionCount",
@@ -393,10 +537,10 @@ function toJsonl(records: DatasetExportRecord[]) {
   return `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
 }
 
-export async function getAdminDatasetExport(
+export async function getDatasetExportRecords(
   prisma: PrismaClient,
   options: DatasetExportOptions = {},
-): Promise<DatasetExportResult> {
+): Promise<DatasetExportRecordsResult> {
   const normalized = normalizeOptions(options);
   const generatedAtIso = new Date().toISOString();
   const activeParams = getActivePredictionModelParams();
@@ -417,6 +561,9 @@ export async function getAdminDatasetExport(
             id: true,
             researchConsentAt: true,
             researchConsentVersion: true,
+            researchConsentWithdrawnAt: true,
+            trainingDataExclusionAt: true,
+            trainingDataExclusionReason: true,
           },
         })
       : [];
@@ -427,6 +574,9 @@ export async function getAdminDatasetExport(
       {
         researchConsentAt: user.researchConsentAt,
         researchConsentVersion: user.researchConsentVersion,
+        researchConsentWithdrawnAt: user.researchConsentWithdrawnAt,
+        trainingDataExclusionAt: user.trainingDataExclusionAt,
+        trainingDataExclusionReason: user.trainingDataExclusionReason,
       },
     ]),
   );
@@ -446,11 +596,30 @@ export async function getAdminDatasetExport(
   return {
     datasetVersion: DATASET_VERSION,
     generatedAtIso,
-    format: normalized.format,
     filters: normalized,
     counts: built.counts,
     timeRange: loaded.timeRange,
-    content: normalized.format === "csv" ? toCsv(built.records) : toJsonl(built.records),
+    records: built.records,
+  };
+}
+
+export async function getAdminDatasetExport(
+  prisma: PrismaClient,
+  options: DatasetExportOptions = {},
+): Promise<DatasetExportResult> {
+  const exported = await getDatasetExportRecords(prisma, options);
+
+  return {
+    datasetVersion: exported.datasetVersion,
+    generatedAtIso: exported.generatedAtIso,
+    format: exported.filters.format,
+    filters: exported.filters,
+    counts: exported.counts,
+    timeRange: exported.timeRange,
+    content:
+      exported.filters.format === "csv"
+        ? toCsv(exported.records)
+        : toJsonl(exported.records),
   };
 }
 
@@ -462,6 +631,9 @@ export function runDatasetExportSyntheticSelfCheck() {
       {
         researchConsentAt: new Date("2026-01-01T00:00:00.000Z"),
         researchConsentVersion: "v1_2026_02",
+        researchConsentWithdrawnAt: null,
+        trainingDataExclusionAt: null,
+        trainingDataExclusionReason: null,
       },
     ],
     [
@@ -469,6 +641,19 @@ export function runDatasetExportSyntheticSelfCheck() {
       {
         researchConsentAt: null,
         researchConsentVersion: null,
+        researchConsentWithdrawnAt: null,
+        trainingDataExclusionAt: null,
+        trainingDataExclusionReason: null,
+      },
+    ],
+    [
+      "u3",
+      {
+        researchConsentAt: new Date("2026-01-01T00:00:00.000Z"),
+        researchConsentVersion: "v1_2026_02",
+        researchConsentWithdrawnAt: new Date("2026-01-05T00:00:00.000Z"),
+        trainingDataExclusionAt: new Date("2026-01-05T00:00:00.000Z"),
+        trainingDataExclusionReason: "consent_withdrawn",
       },
     ],
   ]);
@@ -565,6 +750,36 @@ export function runDatasetExportSyntheticSelfCheck() {
         predictorVersion: "v3_duration_unified_2026_02",
       },
     },
+    {
+      attemptId: "a4",
+      userId: "u3",
+      createdAt: new Date("2026-01-04T10:00:00.000Z"),
+      subjectId: "s3",
+      questionCount: 2,
+      difficultyTarget: "medium",
+      responseFormat: "mcq",
+      score: 1,
+      byTagJson: {
+        _meta: {
+          learning: { eligible: true },
+          prediction: {
+            policyId: "v2_accuracy_beta_duration_unified",
+            predictorVersion: "v3_duration_unified_2026_02",
+          },
+        },
+      },
+      learningEligible: true,
+      perQuestionFirstAnswerMsJson: [6_000, 8_000],
+      actualAccuracy: 0.5,
+      actualTotalDurationMs: 15_000,
+      loggedPrediction: {
+        expectedAccuracy: 0.7,
+        expectedTotalDurationMs: 14_000,
+        durationConfidence: 0.2,
+        durationBasis: "baseline_only",
+        predictorVersion: "v3_duration_unified_2026_02",
+      },
+    },
   ];
 
   const built = buildDatasetExportRecordsFromRows({
@@ -614,6 +829,14 @@ export function runDatasetExportSyntheticSelfCheck() {
 
   if (built.records.some((record) => record.consentGranted !== true)) {
     throw new Error("self-check failed: consent filter leaked non-consenting records");
+  }
+  if (built.records.some((record) => record.futureTrainingEligible !== true)) {
+    throw new Error("self-check failed: consent filter leaked excluded records");
+  }
+  if (built.counts.filteredByConsent !== 2) {
+    throw new Error(
+      `self-check failed: expected filteredByConsent=2, got ${built.counts.filteredByConsent}`,
+    );
   }
 
   return {

@@ -62,15 +62,11 @@ npm run db:reset
 ## 4) Run Prisma migration
 
 ```bash
-npm run prisma:migrate
+DATABASE_URL="postgresql://eduai:eduai_dev_password@localhost:5432/eduai?schema=public" npm run prisma:migrate:deploy
 ```
 
-`prisma:migrate` has no hardcoded fallback URL.
-Prisma resolves `DATABASE_URL` from shell env or `.env.local`/`.env`.
-If `DATABASE_URL` is missing/invalid, command fails with a clear Prisma error.
-This prevents accidental migrations against an implicit default database.
-This command is local-development oriented (`prisma migrate dev`).
-For deployment/CI use `prisma migrate deploy` as documented in `docs/DEPLOYMENT.md`.
+Operationally aligned local verification should use the compose DB URL shown above and `prisma migrate deploy`.
+`prisma migrate dev` remains local schema-authoring tooling, not the pilot/deploy path.
 
 Optional one-off override (explicit target DB):
 
@@ -105,7 +101,40 @@ Convenience command:
 npm run dev:local
 ```
 
-(`dev:local` runs migration first, then starts dev server.)
+`dev:local` is now the recommended local startup path for auth-sensitive work.
+It auto-starts the compose PostgreSQL container, forces the compose-aligned local DB URL unless `EDUAI_LOCAL_DATABASE_URL` is explicitly provided, runs `prisma migrate deploy`, then starts the dev server.
+
+Use plain `npm run dev` only when:
+- Postgres is already running;
+- `DATABASE_URL` is already pointed at the intended DB;
+- you intentionally do not want the compose bootstrap.
+
+## 7) Controlled pilot-like startup
+
+Use this path when you want the local environment to behave like the current
+pilot contour instead of a normal dev loop:
+
+```bash
+npm run db:up
+npm run prisma:migrate:deploy
+npm run build
+npm run start
+```
+
+Binary operational checks after startup:
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/ready
+npm run auth:self-check
+npm run pilot-readiness:smoke
+```
+
+What each signal means:
+- `/api/health` confirms the process is alive.
+- `/api/ready` is the pilot-readiness gate for DB/runtime/config dependencies.
+- `auth:self-check` verifies register/login/logout/cookie/me behavior against the live auth handlers.
+- `pilot-readiness:smoke` verifies the controlled learner/admin contour end-to-end.
 
 ## Common Errors
 
@@ -115,7 +144,8 @@ Cause: Postgres not running or wrong `DATABASE_URL`.
 Fix:
 1. `npm run db:up`
 2. check `DATABASE_URL` points to `localhost:5432`
-3. rerun `npm run prisma:migrate`
+3. prefer `npm run dev:local` for the local auth/dev path
+4. rerun `npm run auth:self-check`
 
 ### Port conflict on `5432`
 Cause: another Postgres is already using port 5432.

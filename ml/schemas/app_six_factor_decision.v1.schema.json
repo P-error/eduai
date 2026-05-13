@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduai.local/schemas/app_six_factor_decision.v1.schema.json",
+  "title": "EduAI app six-factor decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "difficulty",
+    "depth",
+    "support_level",
+    "presentation_format",
+    "examples_level",
+    "terminology_level",
+    "decision_source",
+    "model_version",
+    "policy_id",
+    "artifact_path",
+    "fallback_used",
+    "candidate_count",
+    "confidence",
+    "warnings",
+    "compatibility"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "app_six_factor_decision.v1"
+    },
+    "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+    "depth": { "type": "string", "enum": ["brief", "standard", "detailed"] },
+    "support_level": { "type": "string", "enum": ["minimal", "guided", "scaffolded"] },
+    "presentation_format": { "type": "string", "enum": ["paragraph", "structured_list", "step_by_step", "qa"] },
+    "examples_level": { "type": "string", "enum": ["none", "single", "multiple"] },
+    "terminology_level": { "type": "string", "enum": ["simple", "balanced", "technical"] },
+    "decision_source": {
+      "type": "string",
+      "enum": ["ml_policy", "heuristic_baseline", "static_fallback"]
+    },
+    "model_version": { "type": ["string", "null"], "minLength": 1 },
+    "policy_id": { "type": ["string", "null"], "minLength": 1 },
+    "artifact_path": { "type": ["string", "null"], "minLength": 1 },
+    "fallback_used": { "type": "boolean" },
+    "candidate_count": { "type": ["integer", "null"], "minimum": 1 },
+    "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factor_space_version",
+        "contract_version",
+        "app_runtime_default_enabled",
+        "internal_policy_shape"
+      ],
+      "properties": {
+        "factor_space_version": { "const": "factor_space.v1" },
+        "contract_version": { "const": "app_six_factor_decision.v1" },
+        "app_runtime_default_enabled": { "const": false },
+        "internal_policy_shape": { "const": "candidate_outcome_scorer" }
+      }
+    }
+  }
+}

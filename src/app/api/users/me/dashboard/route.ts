@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import {
+  buildLearnerTruthOverview,
+  buildLearnerTruthScopeSummary,
+} from "@/lib/learner-truth";
 
 export const runtime = "nodejs";
 
@@ -77,54 +80,24 @@ export async function GET(request: Request) {
   const subjectId = searchParams.get("subjectId");
   const limit = parsePositiveInt(searchParams.get("limit"), DEFAULT_LIMIT);
 
-  const attempts = await prisma.testAttempt.findMany({
-    where: {
-      userId: user.id,
-      test: {
-        ...(subjectId ? { subjectId } : {}),
-        subject: {
-          collection: {
-            name: {
-              not: DEFAULT_COLLECTION_NAME,
-            },
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      score: true,
-      createdAt: true,
-      totalDurationMs: true,
-      byTagJson: true,
-      test: {
-        select: {
-          subjectId: true,
-          topic: true,
-          questionCount: true,
-          subject: {
-            select: {
-              title: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: limit,
+  const overview = await buildLearnerTruthOverview(prisma, user.id);
+  const scopedAttempts = subjectId
+    ? overview.attempts.filter((attempt) => attempt.subjectId === subjectId)
+    : overview.attempts;
+  const scopeSummary = buildLearnerTruthScopeSummary({
+    attempts: scopedAttempts,
+    difficultyFallback: subjectId ? null : overview.adaptiveState.currentDifficultyTarget,
   });
 
-  const rows = attempts.map((attempt) => {
+  const rows = scopedAttempts.slice(0, limit).map((attempt) => {
     const meta = parseAttemptMeta(attempt.byTagJson);
     return {
       id: attempt.id,
       createdAt: attempt.createdAt.toISOString(),
-      subjectId: attempt.test.subjectId,
-      subjectTitle: attempt.test.subject.title,
-      topic: attempt.test.topic,
-      questionCount: attempt.test.questionCount,
+      subjectId: attempt.subjectId,
+      subjectTitle: attempt.subjectTitle,
+      topic: attempt.topic,
+      questionCount: attempt.questionCount,
       score: attempt.score,
       actualAccuracy: meta.prediction.actualAccuracy ?? attempt.score,
       actualTotalDurationMs:
@@ -141,7 +114,7 @@ export async function GET(request: Request) {
         changed: meta.pedagogy.changed,
         reason: meta.pedagogy.reason,
       },
-      learningEligible: meta.learning.eligible,
+      learningEligible: attempt.evidence.learning.eligible,
     };
   });
 
@@ -149,9 +122,16 @@ export async function GET(request: Request) {
     context: {
       subjectId: subjectId ?? null,
       limit,
+      scope: subjectId ? "subject" : "global",
     },
     summary: {
-      attempts: rows.length,
+      attemptsRecorded: scopeSummary.attemptsRecorded,
+      attemptsLearningEligible: scopeSummary.attemptsLearningEligible,
+      attemptsExcluded: scopeSummary.attemptsExcluded,
+      recentAccuracy: scopeSummary.recentAccuracy,
+      recentEvidence: scopeSummary.recentEvidence,
+      currentDifficultyTarget: scopeSummary.currentDifficultyTarget,
+      lastRecordedAttemptAt: scopeSummary.lastRecordedAttemptAt,
       hasPredictedAccuracy: rows.some((row) => row.predictedAccuracy != null),
       hasPredictedDuration: rows.some((row) => row.predictedTotalDurationMs != null),
     },

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduai.local/schemas/factor_space.v1.json",
+  "factor_space_version": "factor_space.v1",
+  "description": "EduAI six-factor pedagogy candidate space for future candidate outcome scoring.",
+  "candidate_count": 972,
+  "factors": [
+    {
+      "name": "difficulty",
+      "type": "ordinal",
+      "values": ["easy", "medium", "hard"]
+    },
+    {
+      "name": "depth",
+      "type": "ordinal",
+      "values": ["brief", "standard", "detailed"]
+    },
+    {
+      "name": "support_level",
+      "type": "ordinal",
+      "values": ["minimal", "guided", "scaffolded"]
+    },
+    {
+      "name": "presentation_format",
+      "type": "categorical",
+      "values": ["paragraph", "structured_list", "step_by_step", "qa"]
+    },
+    {
+      "name": "examples_level",
+      "type": "ordinal",
+      "values": ["none", "single", "multiple"]
+    },
+    {
+      "name": "terminology_level",
+      "type": "ordinal",
+      "values": ["simple", "balanced", "technical"]
+    }
+  ],
+  "baseline_config": {
+    "difficulty": "medium",
+    "depth": "standard",
+    "support_level": "guided",
+    "presentation_format": "structured_list",
+    "examples_level": "single",
+    "terminology_level": "balanced"
+  }
+}

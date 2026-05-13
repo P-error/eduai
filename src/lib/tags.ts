@@ -4,6 +4,8 @@ export const UX_AXES = [
   "response_format",
 ] as const;
 
+// Эти оси остаются в тегировании и статистике, но не являются равноправными
+// runtime-выходами нового decision-layer.
 export const PED_AXES = [
   "difficulty_target",
   "cognitive_process",
@@ -12,10 +14,16 @@ export const PED_AXES = [
 ] as const;
 
 export const ALL_AXES = [...UX_AXES, ...PED_AXES] as const;
+export const DECLARED_DEPTH_VALUES = [
+  "brief",
+  "standard",
+  "detailed",
+] as const;
 
 export type UxAxisKey = (typeof UX_AXES)[number];
 export type PedAxisKey = (typeof PED_AXES)[number];
 export type TagAxisKey = (typeof ALL_AXES)[number];
+export type DeclaredDepthValue = (typeof DECLARED_DEPTH_VALUES)[number];
 
 export const TAG_LEGEND_VERSION = "v2";
 export const AXIS_SCHEMA_VERSION = 2;
@@ -34,8 +42,6 @@ export const TAGS_BY_AXIS: Record<TagAxisKey, { key: string; label: string }[]> 
     ],
     response_format: [
       { key: "mcq", label: "Multiple Choice" },
-      { key: "short", label: "Short Answer" },
-      { key: "multipart", label: "Multi-part" },
     ],
     difficulty_target: [
       { key: "easy", label: "Easy" },
@@ -80,21 +86,56 @@ export const MAX_RETRIES = 2;
 
 export const EXPECTED_TIME_MS: Record<
   (typeof DIFFICULTY_ORDER)[number],
-  Record<"mcq" | "short" | "multipart", number>
+  Record<"mcq", number>
 > = {
   easy: {
     mcq: 70_000,
-    short: 90_000,
-    multipart: 120_000,
   },
   medium: {
     mcq: 100_000,
-    short: 130_000,
-    multipart: 170_000,
   },
   hard: {
     mcq: 130_000,
-    short: 170_000,
-    multipart: 220_000,
   },
 };
+
+export function isSupportedTagForAxis(
+  axis: TagAxisKey,
+  value: string | null | undefined,
+): value is string {
+  if (typeof value !== "string" || value.length === 0) {
+    return false;
+  }
+
+  return TAGS_BY_AXIS[axis].some((tag) => tag.key === value);
+}
+
+export function isSupportedDeclaredDepth(
+  value: string | null | undefined,
+): value is DeclaredDepthValue {
+  return DECLARED_DEPTH_VALUES.includes(value as DeclaredDepthValue);
+}
+
+export function sanitizePreferenceMap(
+  input: Record<string, unknown> | null | undefined,
+) {
+  const sanitized: Record<string, string> = {};
+  const source = input ?? {};
+
+  for (const axis of ALL_AXES) {
+    const value = source[axis];
+    if (typeof value !== "string") continue;
+    if (!isSupportedTagForAxis(axis, value)) continue;
+    sanitized[axis] = value;
+  }
+
+  const declaredDepth = source.depth;
+  if (
+    typeof declaredDepth === "string" &&
+    isSupportedDeclaredDepth(declaredDepth)
+  ) {
+    sanitized.depth = declaredDepth;
+  }
+
+  return sanitized;
+}

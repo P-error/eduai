@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { issueToken, isAdminEmail } from "@/lib/auth";
+import { buildAuthCookieOptions, issueToken } from "@/lib/auth";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-constants";
 import { RESEARCH_CONSENT_VERSION } from "@/lib/research-consent";
 import {
-  getRequestIp,
-  RateLimitExceededError,
-  rateLimitOrThrow,
+  buildRateLimitErrorResponse,
+  rateLimitRouteOrThrow,
 } from "@/lib/rate-limit";
 import {
   PASSWORD_MAX_LENGTH,
@@ -25,33 +24,18 @@ const RegisterSchema = z.object({
   researchConsent: z.boolean().optional().default(false),
 });
 
-const REGISTER_LIMIT_PER_IP_PER_HOUR = 20;
-const HOUR_MS = 60 * 60 * 1000;
-
-function maybeRateLimitRegister(request: Request) {
+async function maybeRateLimitRegister(request: Request) {
   try {
-    const ip = getRequestIp(request);
-    rateLimitOrThrow(
-      `auth:register:ip:${ip}`,
-      REGISTER_LIMIT_PER_IP_PER_HOUR,
-      HOUR_MS,
-    );
+    await rateLimitRouteOrThrow({
+      routeClass: "auth_register",
+      request,
+    });
     return null;
   } catch (error) {
-    if (error instanceof RateLimitExceededError) {
-      return NextResponse.json(
-        {
-          error: "RATE_LIMITED",
-          message: "Too many registration attempts. Please try again later.",
-          retryAfterSeconds: error.retryAfterSeconds,
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(error.retryAfterSeconds) },
-        },
-      );
-    }
-    throw error;
+    return buildRateLimitErrorResponse(
+      error,
+      "Too many registration attempts. Please try again later.",
+    );
   }
 }
 
@@ -82,7 +66,7 @@ function createAuthResponse(params: {
   user: { id: string; email: string | null; name: string | null };
 }) {
   const response = NextResponse.json({
-    token: params.token,
+    ok: true,
     user: {
       id: params.user.id,
       email: params.user.email,
@@ -90,19 +74,17 @@ function createAuthResponse(params: {
     },
   });
 
-  response.cookies.set(AUTH_COOKIE_NAME, params.token, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  response.cookies.set(
+    AUTH_COOKIE_NAME,
+    params.token,
+    buildAuthCookieOptions(),
+  );
 
   return response;
 }
 
 export async function POST(request: Request) {
-  const rateLimited = maybeRateLimitRegister(request);
+  const rateLimited = await maybeRateLimitRegister(request);
   if (rateLimited) {
     return rateLimited;
   }
@@ -121,7 +103,6 @@ export async function POST(request: Request) {
   const email = payload.email.trim().toLowerCase();
   const externalId = `email:${email}`;
   const name = payload.name?.trim() || defaultNameFromEmail(email);
-  const isAdmin = isAdminEmail(email);
   const passwordHash = hashPassword(payload.password);
   const researchConsentAt = payload.researchConsent ? new Date() : null;
   const researchConsentVersion = payload.researchConsent
@@ -137,7 +118,6 @@ export async function POST(request: Request) {
         researchConsentAt,
         researchConsentVersion,
         name,
-        isAdmin,
       },
       select: {
         id: true,
@@ -147,9 +127,7 @@ export async function POST(request: Request) {
     });
 
     const token = issueToken({
-      sub: externalId,
-      email: user.email ?? undefined,
-      name: user.name ?? undefined,
+      userId: user.id,
     });
 
     return createAuthResponse({ token, user });

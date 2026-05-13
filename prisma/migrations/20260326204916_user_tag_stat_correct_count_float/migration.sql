@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "UserTagStat" ALTER COLUMN "correctCount" SET DEFAULT 0,
+ALTER COLUMN "correctCount" SET DATA TYPE DOUBLE PRECISION;

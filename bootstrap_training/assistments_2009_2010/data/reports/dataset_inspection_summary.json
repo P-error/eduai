@@ -1,0 +1,553 @@
+{
+  "generated_at_utc": "2026-03-27T03:19:11.934111+00:00",
+  "raw_dataset_path": "/home/perror/eduai/bootstrap_training/assistments_2009_2010/data/raw/skill_builder_data_corrected_collapsed.csv",
+  "row_count": 346860,
+  "column_count": 31,
+  "focus_columns": [
+    "user_id",
+    "problem_id",
+    "assistment_id",
+    "skill_id",
+    "skill_name",
+    "correct",
+    "attempt_count",
+    "hint_count",
+    "ms_first_response",
+    "overlap_time",
+    "original",
+    "opportunity",
+    "opportunity_original",
+    "first_action",
+    "order_id"
+  ],
+  "ordering_candidates": [
+    {
+      "column": "order_id",
+      "kind": "numeric_sequence",
+      "usable_ratio": 1.0
+    }
+  ],
+  "cleaning": {
+    "dropped_empty_columns": [],
+    "generated_blank_column_names": [],
+    "renamed_columns": {
+      "Unnamed: 0": "Unnamed: 0",
+      "order_id": "order_id",
+      "assignment_id": "assignment_id",
+      "user_id": "user_id",
+      "assistment_id": "assistment_id",
+      "problem_id": "problem_id",
+      "original": "original",
+      "correct": "correct",
+      "attempt_count": "attempt_count",
+      "ms_first_response": "ms_first_response",
+      "tutor_mode": "tutor_mode",
+      "answer_type": "answer_type",
+      "sequence_id": "sequence_id",
+      "student_class_id": "student_class_id",
+      "position": "position",
+      "type": "type",
+      "base_sequence_id": "base_sequence_id",
+      "skill_id": "skill_id",
+      "skill_name": "skill_name",
+      "teacher_id": "teacher_id",
+      "school_id": "school_id",
+      "hint_count": "hint_count",
+      "hint_total": "hint_total",
+      "overlap_time": "overlap_time",
+      "template_id": "template_id",
+      "answer_id": "answer_id",
+      "answer_text": "answer_text",
+      "first_action": "first_action",
+      "bottom_hint": "bottom_hint",
+      "opportunity": "opportunity",
+      "opportunity_original": "opportunity_original"
+    }
+  },
+  "columns": {
+    "Unnamed: 0": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 346860,
+      "sample_values": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 1,
+      "numeric_max": 401756
+    },
+    "order_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 346860,
+      "sample_values": [
+        "33022537",
+        "33022709",
+        "35450204",
+        "35450295",
+        "35450311"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 20224085,
+      "numeric_max": 38310202
+    },
+    "assignment_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 3521,
+      "sample_values": [
+        "277618",
+        "277618",
+        "220674",
+        "220674",
+        "220674"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 217900,
+      "numeric_max": 291503
+    },
+    "user_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 4217,
+      "sample_values": [
+        "64525",
+        "64525",
+        "70363",
+        "70363",
+        "70363"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 14,
+      "numeric_max": 96299
+    },
+    "assistment_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 17725,
+      "sample_values": [
+        "33139",
+        "33150",
+        "33159",
+        "33110",
+        "33196"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 86,
+      "numeric_max": 106210
+    },
+    "problem_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 26688,
+      "sample_values": [
+        "51424",
+        "51435",
+        "51444",
+        "51395",
+        "51481"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 83,
+      "numeric_max": 207348
+    },
+    "original": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 2,
+      "sample_values": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 1
+    },
+    "correct": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 2,
+      "sample_values": [
+        "1",
+        "1",
+        "0",
+        "1",
+        "0"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 1
+    },
+    "attempt_count": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 200,
+      "sample_values": [
+        "1",
+        "1",
+        "2",
+        "1",
+        "14"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 3824
+    },
+    "ms_first_response": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 87721,
+      "sample_values": [
+        "32454",
+        "4922",
+        "25390",
+        "4859",
+        "19813"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": -7759575,
+      "numeric_max": 84076920
+    },
+    "tutor_mode": {
+      "pandas_dtype": "str",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 2,
+      "sample_values": [
+        "tutor",
+        "tutor",
+        "tutor",
+        "tutor",
+        "tutor"
+      ]
+    },
+    "answer_type": {
+      "pandas_dtype": "str",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 5,
+      "sample_values": [
+        "algebra",
+        "algebra",
+        "algebra",
+        "algebra",
+        "algebra"
+      ]
+    },
+    "sequence_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 677,
+      "sample_values": [
+        "5948",
+        "5948",
+        "5948",
+        "5948",
+        "5948"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 5870,
+      "numeric_max": 13362
+    },
+    "student_class_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 250,
+      "sample_values": [
+        "13241",
+        "13241",
+        "11816",
+        "11816",
+        "11816"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 11644,
+      "numeric_max": 14415
+    },
+    "position": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 283,
+      "sample_values": [
+        "126",
+        "126",
+        "22",
+        "22",
+        "22"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 1,
+      "numeric_max": 295
+    },
+    "type": {
+      "pandas_dtype": "str",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 1,
+      "sample_values": [
+        "MasterySection",
+        "MasterySection",
+        "MasterySection",
+        "MasterySection",
+        "MasterySection"
+      ]
+    },
+    "base_sequence_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 366,
+      "sample_values": [
+        "5948",
+        "5948",
+        "5948",
+        "5948",
+        "5948"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 5870,
+      "numeric_max": 13362
+    },
+    "skill_id": {
+      "pandas_dtype": "str",
+      "non_null_count": 283105,
+      "null_count": 63755,
+      "unique_non_null_count": 149,
+      "sample_values": [
+        "1_13",
+        "1_13",
+        "1_13",
+        "1_13",
+        "1_15"
+      ],
+      "numeric_parse_ratio": 0.680586,
+      "numeric_min": 1.0,
+      "numeric_max": 378.0
+    },
+    "skill_name": {
+      "pandas_dtype": "str",
+      "non_null_count": 274590,
+      "null_count": 72270,
+      "unique_non_null_count": 101,
+      "sample_values": [
+        "Box and Whisker",
+        "Box and Whisker",
+        "Box and Whisker",
+        "Box and Whisker",
+        "Box and Whisker"
+      ]
+    },
+    "teacher_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 153,
+      "sample_values": [
+        "22763",
+        "22763",
+        "22763",
+        "22763",
+        "22763"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 11158,
+      "numeric_max": 69274
+    },
+    "school_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 75,
+      "sample_values": [
+        "73",
+        "73",
+        "73",
+        "73",
+        "73"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 1,
+      "numeric_max": 9948
+    },
+    "hint_count": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 9,
+      "sample_values": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "3"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 10
+    },
+    "hint_total": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 10,
+      "sample_values": [
+        "3",
+        "3",
+        "3",
+        "3",
+        "4"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 10
+    },
+    "overlap_time": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 101182,
+      "sample_values": [
+        "32454",
+        "4922",
+        "42000",
+        "4859",
+        "124564"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": -7759575,
+      "numeric_max": 84076925
+    },
+    "template_id": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 816,
+      "sample_values": [
+        "30799",
+        "30799",
+        "30799",
+        "30059",
+        "30060"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 86,
+      "numeric_max": 106180
+    },
+    "answer_id": {
+      "pandas_dtype": "float64",
+      "non_null_count": 40042,
+      "null_count": 306818,
+      "unique_non_null_count": 8313,
+      "sample_values": [
+        "158182.0",
+        "158102.0",
+        "159752.0",
+        "158085.0",
+        "158126.0"
+      ],
+      "numeric_parse_ratio": 0.115441,
+      "numeric_min": 1.0,
+      "numeric_max": 323181.0
+    },
+    "answer_text": {
+      "pandas_dtype": "str",
+      "non_null_count": 269230,
+      "null_count": 77630,
+      "unique_non_null_count": 17210,
+      "sample_values": [
+        "26",
+        "55",
+        "88",
+        "41",
+        "65"
+      ],
+      "numeric_parse_ratio": 0.56684,
+      "numeric_min": -1545454545.0,
+      "numeric_max": 2.23e+55
+    },
+    "first_action": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 3,
+      "sample_values": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 0,
+      "numeric_max": 2
+    },
+    "bottom_hint": {
+      "pandas_dtype": "float64",
+      "non_null_count": 59857,
+      "null_count": 287003,
+      "unique_non_null_count": 2,
+      "sample_values": [
+        "0.0",
+        "1.0",
+        "0.0",
+        "0.0",
+        "0.0"
+      ],
+      "numeric_parse_ratio": 0.172568,
+      "numeric_min": 0.0,
+      "numeric_max": 1.0
+    },
+    "opportunity": {
+      "pandas_dtype": "int64",
+      "non_null_count": 346860,
+      "null_count": 0,
+      "unique_non_null_count": 1020,
+      "sample_values": [
+        "1",
+        "2",
+        "1",
+        "2",
+        "3"
+      ],
+      "numeric_parse_ratio": 1.0,
+      "numeric_min": 1,
+      "numeric_max": 3371
+    },
+    "opportunity_original": {
+      "pandas_dtype": "float64",
+      "non_null_count": 275458,
+      "null_count": 71402,
+      "unique_non_null_count": 915,
+      "sample_values": [
+        "1.0",
+        "2.0",
+        "1.0",
+        "2.0",
+        "3.0"
+      ],
+      "numeric_parse_ratio": 0.794147,
+      "numeric_min": 1.0,
+      "numeric_max": 3371.0
+    }
+  }
+}

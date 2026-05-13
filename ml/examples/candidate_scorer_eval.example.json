@@ -1,0 +1,493 @@
+{
+  "baseline_comparison": {
+    "heuristic_like_baseline": {
+      "average_combined_outcome_score": 0.126975,
+      "average_learning_gain_proxy": 0.1693,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 1,
+      "next_step_success_rate": 0.0
+    },
+    "limitations": [
+      "Baseline comparison uses only rows whose delivered candidate matches the baseline candidate.",
+      "No counterfactual outcomes are available for unserved candidates in this dataset."
+    ],
+    "oracle_upper_bound_for_synthetic": {
+      "available": false,
+      "reason": "oracle not available in current synthetic export because hidden effective_config is not emitted"
+    },
+    "random_candidate_baseline": {
+      "average_combined_outcome_score": null,
+      "average_learning_gain_proxy": null,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 0,
+      "next_step_success_rate": null
+    },
+    "static_baseline": {
+      "average_combined_outcome_score": null,
+      "average_learning_gain_proxy": null,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 0,
+      "next_step_success_rate": null
+    }
+  },
+  "class_balance": {
+    "all": {
+      "majority_class": "negative",
+      "majority_class_accuracy": 0.533333,
+      "negative_count": 320,
+      "positive_count": 280,
+      "positive_rate": 0.466667,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "test": {
+      "majority_class": "negative",
+      "majority_class_accuracy": 0.535354,
+      "negative_count": 53,
+      "positive_count": 46,
+      "positive_rate": 0.464646,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "train": {
+      "majority_class": "negative",
+      "majority_class_accuracy": 0.533175,
+      "negative_count": 225,
+      "positive_count": 197,
+      "positive_rate": 0.466825,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "validation": {
+      "majority_class": "negative",
+      "majority_class_accuracy": 0.531646,
+      "negative_count": 42,
+      "positive_count": 37,
+      "positive_rate": 0.468354,
+      "unavailable_count": 0,
+      "warnings": []
+    }
+  },
+  "dataset_summary": {
+    "factor_distribution": {
+      "depth": {
+        "brief": 138,
+        "detailed": 140,
+        "standard": 322
+      },
+      "difficulty": {
+        "easy": 146,
+        "hard": 144,
+        "medium": 310
+      },
+      "examples_level": {
+        "multiple": 133,
+        "none": 153,
+        "single": 314
+      },
+      "presentation_format": {
+        "paragraph": 117,
+        "qa": 123,
+        "step_by_step": 83,
+        "structured_list": 277
+      },
+      "support_level": {
+        "guided": 303,
+        "minimal": 159,
+        "scaffolded": 138
+      },
+      "terminology_level": {
+        "balanced": 311,
+        "simple": 153,
+        "technical": 136
+      }
+    },
+    "leakage_guard_violations_count": 0,
+    "outcome_available_count": 600,
+    "outcome_stats": {
+      "average_normalized_learning_gain": 0.3694,
+      "average_post_score": 0.7029,
+      "average_pre_score": 0.5407,
+      "next_step_success_rate": 0.4667
+    },
+    "source_kind_counts": {
+      "synthetic": 600
+    },
+    "total_observations": 600
+  },
+  "diagnostic_examples": [
+    {
+      "base_candidate_config": {
+        "depth": "brief",
+        "difficulty": "medium",
+        "examples_level": "single",
+        "presentation_format": "structured_list",
+        "support_level": "minimal",
+        "terminology_level": "simple"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn_s42_l0001_o0007",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3225430916716021,
+            "expected_learning_gain_proxy": 0.34199903705405416,
+            "expected_next_step_success": 0.23337581730229606
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.3158332956216021,
+            "expected_learning_gain_proxy": 0.35242649845405416,
+            "expected_next_step_success": 0.19022410019590702
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.30493925238826874,
+            "expected_learning_gain_proxy": 0.35232344112072084,
+            "expected_next_step_success": 0.12645575797828768
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "detailed",
+        "difficulty": "easy",
+        "examples_level": "none",
+        "presentation_format": "qa",
+        "support_level": "minimal",
+        "terminology_level": "balanced"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn_s42_l0002_o0005",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "step_by_step",
+            "support_level": "minimal",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5795373680751271,
+            "expected_learning_gain_proxy": 0.5135501239314042,
+            "expected_next_step_success": 0.7976238568328388
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "qa",
+            "support_level": "minimal",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.48144649424179375,
+            "expected_learning_gain_proxy": 0.41773997259807083,
+            "expected_next_step_success": 0.665850458502547
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "qa",
+            "support_level": "minimal",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.47881857269179373,
+            "expected_learning_gain_proxy": 0.4134113381980708,
+            "expected_next_step_success": 0.6182821796664992
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "standard",
+        "difficulty": "medium",
+        "examples_level": "single",
+        "presentation_format": "structured_list",
+        "support_level": "guided",
+        "terminology_level": "balanced"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn_s42_l0003_o0006",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5078351917453354,
+            "expected_learning_gain_proxy": 0.42521973155640413,
+            "expected_next_step_success": 0.8546693911686434
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.43993535336200207,
+            "expected_learning_gain_proxy": 0.37476524492307084,
+            "expected_next_step_success": 0.6919664871432275
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "easy",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.4241220318620021,
+            "expected_learning_gain_proxy": 0.3644373908230708,
+            "expected_next_step_success": 0.6805570270885154
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "brief",
+        "difficulty": "easy",
+        "examples_level": "none",
+        "presentation_format": "paragraph",
+        "support_level": "minimal",
+        "terminology_level": "simple"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn_s42_l0003_o0007",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.7173500722166917,
+            "expected_learning_gain_proxy": 0.5739445101716834,
+            "expected_next_step_success": 0.942404138633582
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6558740163666916,
+            "expected_learning_gain_proxy": 0.5331816627716833,
+            "expected_next_step_success": 0.8901017859212519
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6505158647166916,
+            "expected_learning_gain_proxy": 0.5435162062716833,
+            "expected_next_step_success": 0.877741668529514
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "detailed",
+        "difficulty": "hard",
+        "examples_level": "single",
+        "presentation_format": "qa",
+        "support_level": "guided",
+        "terminology_level": "balanced"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn_s42_l0003_o0012",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "easy",
+            "examples_level": "none",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6282924508847437,
+            "expected_learning_gain_proxy": 0.5132617436821209,
+            "expected_next_step_success": 0.8770317565751156
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "qa",
+            "support_level": "minimal",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6004703693347437,
+            "expected_learning_gain_proxy": 0.49553066218212083,
+            "expected_next_step_success": 0.8382249314601969
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "hard",
+            "examples_level": "none",
+            "presentation_format": "qa",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5927776892847437,
+            "expected_learning_gain_proxy": 0.5110905623321208,
+            "expected_next_step_success": 0.8053665322354914
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Trained on synthetic observations only.",
+    "Candidate ranking diagnostics do not prove real-world educational superiority.",
+    "No counterfactual labels are available for all candidates."
+  ],
+  "model_metrics": {
+    "test": {
+      "combined_outcome_score": {
+        "mae": 0.148918,
+        "rmse": 0.183672
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.114381,
+        "rmse": 0.143959
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.79798,
+        "balanced_accuracy": 0.796965,
+        "log_loss": 0.438172,
+        "majority_class_accuracy": 0.535354,
+        "positive_rate": 0.464646,
+        "warnings": []
+      },
+      "row_count": 99,
+      "skipped_count": 0,
+      "usable_count": 99
+    },
+    "train": {
+      "combined_outcome_score": {
+        "mae": 0.145336,
+        "rmse": 0.176514
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.107846,
+        "rmse": 0.134507
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.793839,
+        "balanced_accuracy": 0.792769,
+        "log_loss": 0.459555,
+        "majority_class_accuracy": 0.533175,
+        "positive_rate": 0.466825,
+        "warnings": []
+      },
+      "row_count": 422,
+      "skipped_count": 0,
+      "usable_count": 422
+    },
+    "validation": {
+      "combined_outcome_score": {
+        "mae": 0.145818,
+        "rmse": 0.176719
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.114822,
+        "rmse": 0.14588
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.835443,
+        "balanced_accuracy": 0.833977,
+        "log_loss": 0.438322,
+        "majority_class_accuracy": 0.531646,
+        "positive_rate": 0.468354,
+        "warnings": []
+      },
+      "row_count": 79,
+      "skipped_count": 0,
+      "usable_count": 79
+    }
+  },
+  "skipped_rows": {
+    "supervised_unusable_count": 0
+  },
+  "split_sizes": {
+    "test": 99,
+    "train": 422,
+    "validation": 79
+  }
+}

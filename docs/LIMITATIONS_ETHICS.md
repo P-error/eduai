@@ -8,7 +8,7 @@
 - Duration is noisy and depends on client telemetry quality.
 - Chat-derived UX signal is weak by design and should not be overinterpreted.
 - Small sample sizes can produce unstable preferences despite smoothing and confidence labels.
-- Axis transferability is imperfect (`response_format` is mcq-centric in tests, mapped loosely in chat).
+- Axis transferability is imperfect (`response_format` is currently `mcq`-only in runtime; chat uses it only as a structured style hint).
 
 ## Data Quality Risks
 

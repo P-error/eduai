@@ -2,53 +2,83 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearAuthToken, getAuthToken } from "@/lib/client-auth";
+import { usePathname } from "next/navigation";
+import { fetchCurrentUser, logoutUser } from "@/lib/client-auth";
+import { useUiLocale } from "@/components/i18n/UiLocaleProvider";
+import { DEMO_USER_NAME, isDemoPath } from "@/lib/demo-script";
 
 type MeResponse = {
+  id?: string;
   name?: string | null;
   email?: string | null;
 };
 
 export default function AuthActions() {
-  const token = getAuthToken();
-  const hasToken = Boolean(token);
-  const [label, setLabel] = useState<string | null>(null);
+  const { messages } = useUiLocale();
+  const pathname = usePathname();
+  const isDemo = isDemoPath(pathname);
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isPublicPath = pathname === "/" || pathname === "/login" || pathname === "/register";
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-
     let active = true;
 
-    fetch("/api/users/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => (response.ok ? response.json() : null))
+    if (isDemo) {
+      return () => {
+        active = false;
+      };
+    }
+
+    fetchCurrentUser()
       .then((data: MeResponse | null) => {
-        if (!active || !data) return;
-        setLabel(data.name ?? data.email ?? "User");
+        if (!active) return;
+        setMe(data);
+        setLoading(false);
       })
       .catch(() => {
         if (!active) return;
-        setLabel("User");
+        setMe(null);
+        setLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [isDemo]);
 
-  if (!hasToken) {
+  if (isDemo) {
     return (
       <div className="flex items-center gap-2">
-        <Link className="rounded-full border border-slate-700 px-4 py-2" href="/login">
-          Login
+        <span className="ui-meta uppercase tracking-[0.16em]">{DEMO_USER_NAME}</span>
+        <span className="ui-chip ui-chip-info">
+          Simulated account
+        </span>
+      </div>
+    );
+  }
+
+  if (loading && !isPublicPath) {
+    return (
+      <div
+        className="ui-panel-soft h-11 w-32 rounded-full border border-slate-800"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (!me?.id) {
+    if (!isPublicPath) {
+      return null;
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Link className="ui-action-secondary ui-action-sm" href="/login">
+          {messages.authActions.signIn}
         </Link>
-        <Link className="rounded-full border border-slate-700 px-4 py-2" href="/register">
-          Register
+        <Link className="ui-action-secondary ui-action-sm" href="/register">
+          {messages.authActions.createAccount}
         </Link>
       </div>
     );
@@ -56,18 +86,18 @@ export default function AuthActions() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs uppercase text-slate-400">
-        {label ?? "User"}
+      <span className="ui-meta uppercase tracking-[0.16em]">
+        {me.name ?? me.email ?? messages.authActions.userFallback}
       </span>
       <button
-        className="rounded-full border border-slate-700 px-4 py-2"
+        className="ui-action-secondary ui-action-sm"
         type="button"
-        onClick={() => {
-          clearAuthToken();
+        onClick={async () => {
+          await logoutUser();
           window.location.href = "/login";
         }}
       >
-        Logout
+        {messages.authActions.signOut}
       </button>
     </div>
   );

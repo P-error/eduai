@@ -13,6 +13,12 @@ Optional variables:
 - `CHAT_STORE_RAW_CONTENT` (privacy control, default redacted storage)
 - `DATASET_EXPORT_SECRET` (recommended for export pseudonymization; falls back to `JWT_SECRET` only outside production)
 
+Production startup now fails fast on invalid critical env:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `OPENAI_API_KEY`
+- invalid `OPENAI_BASE_URL`
+
 ## 2) Build and Prisma Strategy
 
 ### Install/build behavior
@@ -42,8 +48,20 @@ Why:
 3. Run migrations from CI/job/terminal against production DB:
    - `npx prisma migrate deploy`
 4. Trigger Vercel deploy.
-5. Smoke-test critical routes:
-   - `/api/auth/login`
-   - `/api/tests/generate`
-   - `/api/tests/[id]/submit`
-   - `/api/users/me`
+5. Verify operational endpoints:
+   - `/api/health`
+   - `/api/ready`
+6. Run the canonical smoke suite from an environment with real runtime secrets:
+   - `npm run pilot-readiness:smoke`
+
+## 5) Runtime Readiness Notes
+
+`/api/ready` is the canonical runtime gate for pilot use.
+It verifies:
+- DB reachability
+- Prisma/runtime DB contract
+- auth/session config sanity
+- external rate limiter backend reachability
+- prediction runtime interpretability
+- artifact slot/runtime artifact interpretability
+- required LLM config sanity

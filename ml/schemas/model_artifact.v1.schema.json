@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduai.local/schemas/model_artifact.v1.schema.json",
+  "title": "EduAI native pedagogy model artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "artifact_schema_version",
+    "model_version",
+    "created_at",
+    "factor_space_version",
+    "training_data",
+    "target_definition",
+    "feature_schema",
+    "candidate_schema",
+    "model",
+    "evaluation",
+    "compatibility",
+    "limitations"
+  ],
+  "properties": {
+    "artifact_kind": {
+      "const": "eduai_native_pedagogy_artifact"
+    },
+    "artifact_schema_version": {
+      "const": "model_artifact.v1"
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "factor_space_version": {
+      "const": "factor_space.v1"
+    },
+    "training_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_summary", "observation_count", "source_kinds"],
+      "properties": {
+        "source_summary": { "type": "string", "minLength": 1 },
+        "observation_count": { "type": "integer", "minimum": 0 },
+        "source_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["synthetic", "open_dataset", "real_user"]
+          }
+        }
+      }
+    },
+    "target_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_target", "secondary_targets", "formula_description"],
+      "properties": {
+        "primary_target": {
+          "type": "string",
+          "enum": ["expected_learning_gain_proxy", "expected_next_step_success"]
+        },
+        "secondary_targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "expected_learning_gain_proxy",
+              "expected_next_step_success",
+              "combined_outcome_score",
+              "confidence",
+              "uncertainty"
+            ]
+          }
+        },
+        "formula_description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "feature_schema": {
+      "type": "object"
+    },
+    "candidate_schema": {
+      "type": "object"
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_family", "parameters", "weights_or_serialized_payload"],
+      "properties": {
+        "model_family": { "type": "string", "minLength": 1 },
+        "parameters": { "type": "object" },
+        "weights_or_serialized_payload": {
+          "type": ["object", "array", "string", "null"]
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["split_strategy", "metrics", "baseline_comparison"],
+      "properties": {
+        "split_strategy": { "type": "string", "minLength": 1 },
+        "metrics": { "type": "object" },
+        "baseline_comparison": { "type": "object" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_min_version", "contract_version"],
+      "properties": {
+        "app_min_version": { "type": ["string", "null"], "minLength": 1 },
+        "contract_version": { "const": "pedagogy_policy_contract_v1" }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

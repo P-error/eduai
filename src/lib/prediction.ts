@@ -1,54 +1,65 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { buildUserProfile } from "@/lib/profile";
 import {
-  getSubjectRecommendation,
-  getUserPresetForChat,
-  V2_BASELINE_PEDAGOGY_PRESET,
-} from "@/lib/recommendation";
-import { TARGET_SCORE_BAND } from "@/lib/tags";
+  getActivePredictionRuntimeConfig,
+  type ActivePredictionRuntimeSnapshot,
+} from "@/lib/active-policy";
+import { buildUserProfile } from "@/lib/profile";
+import { DURATION_HISTORY_WINDOW_ATTEMPTS } from "@/lib/prediction-duration";
 import {
   clampDifficulty,
-  clampQuestionCount,
-  difficultyAccuracyAdjust,
-  expectedTotalDurationBaselineMs,
   type DifficultyTarget,
 } from "@/lib/prediction-baselines";
 import {
-  assertUnifiedDurationPrediction,
-  DURATION_HISTORY_WINDOW_ATTEMPTS,
-  predictExpectedTotalDurationMsUnified,
-} from "@/lib/prediction-duration";
+  type PredictionCell,
+  type PredictionRuntimeDescriptor,
+} from "@/lib/prediction-contract";
 import {
-  DEFAULT_ACTIVE_PREDICTION_POLICY_ID,
-  PREDICTION_POLICY_V1,
-  type ActivePredictionPolicyId,
-} from "@/lib/active-policy";
-import { getActivePredictionModelParams } from "@/lib/prediction-params";
+  buildPersonalizationPlan,
+  type ExplanationDepth,
+} from "@/lib/personalization-runtime";
+import { TARGET_SCORE_BAND } from "@/lib/tags";
 
 type Difficulty = DifficultyTarget;
 
-type PredictionCell = {
+type ProxyPredictionCell = {
   value: number | null;
   confidence: number;
   basis: string;
-  components?: {
-    baseline: number;
-    telemetryAdjustment?: number;
-  };
 };
 
 export type UserPredictionsResponse = {
   forTests: {
-    predictionPolicyId: ActivePredictionPolicyId;
+    predictionPolicyId: string;
+    predictionRuntime: PredictionRuntimeDescriptor;
+    recommendedDecision: {
+      difficulty: Difficulty;
+      depth: ExplanationDepth;
+    };
+    materializedRendering: {
+      tone: string;
+      explanation_style: string;
+      response_format: "mcq";
+    };
     recommendedPreset: {
       policyMode: string;
       policyId: string;
-      uxPreset: { tone: string; explanation_style: string; response_format: "mcq" };
+      pedagogicalDecision: {
+        difficulty: Difficulty;
+        depth: ExplanationDepth;
+      };
+      renderingDecision: {
+        tone: string;
+        explanation_style: string;
+        response_format: "mcq";
+      };
+      uxPreset: {
+        tone: string;
+        explanation_style: string;
+        response_format: "mcq";
+      };
       pedagogyPreset: {
         difficulty_target: Difficulty;
-        cognitive_process: string;
-        task_family: string;
-        context: string;
+        depth: ExplanationDepth;
       };
     };
     predicted: {
@@ -58,14 +69,21 @@ export type UserPredictionsResponse = {
     nextDifficultySuggestion: { value: Difficulty | null; reason: string };
   };
   forChat: {
+    pedagogicalDecision: {
+      difficulty: Difficulty;
+      depth: ExplanationDepth;
+    };
     recommendedUxPreset: { tone: string; explanation_style: string };
-    predictedEngagement: PredictionCell;
+    materializedRendering: { tone: string; explanation_style: string };
+    predictedEngagement: ProxyPredictionCell;
   };
   notes: {
     disclaimer: string[];
     limitations: string[];
   };
 };
+
+const PREDICTION_HISTORY_SCAN_LIMIT = 200;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -85,199 +103,6 @@ function stepDifficulty(current: Difficulty, direction: "easier" | "harder") {
   if (current === "hard") return "medium";
   if (current === "medium") return "easy";
   return "easy";
-}
-
-export type PredictionHistoryAttempt = {
-  score: number;
-  byTagJson: unknown;
-  createdAt: Date;
-  test: {
-    subjectId: string;
-    questionCount: number;
-  };
-};
-
-const ACCURACY_HISTORY_WINDOW_ATTEMPTS = 10;
-const SUBJECT_CLEAN_MIN_ATTEMPTS = 3;
-const CONFIDENCE_FULL_EVIDENCE_QUESTIONS = 100;
-const PREDICTION_HISTORY_SCAN_LIMIT = 200;
-
-type AccuracyBasisScope =
-  | "subject_lastN_clean"
-  | "subject_lastN_fallback"
-  | "global_lastN_clean";
-
-function parseLearningEligibility(byTagJson: unknown): boolean | null {
-  if (!byTagJson || typeof byTagJson !== "object") return null;
-  const meta = (byTagJson as Record<string, unknown>)._meta;
-  if (!meta || typeof meta !== "object") return null;
-  const learning = (meta as Record<string, unknown>).learning;
-  if (!learning || typeof learning !== "object") return null;
-  const eligible = (learning as Record<string, unknown>).eligible;
-  return typeof eligible === "boolean" ? eligible : null;
-}
-
-function isCleanAttempt(attempt: PredictionHistoryAttempt) {
-  return parseLearningEligibility(attempt.byTagJson) === true;
-}
-
-function isFallbackAttempt(attempt: PredictionHistoryAttempt) {
-  return parseLearningEligibility(attempt.byTagJson) !== false;
-}
-
-function pickAccuracyAttemptSet(params: {
-  attempts: PredictionHistoryAttempt[];
-  subjectId: string | null | undefined;
-  windowAttempts: number;
-}): { attempts: PredictionHistoryAttempt[]; scope: AccuracyBasisScope } | null {
-  const { attempts, subjectId, windowAttempts } = params;
-
-  if (subjectId) {
-    const subjectAttempts = attempts.filter((attempt) => attempt.test.subjectId === subjectId);
-    const subjectClean = subjectAttempts.filter(isCleanAttempt).slice(0, windowAttempts);
-    if (subjectClean.length >= SUBJECT_CLEAN_MIN_ATTEMPTS) {
-      return { attempts: subjectClean, scope: "subject_lastN_clean" };
-    }
-
-    const subjectFallback = subjectAttempts
-      .filter(isFallbackAttempt)
-      .slice(0, windowAttempts);
-    if (subjectFallback.length > 0) {
-      return { attempts: subjectFallback, scope: "subject_lastN_fallback" };
-    }
-  }
-
-  const globalClean = attempts.filter(isCleanAttempt).slice(0, windowAttempts);
-  if (globalClean.length > 0) {
-    return { attempts: globalClean, scope: "global_lastN_clean" };
-  }
-
-  return null;
-}
-
-function summarizeQuestionEvidence(attempts: PredictionHistoryAttempt[]) {
-  let correctSum = 0;
-  let totalSum = 0;
-
-  for (const attempt of attempts) {
-    const totalQuestions = clampQuestionCount(attempt.test.questionCount);
-    const rawCorrect = Math.round(attempt.score * totalQuestions);
-    const correct = Math.max(0, Math.min(totalQuestions, rawCorrect));
-    correctSum += correct;
-    totalSum += totalQuestions;
-  }
-
-  return { correctSum, totalSum };
-}
-
-function betaPosteriorMean(
-  correctSum: number,
-  totalSum: number,
-  betaA: number,
-  betaB: number,
-) {
-  return (betaA + correctSum) / (betaA + betaB + totalSum);
-}
-
-export function predictExpectedAccuracyBeta(params: {
-  attempts: PredictionHistoryAttempt[];
-  difficultyTarget: Difficulty;
-  subjectId?: string | null;
-  windowAttempts?: number;
-  modelParams?: {
-    betaA?: number;
-    betaB?: number;
-    diffAdjustMag?: number;
-  };
-}): PredictionCell {
-  const activeParams = getActivePredictionModelParams();
-  const betaA = Math.max(0.01, params.modelParams?.betaA ?? activeParams.betaA);
-  const betaB = Math.max(0.01, params.modelParams?.betaB ?? activeParams.betaB);
-  const diffAdjustMag = Math.max(
-    0,
-    Math.min(0.3, params.modelParams?.diffAdjustMag ?? activeParams.diffAdjustMag),
-  );
-  const windowAttempts = clampQuestionCount(
-    params.windowAttempts ?? ACCURACY_HISTORY_WINDOW_ATTEMPTS,
-  );
-  const orderedAttempts = [...params.attempts].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-  );
-  const selected = pickAccuracyAttemptSet({
-    attempts: orderedAttempts,
-    subjectId: params.subjectId,
-    windowAttempts,
-  });
-
-  if (!selected) {
-    return {
-      value: null,
-      confidence: 0,
-      basis: "insufficient_data",
-    };
-  }
-
-  const { correctSum, totalSum } = summarizeQuestionEvidence(selected.attempts);
-  if (totalSum <= 0) {
-    return {
-      value: null,
-      confidence: 0,
-      basis: "insufficient_data",
-    };
-  }
-
-  const posterior = betaPosteriorMean(correctSum, totalSum, betaA, betaB);
-  const adjusted = clamp01(
-    posterior + difficultyAccuracyAdjust(params.difficultyTarget, diffAdjustMag),
-  );
-  const confidence = clamp01(totalSum / CONFIDENCE_FULL_EVIDENCE_QUESTIONS);
-
-  return {
-    value: adjusted,
-    confidence,
-    basis: `${selected.scope}|beta_binomial_posterior + difficulty_adjust`,
-  };
-}
-
-export function predictExpectedAccuracyRawMean(params: {
-  attempts: PredictionHistoryAttempt[];
-  subjectId?: string | null;
-  windowAttempts?: number;
-}): PredictionCell {
-  const windowAttempts = clampQuestionCount(
-    params.windowAttempts ?? ACCURACY_HISTORY_WINDOW_ATTEMPTS,
-  );
-  const orderedAttempts = [...params.attempts].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-  );
-  const selected = pickAccuracyAttemptSet({
-    attempts: orderedAttempts,
-    subjectId: params.subjectId,
-    windowAttempts,
-  });
-
-  if (!selected) {
-    return {
-      value: null,
-      confidence: 0,
-      basis: "insufficient_data",
-    };
-  }
-
-  const { correctSum, totalSum } = summarizeQuestionEvidence(selected.attempts);
-  if (totalSum <= 0) {
-    return {
-      value: null,
-      confidence: 0,
-      basis: "insufficient_data",
-    };
-  }
-
-  return {
-    value: clamp01(correctSum / totalSum),
-    confidence: clamp01(totalSum / CONFIDENCE_FULL_EVIDENCE_QUESTIONS),
-    basis: `${selected.scope}|raw_mean`,
-  };
 }
 
 export function suggestNextDifficulty(params: {
@@ -315,7 +140,7 @@ export function suggestNextDifficulty(params: {
 export function predictChatEngagement(params: {
   recentChatRewards: number[];
   uxConfidence: number;
-}): PredictionCell {
+}): ProxyPredictionCell {
   const chatCount = params.recentChatRewards.length;
   const engagement = average(params.recentChatRewards);
   if (engagement == null) {
@@ -333,30 +158,76 @@ export function predictChatEngagement(params: {
   };
 }
 
-export async function buildUserPredictions(params: {
+function buildPredictionNotes(runtime: PredictionRuntimeDescriptor) {
+  const disclaimer = [
+    "Prediction values are bounded proxies, not guarantees of learning outcomes.",
+    "Expected duration currently remains a transparent heuristic predictor.",
+  ];
+  const limitations = [
+    "Sparse activity reduces confidence and may return null estimates.",
+    "Chat and test signals are behavior proxies, not causal evidence.",
+    `Difficulty suggestion follows policy band ${TARGET_SCORE_BAND.low}-${TARGET_SCORE_BAND.high}.`,
+  ];
+
+  if (runtime.selectionWarning) {
+    limitations.push(`Prediction config warning: ${runtime.selectionWarning}.`);
+  }
+
+  if (runtime.backendKind === "stub_model") {
+    disclaimer.unshift(
+      "Expected accuracy currently uses an explicit stub backend over the runtime feature payload, not a trained ML artifact.",
+    );
+  } else if (runtime.backendKind === "heuristic_baseline") {
+    disclaimer.unshift(
+      "Expected accuracy currently uses a heuristic baseline backend, not a trained ML artifact.",
+    );
+  } else if (runtime.backendStatus === "ready") {
+    disclaimer.unshift(
+      "Expected accuracy currently uses an artifact-backed offline ML backend.",
+    );
+  } else {
+    disclaimer.unshift(
+      "Artifact-backed ML backend is configured, but the runtime artifact slot is not ready.",
+    );
+    limitations.push(
+      `Configured artifact state: ${runtime.artifact.status}${runtime.artifact.warning ? ` (${runtime.artifact.warning})` : ""}.`,
+    );
+  }
+
+  return { disclaimer, limitations };
+}
+
+export async function buildUserPredictionRuntime(params: {
   prisma: PrismaClient;
   userId: string;
   subjectId?: string | null;
-  predictionPolicyId?: ActivePredictionPolicyId;
-}): Promise<UserPredictionsResponse> {
-  const {
-    prisma,
-    userId,
-    subjectId,
-    predictionPolicyId = DEFAULT_ACTIVE_PREDICTION_POLICY_ID,
-  } = params;
-  const profile = await buildUserProfile(prisma, userId);
-  const selectedSubjectId = subjectId ?? profile.subjects[0]?.subjectId ?? null;
+  predictionRuntimeSnapshot?: ActivePredictionRuntimeSnapshot;
+}) {
+  const snapshot =
+    params.predictionRuntimeSnapshot ?? (await getActivePredictionRuntimeConfig());
+  const profile = await buildUserProfile(params.prisma, params.userId);
+  const selectedSubjectId = params.subjectId ?? profile.subjects[0]?.subjectId ?? null;
 
-  const [chatPreset, recommendation, telemetryAttempts, historyAttempts, chatSignals] =
+  const [user, subject, telemetryAttempts, historyAttempts, chatSignals] =
     await Promise.all([
-      getUserPresetForChat(userId),
+      params.prisma.user.findUnique({
+        where: { id: params.userId },
+        select: {
+          effectivePreferencesJson: true,
+        },
+      }),
       selectedSubjectId
-        ? getSubjectRecommendation(userId, selectedSubjectId)
+        ? params.prisma.subject.findFirst({
+            where: { id: selectedSubjectId, userId: params.userId },
+            select: {
+              id: true,
+              title: true,
+            },
+          })
         : Promise.resolve(null),
-      prisma.testAttempt.findMany({
+      params.prisma.testAttempt.findMany({
         where: {
-          userId,
+          userId: params.userId,
           perQuestionFirstAnswerMsJson: { not: Prisma.DbNull },
         },
         select: {
@@ -366,8 +237,8 @@ export async function buildUserPredictions(params: {
         orderBy: { createdAt: "desc" },
         take: DURATION_HISTORY_WINDOW_ATTEMPTS,
       }),
-      prisma.testAttempt.findMany({
-        where: { userId },
+      params.prisma.testAttempt.findMany({
+        where: { userId: params.userId },
         select: {
           score: true,
           byTagJson: true,
@@ -382,10 +253,10 @@ export async function buildUserPredictions(params: {
         orderBy: { createdAt: "desc" },
         take: PREDICTION_HISTORY_SCAN_LIMIT,
       }),
-      prisma.chatMessage.findMany({
+      params.prisma.chatMessage.findMany({
         where: {
           role: "assistant",
-          session: { userId },
+          session: { userId: params.userId },
         },
         select: {
           signalsJson: true,
@@ -395,60 +266,37 @@ export async function buildUserPredictions(params: {
       }),
     ]);
 
-  const recUx = recommendation?.ok
-    ? recommendation.preset.uxPreset
-    : chatPreset.uxPreset;
-  const recPed = recommendation?.ok
-    ? recommendation.preset.pedagogyPreset
-    : { ...V2_BASELINE_PEDAGOGY_PRESET, ...chatPreset.pedagogyPreset };
+  const effectivePreferences =
+    (user?.effectivePreferencesJson ?? {}) as Record<string, unknown>;
+  const subjectAttemptCount = selectedSubjectId
+    ? historyAttempts.filter((attempt) => attempt.test.subjectId === selectedSubjectId)
+        .length
+    : 0;
+  const recommendedQuestionCount =
+    selectedSubjectId && subjectAttemptCount > 0 ? 8 : 5;
 
-  const difficultyTarget = clampDifficulty(recPed.difficulty_target);
-  const responseFormat = recUx.response_format ?? "mcq";
-  const questionCount = recommendation?.ok ? recommendation.preset.questionCount : 5;
-
-  const expectedAccuracy =
-    predictionPolicyId === PREDICTION_POLICY_V1
-      ? predictExpectedAccuracyRawMean({
-          attempts: historyAttempts,
-          subjectId: selectedSubjectId,
-        })
-      : predictExpectedAccuracyBeta({
-          attempts: historyAttempts,
-          difficultyTarget,
-          subjectId: selectedSubjectId,
-        });
-
-  const baselineDuration = expectedTotalDurationBaselineMs({
-    difficultyTarget,
-    responseFormat,
-    questionCount,
+  const testPlan = buildPersonalizationPlan({
+    snapshot,
+    historyAttempts,
+    durationAttempts: telemetryAttempts,
+    effectivePreferences,
+    surface: "test",
+    mode: "practice",
+    subjectId: selectedSubjectId,
+    subjectTitle: subject?.title ?? null,
+    topic: subject?.title ?? null,
+    questionCount: recommendedQuestionCount,
+    currentDifficulty: profile.pedagogy.currentDifficultyTarget,
   });
-  const expectedTotalDurationMs =
-    predictionPolicyId === PREDICTION_POLICY_V1
-      ? {
-          value: baselineDuration,
-          confidence: 0,
-          basis: `${PREDICTION_POLICY_V1}|baseline_only`,
-          components: {
-            baseline: baselineDuration,
-          },
-        }
-      : predictExpectedTotalDurationMsUnified({
-          difficultyTarget,
-          responseFormat,
-          questionCount,
-          historicalAttempts: telemetryAttempts,
-        });
-  assertUnifiedDurationPrediction(
-    expectedTotalDurationMs,
-    "buildUserPredictions.expectedTotalDurationMs",
-  );
-
-  const nextDifficultySuggestion = suggestNextDifficulty({
-    current: profile.pedagogy.currentDifficultyTarget,
-    recentAccuracy: profile.pedagogy.recentAccuracy.value,
-    low: profile.pedagogy.band.low,
-    high: profile.pedagogy.band.high,
+  const chatPlan = buildPersonalizationPlan({
+    snapshot,
+    historyAttempts,
+    durationAttempts: telemetryAttempts,
+    effectivePreferences,
+    surface: "chat",
+    mode: "chat",
+    questionCount: 1,
+    currentDifficulty: profile.pedagogy.currentDifficultyTarget,
   });
 
   const uxConfidence =
@@ -468,52 +316,90 @@ export async function buildUserPredictions(params: {
     })
     .filter((value): value is number => value != null);
 
-  const predictedEngagement = predictChatEngagement({
-    recentChatRewards,
-    uxConfidence,
+  return {
+    profile,
+    selectedSubjectId,
+    testPlan,
+    chatPlan,
+    predictedEngagement: predictChatEngagement({
+      recentChatRewards,
+      uxConfidence,
+    }),
+  };
+}
+
+export async function buildUserPredictions(params: {
+  prisma: PrismaClient;
+  userId: string;
+  subjectId?: string | null;
+  predictionRuntimeSnapshot?: ActivePredictionRuntimeSnapshot;
+}): Promise<UserPredictionsResponse> {
+  const runtimeContext = await buildUserPredictionRuntime(params);
+  const nextDifficultySuggestion = suggestNextDifficulty({
+    current: runtimeContext.profile.pedagogy.currentDifficultyTarget,
+    recentAccuracy: runtimeContext.profile.pedagogy.recentAccuracy.value,
+    low: runtimeContext.profile.pedagogy.band.low,
+    high: runtimeContext.profile.pedagogy.band.high,
   });
 
   return {
     forTests: {
-      predictionPolicyId,
+      predictionPolicyId: runtimeContext.testPlan.runtime.policyId,
+      predictionRuntime: runtimeContext.testPlan.runtime,
+      recommendedDecision: {
+        difficulty: clampDifficulty(
+          runtimeContext.testPlan.pedagogicalDecision.difficulty,
+        ),
+        depth: runtimeContext.testPlan.pedagogicalDecision.depth,
+      },
+      materializedRendering: {
+        tone: runtimeContext.testPlan.materialization.uxPreset.tone,
+        explanation_style:
+          runtimeContext.testPlan.materialization.uxPreset.explanation_style,
+        response_format:
+          runtimeContext.testPlan.materialization.uxPreset.response_format,
+      },
       recommendedPreset: {
         policyMode: "personalization_on",
         policyId: "v2_personalized",
-        uxPreset: {
-          tone: recUx.tone ?? "formal",
-          explanation_style: recUx.explanation_style ?? "stepwise",
-          response_format: "mcq",
+        pedagogicalDecision: {
+          difficulty: clampDifficulty(
+            runtimeContext.testPlan.pedagogicalDecision.difficulty,
+          ),
+          depth: runtimeContext.testPlan.pedagogicalDecision.depth,
         },
-        pedagogyPreset: {
-          difficulty_target: difficultyTarget,
-          cognitive_process: recPed.cognitive_process ?? "apply",
-          task_family: recPed.task_family ?? "problem_solving",
-          context: recPed.context ?? "abstract",
+        renderingDecision: {
+          tone: runtimeContext.testPlan.materialization.uxPreset.tone,
+          explanation_style:
+            runtimeContext.testPlan.materialization.uxPreset.explanation_style,
+          response_format:
+            runtimeContext.testPlan.materialization.uxPreset.response_format,
         },
+        uxPreset: runtimeContext.testPlan.materialization.uxPreset,
+        pedagogyPreset: runtimeContext.testPlan.materialization.pedagogyPreset,
       },
-      predicted: {
-        expectedAccuracy,
-        expectedTotalDurationMs,
-      },
+      predicted: runtimeContext.testPlan.selectedPrediction,
       nextDifficultySuggestion,
     },
     forChat: {
-      recommendedUxPreset: {
-        tone: recUx.tone ?? "formal",
-        explanation_style: recUx.explanation_style ?? "stepwise",
+      pedagogicalDecision: {
+        difficulty: clampDifficulty(
+          runtimeContext.chatPlan.pedagogicalDecision.difficulty,
+        ),
+        depth: runtimeContext.chatPlan.pedagogicalDecision.depth,
       },
-      predictedEngagement,
+      recommendedUxPreset: {
+        tone: runtimeContext.chatPlan.materialization.uxPreset.tone,
+        explanation_style:
+          runtimeContext.chatPlan.materialization.uxPreset.explanation_style,
+      },
+      materializedRendering: {
+        tone: runtimeContext.chatPlan.materialization.uxPreset.tone,
+        explanation_style:
+          runtimeContext.chatPlan.materialization.uxPreset.explanation_style,
+      },
+      predictedEngagement: runtimeContext.predictedEngagement,
     },
-    notes: {
-      disclaimer: [
-        "Predictions are heuristic proxies based on recent activity.",
-        "Values are not guarantees of learning outcomes.",
-      ],
-      limitations: [
-        "Sparse activity reduces confidence and may return null estimates.",
-        "Chat and test signals are behavior proxies, not causal evidence.",
-        `Difficulty suggestion follows policy band ${TARGET_SCORE_BAND.low}-${TARGET_SCORE_BAND.high}.`,
-      ],
-    },
+    notes: buildPredictionNotes(runtimeContext.testPlan.runtime),
   };
 }

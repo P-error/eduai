@@ -1,128 +1,147 @@
 # Architecture
 
-EduAI is a Next.js App Router app with Prisma/PostgreSQL, an OpenAI-compatible LLM provider, and JWT auth.
-Protected APIs use Bearer JWT; SSR ownership checks can also use JWT cookie (`eduai_token`).
-The core logic is split into UX personalization, pedagogy personalization, prediction proxies, and admin observability.
-Public pilot controls add:
-- explicit research consent (`User.researchConsentAt`, `User.researchConsentVersion`);
-- endpoint rate limits for auth/generate/submit (`src/lib/rate-limit.ts`);
-- configurable active prediction policy (`configs/active_policy.json`);
-- admin-only anonymized dataset export (`GET /api/admin/dataset-export`).
+EduAI is a Next.js App Router system with Prisma/PostgreSQL, JWT auth, and an OpenAI-compatible LLM provider.
+This document describes the current architectural framing used for development.
+`VISION.md` remains the target-state direction; repository code plus current docs remain the source of truth for current behavior.
 
-## Component Map
+## Research Boundary
 
-```mermaid
-flowchart LR
-  U[User UI: Learn/Practice/Profile/Insights] --> API[Next.js API routes]
-  A[Admin UI: /admin/*] --> API
+The project goal is not generic UI personalization.
+The core research problem is prediction of optimal educational content for an individual learner with machine learning.
 
-  API --> AUTH[src/lib/auth.ts]
-  API --> REC[src/lib/recommendation.ts]
-  API --> STATS[src/lib/statistics.ts]
-  API --> PRED[src/lib/prediction.ts]
-  API --> PDUR[src/lib/prediction-duration.ts]
-  API --> PM[src/lib/prediction-metrics.ts]
-  API --> CHAT[src/lib/chat.ts]
-  API --> TAG1[src/lib/llm-tagger.ts]
-  API --> TAG2[src/lib/tagger.ts]
-  API --> LLM[src/lib/llm/provider.ts]
-  API --> DB[(PostgreSQL via Prisma)]
+Key distinction:
+- declared preference: what the learner says they prefer;
+- effective preference: what actually produces the best measurable learning result.
 
-  DB --> T1[GeneratedTest/TestAttempt]
-  DB --> T2[TagAxis/Tag/TagAssignment/UserTagStat]
-  DB --> T3[ChatSession/ChatMessage]
-  DB --> T4[Subject/Section/Collection]
-```
+Current conceptual definition:
+- optimal educational content = content that maximizes learning gain;
+- first practical baseline proxy = next-task success probability;
+- time is secondary and may be used as a constraint or support metric, not as the primary educational objective.
 
-## Generate Test Dataflow
+## Two-Layer Architecture
 
-```mermaid
-sequenceDiagram
-  participant UI as Practice UI
-  participant API as POST /api/tests/generate
-  participant REC as Recommendation logic
-  participant LLM as LLM provider
-  participant TAG as LLM Tagger + Rule Fallback
-  participant DB as Prisma/Postgres
+### Layer 1: ML prediction layer
 
-  UI->>API: subject/topic/count/mode + personalizationMode (+optional delivery)
-  API->>REC: resolve baseline/personalized/manual policy
-  API->>LLM: generate JSON test
-  alt LLM failure or invalid output
-    API->>API: fallback test
-  end
-  API->>TAG: tag questions (LLM diagnostics)
-  alt invalid/missing tags
-    API->>TAG: rule fallback per-question
-  end
-  API->>API: compute UX compliance on final observed tags
-  alt compliance fail AND taggingSource=llm AND retry budget remains
-    API->>LLM: retry with strict delivery reinforcement
-  end
-  API->>DB: save GeneratedTest + validationMetaJson + TagAssignment
-  API-->>UI: test id + sanitized questions (without answer keys)
-```
+Purpose:
+- predict pedagogically meaningful variables that influence learning gain;
+- infer effective preferences from behavioral and performance data;
+- keep prediction policies versioned, comparable, and replay-safe.
 
-## Submit Dataflow
+Current dissertation focus:
+- `difficulty`;
+- `explanation depth`.
 
-```mermaid
-sequenceDiagram
-  participant UI as Test Runner UI
-  participant API as POST /api/tests/[id]/submit
-  participant STATS as statistics.ts
-  participant DB as Prisma/Postgres
+Possible future ML axis:
+- `instructional_mode`.
 
-  UI->>API: answers + telemetry
-  API->>DB: load test + assignments + metadata
-  API->>API: strict payload validation
-  API->>API: ownership check + idempotent replay check
-  API->>API: score + byTag + policy meta
-  API->>STATS: uxReward + difficulty decision
-  API->>DB: write TestAttempt (unique userId+testId)
-  alt learning eligible
-    API->>DB: update UserTagStat + effectivePreferences
-  else learning gated
-    API->>DB: skip updates, keep attempt only
-  end
-  API-->>UI: score + byTag + additive meta
-```
+Non-goals for the first dissertation version:
+- treating `tone`, `style`, or formatting as primary ML targets;
+- treating all 10 content axes as equal optimization targets.
 
-## Chat Dataflow
+### Layer 2: rule-based rendering layer
 
-```mermaid
-sequenceDiagram
-  participant UI as Learn UI
-  participant API as POST /api/chat
-  participant REC as recommendation.ts
-  participant LLM as LLM provider
-  participant CHAT as chat.ts
-  participant DB as Prisma/Postgres
+Purpose:
+- translate pedagogical decisions into concrete content presentation;
+- map predicted targets into tone, style, format, and other presentation constraints;
+- keep this materialization logic explicit and auditable.
 
-  UI->>API: messages + personalizationMode
-  API->>REC: resolve UX preset (personalized or baseline)
-  API->>LLM: chat completion with UX constraints
-  API->>CHAT: compute weak UX reward proxy
-  API->>CHAT: apply UX stat updates (tone/style only)
-  API->>DB: store chat event/messages (raw redacted by default)
-  API-->>UI: reply + policy metadata
-```
+Rules in this layer are allowed and expected.
+They are not a replacement for the ML prediction layer.
 
-## Prediction + Evaluation
+## Current System Modules
 
-```mermaid
-flowchart TD
-  ATT[TestAttempt + meta.prediction/.actual] --> PM[prediction-metrics aggregation]
-  PROF[profile aggregation] --> PRED[prediction heuristics]
-  REC[recommendation preset] --> PRED
-  PRED --> UINS[User Insights /profile,/insights]
-  PM --> ADMIN[/admin/predictions + API]
-```
+Main runtime surfaces:
+- learner UI: Profile, Learn, Practice, Analytics, Topics;
+- researcher/operator UI: Admin `Research episodes` (`/admin/episodes`) for episode launch + inspection in the current admin user's workspace;
+- standalone learner support surface: Test Runner (`/tests/[id]`) kept only as a backward-compatible custom-practice runner;
+- admin UI: observability, prediction metrics, data-quality tooling;
+- API layer: `src/app/api/**/route.ts`;
+- persistence: Prisma/PostgreSQL;
+- LLM access: `src/lib/llm/provider.ts`.
 
-## Layer Separation
+Current shell/i18n note:
+- the main application UI defaults to English;
+- the main shell exposes a manual `EN/RU` toggle and persists the selected locale in an app cookie;
+- the main `Profile` surface now also exposes practical visual preferences for `theme` (`System/Light/Dark`), app-level font scaling, and a targeted high-contrast mode;
+- those visual preferences are stored as browser cookies and applied only to the main application shell/routes;
+- `/demo` remains outside this visual-settings pass;
+- locale routing is not used;
+- `/demo` remains isolated from the main-app locale toggle behavior.
 
-- UX layer: `tone`, `explanation_style`, `response_format` (with `mcq` enforced in tests).
-- Pedagogy layer: `difficulty_target`, `cognitive_process`, `task_family`, `context`.
-- Prediction layer: expected accuracy/time and next difficulty suggestion (heuristics).
-- Duration prediction uses one shared pipeline (`predictExpectedTotalDurationMsUnified`) for UI and submit logging.
-- Admin layer: quality/calibration/usage aggregates only, no raw educational content exposed.
-- Answer keys remain server-side in `GeneratedTest.questionsJson`; all client-facing payloads are sanitized.
+Current supporting modules include:
+- runtime decision/materialization contract in `src/lib/personalization-runtime.ts`;
+- recommendation and baseline policy logic in `src/lib/recommendation.ts`;
+- statistics and baseline update logic in `src/lib/statistics.ts`;
+- prediction runtime modules in `src/lib/prediction*.ts`;
+- tagging and content metadata logic in `src/lib/tagger.ts` and `src/lib/llm-tagger.ts`.
+
+## Current Implementation State
+
+The repository currently contains a mix of:
+- heuristic baselines;
+- stub model paths;
+- artifact-backed ML runtime paths;
+- rule-based rendering/materialization logic.
+
+Those paths must be interpreted honestly:
+- heuristic and stub components are not ML;
+- baseline/runtime support metrics are not a substitute for the dissertation ML target definition;
+- if an artifact-backed ML slot is unavailable, the system must report that explicitly rather than hiding a fallback.
+
+Current runtime alignment:
+- the shared runtime decision contract now selects `difficulty` and `depth` as the pedagogical outputs;
+- tone, explanation style, and response formatting are materialized afterward in an explicit rules layer;
+- legacy delivery fields remain only as compatibility adapters for current routes and storage surfaces.
+
+Current decision-boundary step:
+- the repository now carries one explicit research-boundary contract in `src/lib/pedagogical-decision-contract.ts`;
+- `PedagogicalDecisionV1` is the canonical bridge object for pedagogical delivery ownership, even though current runtime still produces it through adapters over existing heuristic/stub/artifact paths;
+- `DecisionProvenanceV1` records whether the current decision boundary was backed by a heuristic, stub, artifact, or unknown source, without pretending that every bridge path is ML;
+- `LearnerStateSnapshotV1` is intentionally only a boundary snapshot, not a new full learner model or migration-driven state redesign;
+- `DeliveredPedagogicalDecisionV1` binds learner snapshot, decision, provenance, and episode-linkage placeholders so later cleanup/export/serving work can depend on one object instead of scattered shapes;
+- this step does not switch the active runtime backend and does not claim that current routes or stored records are fully migrated to the new boundary.
+
+Current evaluation alignment:
+- the runtime can group related interactions into an explicit evaluation episode;
+- each stored test or chat session can now be linked to the episode, policy arm, pedagogical decision, and topic/concept/skill scope that produced it;
+- each linked artifact is also registered in a central `EvaluationEpisodeItem` protocol registry with explicit sequence role (`precheck`, `learning_content`, `postcheck`, `holdout`, `delayed_recheck`), item usage (`training` vs `evaluation` vs chat support), and practice-effect linkage metadata;
+- each evaluation episode now also carries an explicit data-collection phase/origin marker so future synthetic and real training data can stay separated without UI/runtime toggles;
+- arm assignment is now a runtime contract rather than a loose metadata label: baseline, self-report, predicted, and manual override can be selected and then fixed on the episode;
+- a lightweight episode coordinator can now lock one episode-level decision package and advance a structured MVP loop (`precheck -> learning_content -> postcheck/holdout`) instead of relying on manual client-side glue across unrelated endpoints;
+- the learning-content step is now a first-class episode artifact: EduAI generates a structured explanation/chat-delivery step from the same locked pedagogical decision (`difficulty`, `depth`) and the same rules-layer materialization family used by the surrounding tests;
+- the admin-side operator surface now reuses the same subject APIs plus the same episode coordinator instead of introducing a second control plane: it launches episodes, inspects linkage/provenance/sequence, and marks operational export readiness from the stored episode summary;
+- tests remain the primary learning-evaluation signal, while chat is logged only as a secondary supporting signal;
+- direct repetition, isomorphic same-family checks, unseen holdouts, and delayed retention checks are now distinguished in the protocol layer instead of only being implied by scattered metadata.
+
+Current training-data alignment:
+- PostgreSQL remains the canonical operational store; training workflows do not bypass the app by writing only raw CSV files;
+- the main project can now export versioned training snapshots from operational episode data into `training_datasets/synthetic/` and `training_datasets/real/`;
+- both phase roots share one fixed training schema contract, so later retraining on real EduAI data does not require a separate ingestion rewrite;
+- current snapshot writing uses CSV plus explicit schema/metadata/manifest files, with a documented later conversion path to Parquet;
+- a fixed future runtime artifact slot exists under `artifacts/runtime/eduai_native_pedagogy/current/`; this slot may now receive an EduAI-native artifact package, but serving integration remains inactive until a later explicit activation step;
+- synthetic bridge artifacts in that slot must be labeled as internal pipeline artifacts, not as real-user validation.
+
+## High-Level Data Flow
+
+1. The learner starts from `Learn`, which is now the active episode-first learner route.
+2. The API stores replay-safe behavioral and performance signals.
+3. The prediction layer builds features only from information available before the current decision point.
+4. A policy evaluates candidate pedagogical decisions and selects `difficulty` plus `depth`, with explicit versioning and backend-state metadata.
+5. The rendering layer turns those pedagogical decisions into tone, style, and format constraints.
+6. The runtime creates or reuses an evaluation episode, resolves a policy-assignment arm, locks an episode orchestration package, and materializes the next step through a minimal coordinator.
+7. Submit-time logging records predicted versus actual outcomes together with evaluation metadata and updates the linked episode item outcome record.
+8. The learner-facing `/learn` UI uses the same coordinator endpoints to start, restore, submit, and continue one episode instead of manually stitching together chat and standalone test routes.
+9. The coordinator can advance from precheck to learning content and then to postcheck/holdout while keeping tests primary and chat secondary.
+10. The operator-facing `/admin/episodes` surface uses the same stored summaries plus current user subject/section context to launch and inspect episodes without duplicating prediction logic in the UI.
+11. Offline export can now operate either on attempt-level dataset rows, on episode-level evaluation summaries, or on canonical training snapshots projected from operational episode data.
+12. Training snapshot export reads completed episodes from PostgreSQL, keeps synthetic and real phases separate, and writes versioned snapshot directories with schema/metadata/manifest files for later model training.
+
+## Architectural Invariants
+
+- No future leakage.
+- No hidden fallbacks.
+- UI must not contain core prediction logic.
+- Prediction policies must be versioned and comparable.
+- Backtesting and calibration must use replay-safe historical data only.
+- Heuristic or rule-based layers may exist as baselines, fallbacks, or rendering logic, but must never be described as ML.
+- Answer keys remain server-side; client payloads stay sanitized.

@@ -1,31 +1,28 @@
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import {
+  DEFAULT_COLLECTION_NAME,
+  isDefaultCollectionName,
+} from "@/lib/collection-constants";
 
 export async function ensureDefaultCollection(userId: string) {
-  const legacy = await prisma.collection.findFirst({
+  const rootCollections = await prisma.collection.findMany({
     where: {
       userId,
       parentId: null,
-      name: "Unassigned",
     },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (legacy) {
+  const existing = rootCollections.find((collection) =>
+    isDefaultCollectionName(collection.name),
+  );
+
+  if (existing) {
     return prisma.collection.update({
-      where: { id: legacy.id },
+      where: { id: existing.id },
       data: { name: DEFAULT_COLLECTION_NAME },
     });
   }
-
-  const existing = await prisma.collection.findFirst({
-    where: {
-      userId,
-      parentId: null,
-      name: DEFAULT_COLLECTION_NAME,
-    },
-  });
-
-  if (existing) return existing;
 
   return prisma.collection.create({
     data: {

@@ -27,6 +27,13 @@ export type UnifiedDurationPrediction = {
   };
 };
 
+export type DurationTelemetryEvidence = {
+  historyWindowAttempts: number;
+  recentAttemptCount: number;
+  observedQuestionCount: number;
+  meanPerQuestionFirstAnswerMs: number | null;
+};
+
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
@@ -88,11 +95,30 @@ function collectPerQuestionDurations(
   );
 }
 
-export function predictExpectedTotalDurationMsUnified(params: {
+export function buildDurationTelemetryEvidence(
+  attempts: DurationHistoricalAttempt[],
+): DurationTelemetryEvidence {
+  const recentAttempts = selectRecentAttempts(attempts);
+  const perQuestionDurations = collectPerQuestionDurations(recentAttempts);
+  const observedQuestionCount = perQuestionDurations.length;
+
+  return {
+    historyWindowAttempts: DURATION_HISTORY_WINDOW_ATTEMPTS,
+    recentAttemptCount: recentAttempts.length,
+    observedQuestionCount,
+    meanPerQuestionFirstAnswerMs:
+      observedQuestionCount > 0
+        ? perQuestionDurations.reduce((sum, value) => sum + value, 0) /
+          observedQuestionCount
+        : null,
+  };
+}
+
+export function predictExpectedTotalDurationMsFromEvidence(params: {
   difficultyTarget: string | null | undefined;
   responseFormat: string | null | undefined;
   questionCount: number | null | undefined;
-  historicalAttempts?: DurationHistoricalAttempt[] | null;
+  telemetryEvidence: DurationTelemetryEvidence;
   modelParams?: Partial<DurationPredictorModelParams> | null;
 }): UnifiedDurationPrediction {
   const modelParams = normalizeDurationModelParams(params.modelParams);
@@ -103,12 +129,10 @@ export function predictExpectedTotalDurationMsUnified(params: {
   });
   const questionCount = Math.max(1, Math.floor(params.questionCount ?? 1));
   const baselinePerQuestion = baseline / questionCount;
+  const totalQuestions = params.telemetryEvidence.observedQuestionCount;
+  const sampleMeanPerQuestion = params.telemetryEvidence.meanPerQuestionFirstAnswerMs;
 
-  const recentAttempts = selectRecentAttempts(params.historicalAttempts ?? []);
-  const perQuestionDurations = collectPerQuestionDurations(recentAttempts);
-  const totalQuestions = perQuestionDurations.length;
-
-  if (totalQuestions === 0) {
+  if (totalQuestions === 0 || sampleMeanPerQuestion == null) {
     return {
       value: baseline,
       confidence: 0,
@@ -117,8 +141,6 @@ export function predictExpectedTotalDurationMsUnified(params: {
     };
   }
 
-  const sampleMeanPerQuestion =
-    perQuestionDurations.reduce((sum, value) => sum + value, 0) / totalQuestions;
   const posteriorPerQuestion =
     (sampleMeanPerQuestion * totalQuestions +
       baselinePerQuestion * modelParams.durationPriorQuestions) /
@@ -140,6 +162,22 @@ export function predictExpectedTotalDurationMsUnified(params: {
       telemetryAdjustment: value - baseline,
     },
   };
+}
+
+export function predictExpectedTotalDurationMsUnified(params: {
+  difficultyTarget: string | null | undefined;
+  responseFormat: string | null | undefined;
+  questionCount: number | null | undefined;
+  historicalAttempts?: DurationHistoricalAttempt[] | null;
+  modelParams?: Partial<DurationPredictorModelParams> | null;
+}): UnifiedDurationPrediction {
+  return predictExpectedTotalDurationMsFromEvidence({
+    difficultyTarget: params.difficultyTarget,
+    responseFormat: params.responseFormat,
+    questionCount: params.questionCount,
+    telemetryEvidence: buildDurationTelemetryEvidence(params.historicalAttempts ?? []),
+    modelParams: params.modelParams,
+  });
 }
 
 export function assertUnifiedDurationPrediction(

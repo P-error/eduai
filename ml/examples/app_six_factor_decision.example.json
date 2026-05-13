@@ -1,0 +1,25 @@
+{
+  "schema_version": "app_six_factor_decision.v1",
+  "difficulty": "medium",
+  "depth": "standard",
+  "support_level": "guided",
+  "presentation_format": "structured_list",
+  "examples_level": "single",
+  "terminology_level": "balanced",
+  "decision_source": "static_fallback",
+  "model_version": null,
+  "policy_id": "six_factor_static_fallback_v1",
+  "artifact_path": null,
+  "fallback_used": true,
+  "candidate_count": null,
+  "confidence": 0,
+  "warnings": [
+    "Static fallback preserves the app-facing six-factor contract without activating ML serving."
+  ],
+  "compatibility": {
+    "factor_space_version": "factor_space.v1",
+    "contract_version": "app_six_factor_decision.v1",
+    "app_runtime_default_enabled": false,
+    "internal_policy_shape": "candidate_outcome_scorer"
+  }
+}

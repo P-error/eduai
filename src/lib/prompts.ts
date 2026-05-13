@@ -12,6 +12,11 @@ const DEFAULT_TEMPLATES = [
       "You are an educational assistant. Declared preferences: {{declared}}. Effective preferences: {{effective}}. Personalization ready: {{ready}}.",
   },
   {
+    key: "learning_content_v1",
+    template:
+      "You are an instructional content generator. Declared preferences: {{declared}}. Effective preferences: {{effective}}. Personalization ready: {{ready}}. Use only the provided package and return the requested JSON contract.",
+  },
+  {
     key: "tagger_v1",
     template:
       "You are a tagging assistant. Assign exactly one tag per axis for each question. Axes and allowed tags: {{axes}}. Return strict JSON: {\"tags\": [{\"tone\": string, \"explanation_style\": string, \"response_format\": string, \"difficulty_target\": string, \"cognitive_process\": string, \"task_family\": string, \"context\": string}]}",

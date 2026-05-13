@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { buildLearnerTruthOverview } from "@/lib/learner-truth";
 import { TARGET_SCORE_BAND } from "@/lib/tags";
 
 type ConfidenceCell = {
@@ -42,7 +43,11 @@ export type UserProfileResponse = {
     subjectId: string;
     subjectTitle: string;
     attempts: number;
+    attemptsLearningEligible: number;
+    attemptsExcluded: number;
     recentAccuracy: number | null;
+    recentEvidenceCount: number;
+    isDefaultCollection: boolean;
     currentDifficultyTarget: "easy" | "medium" | "hard" | null;
   }>;
   notes: {
@@ -51,65 +56,12 @@ export type UserProfileResponse = {
   };
 };
 
-type ByTagBucket = {
-  total?: unknown;
-};
-
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
 function confidenceFromSampleSize(sampleSize: number) {
   return clamp01(sampleSize / 20);
-}
-
-function normalizeDifficulty(value: unknown): "easy" | "medium" | "hard" | null {
-  if (value === "easy" || value === "medium" || value === "hard") {
-    return value;
-  }
-  return null;
-}
-
-function extractMeta(
-  byTagJson: unknown,
-): {
-  learningEligible: boolean | null;
-  learningSkipReason: string | null;
-} {
-  if (!byTagJson || typeof byTagJson !== "object") {
-    return { learningEligible: null, learningSkipReason: null };
-  }
-  const root = byTagJson as Record<string, unknown>;
-  const meta =
-    root._meta && typeof root._meta === "object"
-      ? (root._meta as Record<string, unknown>)
-      : null;
-  const learning =
-    meta?.learning && typeof meta.learning === "object"
-      ? (meta.learning as Record<string, unknown>)
-      : null;
-  const eligible =
-    typeof learning?.eligible === "boolean" ? learning.eligible : null;
-  const skipReason =
-    typeof learning?.skipReason === "string" ? learning.skipReason : null;
-  return { learningEligible: eligible, learningSkipReason: skipReason };
-}
-
-function inferDifficultyFromByTag(byTagJson: unknown) {
-  if (!byTagJson || typeof byTagJson !== "object") return null;
-  const root = byTagJson as Record<string, unknown>;
-  const difficulty = root.difficulty_target;
-  if (!difficulty || typeof difficulty !== "object") return null;
-  const buckets = Object.entries(difficulty as Record<string, unknown>)
-    .map(([tagKey, value]) => {
-      const total =
-        value && typeof value === "object"
-          ? Number((value as ByTagBucket).total ?? 0)
-          : 0;
-      return { tagKey, total: Number.isFinite(total) ? total : 0 };
-    })
-    .sort((a, b) => b.total - a.total);
-  return normalizeDifficulty(buckets[0]?.tagKey ?? null);
 }
 
 function collectScoresFromByTagAxis(byTagJson: unknown, axisKey: string) {
@@ -234,90 +186,34 @@ export async function buildUserProfile(
   prisma: PrismaClient,
   userId: string,
 ): Promise<UserProfileResponse> {
-  const [user, stats, attempts] = await Promise.all([
+  const [user, stats, overview] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         createdAt: true,
-        effectivePreferencesJson: true,
       },
     }),
     prisma.userTagStat.findMany({
       where: { userId },
       include: { axis: true, tag: true },
     }),
-    prisma.testAttempt.findMany({
-      where: { userId },
-      select: {
-        score: true,
-        createdAt: true,
-        byTagJson: true,
-        totalDurationMs: true,
-        answerChangeCount: true,
-        perQuestionFirstAnswerMsJson: true,
-        test: {
-          select: {
-            subjectId: true,
-            subject: { select: { title: true } },
-            validationMetaJson: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
+    buildLearnerTruthOverview(prisma, userId),
   ]);
 
   if (!user) {
     throw new Error("USER_NOT_FOUND");
   }
 
-  const attemptsTotal = attempts.length;
-  const reasonCounter = new Map<string, number>();
-  let attemptsLearningEligible = 0;
-  let attemptsExcluded = 0;
-
-  for (const attempt of attempts) {
-    const meta = extractMeta(attempt.byTagJson);
-    const testMeta =
-      attempt.test.validationMetaJson &&
-      typeof attempt.test.validationMetaJson === "object"
-        ? (attempt.test.validationMetaJson as Record<string, unknown>)
-        : {};
-    const fallbackReason =
-      typeof testMeta.learningExcludedReason === "string"
-        ? testMeta.learningExcludedReason
-        : "UNKNOWN";
-
-    if (meta.learningEligible === true) {
-      attemptsLearningEligible += 1;
-      continue;
-    }
-
-    if (meta.learningEligible === false) {
-      attemptsExcluded += 1;
-      const reason = meta.learningSkipReason ?? fallbackReason;
-      reasonCounter.set(reason, (reasonCounter.get(reason) ?? 0) + 1);
-      continue;
-    }
-
-    const inferredEligible =
-      testMeta.learningEligible === false ? false : true;
-    if (inferredEligible) {
-      attemptsLearningEligible += 1;
-    } else {
-      attemptsExcluded += 1;
-      reasonCounter.set(fallbackReason, (reasonCounter.get(fallbackReason) ?? 0) + 1);
-    }
-  }
-
-  const excludedReasonsTop = [...reasonCounter.entries()]
-    .map(([reason, count]) => ({ reason, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  const lastUpdatedAt = attempts[0]?.createdAt?.toISOString() ?? null;
+  const attempts = overview.attempts;
+  const attemptsTotal = overview.global.attemptsRecorded;
+  const attemptsLearningEligible = overview.global.attemptsLearningEligible;
+  const attemptsExcluded = overview.global.attemptsExcluded;
+  const excludedReasonsTop = overview.global.excludedReasonsTop.map((entry) => ({
+    reason: entry.reason,
+    count: entry.count,
+  }));
+  const lastUpdatedAt = overview.global.lastRecordedAttemptAt;
 
   const durationValues = attempts
     .map((attempt) => attempt.totalDurationMs)
@@ -348,55 +244,19 @@ export async function buildUserProfile(
   const pedTaskFamily = pickBestAxis("task_family", stats, attempts);
   const pedContext = pickBestAxis("context", stats, attempts);
 
-  const recentAttempts = attempts.slice(0, 10);
-  const recentAccuracyValue = average(recentAttempts.map((attempt) => attempt.score));
-  const recentAccuracy = {
-    value: recentAttempts.length > 0 ? recentAccuracyValue : null,
-    sampleSize: recentAttempts.length,
-  };
-
-  const effectivePrefs =
-    user.effectivePreferencesJson && typeof user.effectivePreferencesJson === "object"
-      ? (user.effectivePreferencesJson as Record<string, unknown>)
-      : {};
-  const currentDifficultyTarget =
-    normalizeDifficulty(effectivePrefs.difficulty_target) ??
-    inferDifficultyFromByTag(attempts[0]?.byTagJson);
-
-  const subjectsMap = new Map<
-    string,
-    {
-      subjectTitle: string;
-      scores: number[];
-      latestDifficulty: "easy" | "medium" | "hard" | null;
-    }
-  >();
-  for (const attempt of attempts) {
-    const subjectId = attempt.test.subjectId;
-    const current = subjectsMap.get(subjectId) ?? {
-      subjectTitle: attempt.test.subject.title,
-      scores: [],
-      latestDifficulty: null,
-    };
-    current.scores.push(attempt.score);
-    if (!current.latestDifficulty) {
-      current.latestDifficulty = inferDifficultyFromByTag(attempt.byTagJson);
-    }
-    subjectsMap.set(subjectId, current);
-  }
-
-  const subjects = [...subjectsMap.entries()].map(([subjectId, value]) => {
-    const recent = value.scores.slice(0, 10);
-    return {
-      subjectId,
-      subjectTitle: value.subjectTitle,
-      attempts: value.scores.length,
-      recentAccuracy: recent.length > 0 ? average(recent) : null,
-      currentDifficultyTarget: value.latestDifficulty,
-    };
-  });
-
-  subjects.sort((a, b) => b.attempts - a.attempts);
+  const recentAccuracy = overview.global.recentAccuracy;
+  const currentDifficultyTarget = overview.adaptiveState.currentDifficultyTarget;
+  const subjects = overview.subjects.map((subject) => ({
+    subjectId: subject.subjectId,
+    subjectTitle: subject.subjectTitle,
+    attempts: subject.attemptsRecorded,
+    attemptsLearningEligible: subject.attemptsLearningEligible,
+    attemptsExcluded: subject.attemptsExcluded,
+    recentAccuracy: subject.recentAccuracy.value,
+    recentEvidenceCount: subject.recentEvidence.learningEligible,
+    isDefaultCollection: subject.isDefaultCollection,
+    currentDifficultyTarget: subject.currentDifficultyTarget,
+  }));
 
   const response: UserProfileResponse = {
     user: {

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildUserPredictions } from "@/lib/prediction";
-import { getActivePredictionPolicyId } from "@/lib/active-policy";
 
 export const runtime = "nodejs";
 
@@ -19,12 +18,10 @@ export async function GET(request: Request) {
   const subjectId = searchParams.get("subjectId");
 
   try {
-    const predictionPolicyId = await getActivePredictionPolicyId();
     const predictions = await buildUserPredictions({
       prisma,
       userId: user.id,
       subjectId,
-      predictionPolicyId,
     });
     return NextResponse.json(predictions);
   } catch {

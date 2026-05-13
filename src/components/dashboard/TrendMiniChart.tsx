@@ -1,6 +1,10 @@
+"use client";
+
 import Card from "@/components/system/Card";
 import Pill from "@/components/system/Pill";
 import type { DashboardAttempt } from "./types";
+import { useUiLocale } from "@/components/i18n/UiLocaleProvider";
+import { getUiDateLocale } from "@/lib/ui-locale";
 
 type TrendMiniChartProps = {
   attempts: DashboardAttempt[];
@@ -17,18 +21,19 @@ function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string, locale: "en" | "ru") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(getUiDateLocale(locale));
 }
 
 export default function TrendMiniChart({ attempts, className }: TrendMiniChartProps) {
+  const { locale, messages } = useUiLocale();
   const points = [...attempts]
     .slice(0, 10)
     .reverse()
     .map((attempt) => ({
-      label: formatDateLabel(attempt.createdAt),
+      label: formatDateLabel(attempt.createdAt, locale),
       actual: attempt.actualAccuracy,
       predicted: attempt.predictedAccuracy,
     }));
@@ -37,9 +42,9 @@ export default function TrendMiniChart({ attempts, className }: TrendMiniChartPr
     return (
       <Card variant="surface2" className={className}>
         <div className="p-6">
-          <h3 className="text-lg font-semibold">Trend (last attempts)</h3>
+          <h3 className="text-lg font-semibold">{messages.dashboard.trend.titleEmpty}</h3>
           <p className="mt-3 text-sm text-muted">
-            No attempts yet. Start a practice test to see trend lines.
+            {messages.dashboard.trend.noAttempts}
           </p>
         </div>
       </Card>
@@ -83,10 +88,10 @@ export default function TrendMiniChart({ attempts, className }: TrendMiniChartPr
     <Card variant="surface2" className={className}>
       <div className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold">Trend (last 10 attempts)</h3>
+          <h3 className="text-lg font-semibold">{messages.dashboard.trend.title}</h3>
           <div className="flex items-center gap-2 text-xs">
-            <Pill tone="muted">Actual</Pill>
-            <Pill tone="primary">Predicted</Pill>
+            <Pill tone="muted">{messages.dashboard.trend.actual}</Pill>
+            <Pill tone="primary">{messages.dashboard.trend.predicted}</Pill>
           </div>
         </div>
 
@@ -95,7 +100,7 @@ export default function TrendMiniChart({ attempts, className }: TrendMiniChartPr
             className="h-[160px] w-full min-w-[280px]"
             viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
             role="img"
-            aria-label="Accuracy trend chart"
+            aria-label={messages.dashboard.trend.ariaLabel}
           >
             {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
               const y = yAt(tick);
@@ -160,7 +165,7 @@ export default function TrendMiniChart({ attempts, className }: TrendMiniChartPr
 
         {!hasPredicted ? (
           <p className="mt-3 text-xs text-muted">
-            Predicted accuracy is unavailable in recent logs; showing actual trend only.
+            {messages.dashboard.trend.predictedMissing}
           </p>
         ) : null}
       </div>

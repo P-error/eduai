@@ -14,29 +14,44 @@ npx tsc \
   --skipLibCheck \
   --rootDir src \
   --outDir "$TMP_DIR" \
-  src/lib/rate-limit.ts
+  $(find src -name '*.ts' -print)
 
+mkdir -p "$TMP_DIR/node_modules"
+ln -sfn "$TMP_DIR" "$TMP_DIR/node_modules/@"
+
+NODE_PATH="${PWD}/node_modules:${TMP_DIR}/node_modules" \
 CHECK_MODULE="$TMP_DIR/lib/rate-limit.js" node -e '
   const modulePath = process.env.CHECK_MODULE;
   if (!modulePath) throw new Error("missing CHECK_MODULE");
   const { rateLimitOrThrow, RateLimitExceededError } = require(modulePath);
 
-  const key = "self-check:key";
-  rateLimitOrThrow(key, 1, 60000);
+  (async () => {
+    const key = `self-check:key:${Date.now()}`;
+    await rateLimitOrThrow(key, 1, 60000, {
+      routeClass: "self_check",
+      bucketKind: "key",
+    });
 
-  let blocked = false;
-  try {
-    rateLimitOrThrow(key, 1, 60000);
-  } catch (error) {
-    if (error instanceof RateLimitExceededError && error.retryAfterSeconds >= 1) {
-      blocked = true;
-      console.log(JSON.stringify({ ok: true, retryAfterSeconds: error.retryAfterSeconds }));
-    } else {
-      throw error;
+    let blocked = false;
+    try {
+      await rateLimitOrThrow(key, 1, 60000, {
+        routeClass: "self_check",
+        bucketKind: "key",
+      });
+    } catch (error) {
+      if (error instanceof RateLimitExceededError && error.retryAfterSeconds >= 1) {
+        blocked = true;
+        console.log(JSON.stringify({ ok: true, retryAfterSeconds: error.retryAfterSeconds }));
+      } else {
+        throw error;
+      }
     }
-  }
 
-  if (!blocked) {
-    throw new Error("rate limit self-check failed: second request was not blocked");
-  }
+    if (!blocked) {
+      throw new Error("rate limit self-check failed: second request was not blocked");
+    }
+  })().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 '

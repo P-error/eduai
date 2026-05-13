@@ -1,0 +1,58 @@
+{
+  "schema_version": "app_inference_features.v1",
+  "ids": {
+    "user_ref": "user_demo_001",
+    "subject_ref": "subject_math",
+    "topic_ref": "linear_equations",
+    "session_ref": "chat_session_demo",
+    "content_event_ref": null,
+    "test_event_ref": null
+  },
+  "context": {
+    "surface": "learning_content",
+    "task_type": "practice",
+    "subject_title": "Algebra",
+    "topic_text": "Linear equations",
+    "section_ref": "section_equations",
+    "concept_ref": null,
+    "skill_ref": "solve_one_step_equation"
+  },
+  "pre_decision_features": {
+    "prior_attempts_count": 12,
+    "prior_correct_rate": 0.58,
+    "recent_correct_rate": 0.5,
+    "recent_attempts_count": 4,
+    "topic_seen_count": 3,
+    "minutes_since_last_activity": 90,
+    "session_position": 2,
+    "declared_preference_difficulty": "medium",
+    "declared_preference_depth": "detailed",
+    "declared_preference_format": null
+  },
+  "current_or_previous_config": {
+    "difficulty": "medium",
+    "depth": "standard",
+    "support_level": "guided",
+    "presentation_format": "structured_list",
+    "examples_level": "single",
+    "terminology_level": "balanced"
+  },
+  "runtime_context": {
+    "policy_id": "v2_personalized",
+    "model_version": null,
+    "backend_kind": "heuristic_baseline",
+    "artifact_path": null,
+    "fallback_available": true,
+    "experimental_enabled": false
+  },
+  "leakage_guard": {
+    "features_cutoff_at": "2026-05-07T11:00:00Z",
+    "uses_only_pre_decision_data": true,
+    "forbidden_outcome_fields_absent": true,
+    "notes": "Inference features are built before content delivery or test outcome."
+  },
+  "availability_notes": [
+    "App response_format=mcq is not treated as six-factor presentation_format.",
+    "Current runtime can provide difficulty/depth directly; other factors are default-safe until render mapping is implemented."
+  ]
+}

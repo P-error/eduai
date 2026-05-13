@@ -5,7 +5,7 @@ import {
   computeLayeredPreferences,
   isPersonalizationReady,
 } from "@/lib/statistics";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import { sanitizePreferenceMap } from "@/lib/tags";
 
 export const runtime = "nodejs";
 
@@ -26,13 +26,6 @@ export async function GET(request: Request) {
     prisma.testAttempt.findMany({
       where: {
         userId: user.id,
-        test: {
-          subject: {
-            collection: {
-              name: { not: DEFAULT_COLLECTION_NAME },
-            },
-          },
-        },
       },
       include: { test: { include: { subject: true } } },
       orderBy: { createdAt: "desc" },
@@ -79,7 +72,9 @@ export async function GET(request: Request) {
       correctCount: stat.correctCount,
       totalCount: stat.totalCount,
     })),
-    ((user.effectivePreferencesJson ?? {}) as Record<string, string>),
+    sanitizePreferenceMap(
+      (user.effectivePreferencesJson ?? {}) as Record<string, unknown>,
+    ),
     averageScore,
   );
 
@@ -91,8 +86,12 @@ export async function GET(request: Request) {
       testsTaken: user.testsTaken,
       personalizationReady: user.personalizationReady,
     },
-    declaredPreferences: user.declaredPreferencesJson ?? {},
-    effectivePreferences: user.effectivePreferencesJson ?? {},
+    declaredPreferences: sanitizePreferenceMap(
+      (user.declaredPreferencesJson ?? {}) as Record<string, unknown>,
+    ),
+    effectivePreferences: sanitizePreferenceMap(
+      (user.effectivePreferencesJson ?? {}) as Record<string, unknown>,
+    ),
     axesReady,
     computedReady: isPersonalizationReady(axesReady, user.testsTaken),
     tagStats: stats.map((stat) => ({

@@ -1,0 +1,38 @@
+{
+  "dataset_id": "synthetic_v1_seed_42_l50_t10_o12",
+  "created_at": "2026-05-07T11:53:23Z",
+  "contract_version": "pedagogy_policy_contract_v1",
+  "factor_space_version": "factor_space.v1",
+  "schema_version": "training_observation.v1",
+  "source_kinds": [
+    "synthetic"
+  ],
+  "observation_count": 600,
+  "split_strategy": null,
+  "generation_config": {
+    "n_learners": 50,
+    "n_topics": 10,
+    "observations_per_learner": 12,
+    "seed": 42,
+    "candidate_strategy": "bounded"
+  },
+  "files": [
+    {
+      "path": "ml/examples/synthetic_dataset.sample.jsonl",
+      "role": "observations_jsonl",
+      "sha256": "aac52827297838401e0ab8ae4901abefceb003f89b3ce2ba71d6ffd3983da6e6",
+      "bytes": 1133834
+    }
+  ],
+  "checksums": {
+    "sha256": {
+      "ml/examples/synthetic_dataset.sample.jsonl": "aac52827297838401e0ab8ae4901abefceb003f89b3ce2ba71d6ffd3983da6e6"
+    }
+  },
+  "limitations": [
+    "Synthetic data does not prove real educational effect.",
+    "Effective config is hidden generation metadata, not learner-declared preference.",
+    "Synthetic v1 uses assigned delivered_config equal to candidate_config."
+  ],
+  "notes": "Generated for candidate outcome scorer data-preparation validation."
+}

@@ -5,13 +5,22 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
+  // Переопределяем default ignores из eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
+    // Default ignores из eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Локальные архивы, audit-снапшоты и результаты прогонов не являются рабочим исходным кодом.
+    "artifacts/**",
+    "eduai-clean/**",
+    "audit_review_package/**",
+    "review_pack/**",
+    "outputs/**",
+    "repo_structure_snapshot/**",
+    "test-results/**",
+    "**/.venv/**",
   ]),
 ]);
 

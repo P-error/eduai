@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import { isDefaultCollectionName } from "@/lib/collection-constants";
 import { ensureDefaultCollection } from "@/lib/collections";
 
 export const runtime = "nodejs";
@@ -132,9 +132,7 @@ export async function POST(request: Request) {
       data: {
         ...subject,
         collectionName: resolvedCollection.name,
-        isDefaultCollection:
-          resolvedCollection.name.toLowerCase() ===
-          DEFAULT_COLLECTION_NAME.toLowerCase(),
+        isDefaultCollection: isDefaultCollectionName(resolvedCollection.name),
       },
     });
   } catch (error) {

@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduai.local/schemas/training_observation.v1.schema.json",
+  "title": "EduAI training observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ids",
+    "timestamps",
+    "source",
+    "pre_decision_features",
+    "candidate_config",
+    "delivered_config",
+    "outcome",
+    "leakage_guard",
+    "policy_context"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "training_observation.v1"
+    },
+    "ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "user_ref",
+        "subject_ref",
+        "topic_ref",
+        "session_ref",
+        "content_event_ref",
+        "test_event_ref"
+      ],
+      "properties": {
+        "observation_id": { "type": "string", "minLength": 1 },
+        "user_ref": { "type": "string", "minLength": 1 },
+        "subject_ref": { "type": "string", "minLength": 1 },
+        "topic_ref": { "type": "string", "minLength": 1 },
+        "session_ref": { "type": ["string", "null"], "minLength": 1 },
+        "content_event_ref": { "type": ["string", "null"], "minLength": 1 },
+        "test_event_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_created_at", "outcome_observed_at"],
+      "properties": {
+        "decision_created_at": { "type": "string", "format": "date-time" },
+        "outcome_observed_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "source_name", "source_version", "adapter_version"],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": ["synthetic", "open_dataset", "real_user"]
+        },
+        "source_name": { "type": "string", "minLength": 1 },
+        "source_version": { "type": "string", "minLength": 1 },
+        "adapter_version": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "pre_decision_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "not": {
+        "anyOf": [
+          { "required": ["pre_score"] },
+          { "required": ["post_score"] },
+          { "required": ["max_score"] },
+          { "required": ["next_step_success"] },
+          { "required": ["normalized_learning_gain"] },
+          { "required": ["outcome_available"] },
+          { "required": ["outcome"] }
+        ]
+      },
+      "required": [
+        "prior_attempts_count",
+        "prior_correct_rate",
+        "recent_correct_rate",
+        "recent_attempts_count",
+        "topic_seen_count",
+        "minutes_since_last_activity",
+        "session_position",
+        "declared_preference_difficulty",
+        "declared_preference_depth",
+        "declared_preference_format"
+      ],
+      "properties": {
+        "prior_attempts_count": { "type": "integer", "minimum": 0 },
+        "prior_correct_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recent_correct_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recent_attempts_count": { "type": "integer", "minimum": 0 },
+        "topic_seen_count": { "type": "integer", "minimum": 0 },
+        "minutes_since_last_activity": { "type": ["number", "null"], "minimum": 0 },
+        "session_position": { "type": "integer", "minimum": 0 },
+        "declared_preference_difficulty": {
+          "type": ["string", "null"],
+          "enum": ["easy", "medium", "hard", null]
+        },
+        "declared_preference_depth": {
+          "type": ["string", "null"],
+          "enum": ["brief", "standard", "detailed", null]
+        },
+        "declared_preference_format": {
+          "type": ["string", "null"],
+          "enum": ["paragraph", "structured_list", "step_by_step", "qa", null]
+        }
+      }
+    },
+    "candidate_config": {
+      "$ref": "#/$defs/factor_config"
+    },
+    "delivered_config": {
+      "$ref": "#/$defs/factor_config"
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_score",
+        "post_score",
+        "max_score",
+        "next_step_success",
+        "normalized_learning_gain",
+        "outcome_available"
+      ],
+      "properties": {
+        "pre_score": { "type": ["number", "null"], "minimum": 0 },
+        "post_score": { "type": ["number", "null"], "minimum": 0 },
+        "max_score": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "next_step_success": { "type": ["boolean", "null"] },
+        "normalized_learning_gain": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
+        "outcome_available": { "type": "boolean" }
+      }
+    },
+    "leakage_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["features_cutoff_at", "uses_only_pre_decision_data", "notes"],
+      "properties": {
+        "features_cutoff_at": { "type": "string", "format": "date-time" },
+        "uses_only_pre_decision_data": { "const": true },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "model_version",
+        "backend_kind",
+        "fallback_used"
+      ],
+      "properties": {
+        "policy_id": { "type": ["string", "null"], "minLength": 1 },
+        "model_version": { "type": ["string", "null"], "minLength": 1 },
+        "backend_kind": { "type": ["string", "null"], "minLength": 1 },
+        "fallback_used": { "type": ["boolean", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "factor_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "difficulty",
+        "depth",
+        "support_level",
+        "presentation_format",
+        "examples_level",
+        "terminology_level"
+      ],
+      "properties": {
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "depth": { "type": "string", "enum": ["brief", "standard", "detailed"] },
+        "support_level": { "type": "string", "enum": ["minimal", "guided", "scaffolded"] },
+        "presentation_format": { "type": "string", "enum": ["paragraph", "structured_list", "step_by_step", "qa"] },
+        "examples_level": { "type": "string", "enum": ["none", "single", "multiple"] },
+        "terminology_level": { "type": "string", "enum": ["simple", "balanced", "technical"] }
+      }
+    }
+  }
+}

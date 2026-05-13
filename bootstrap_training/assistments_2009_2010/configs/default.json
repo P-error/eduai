@@ -1,0 +1,150 @@
+{
+  "workspace": {
+    "name": "assistments_2009_2010",
+    "random_state": 42
+  },
+  "dataset": {
+    "name": "ASSISTments 2009-2010 Skill Builder corrected collapsed",
+    "source_page_url": "https://sites.google.com/site/assistmentsdata/home/2009-2010-assistment-data/skill-builder-data-2009-2010",
+    "file_page_url": "https://drive.google.com/file/d/1NNXHFRxcArrU0ZJSb9BIL56vmUt5FhlE/view?usp=sharing",
+    "download_url": "https://drive.google.com/uc?export=download&id=1NNXHFRxcArrU0ZJSb9BIL56vmUt5FhlE",
+    "expected_filename": "skill_builder_data_corrected_collapsed.csv"
+  },
+  "paths": {
+    "raw_dir": "data/raw",
+    "interim_dir": "data/interim",
+    "processed_dir": "data/processed",
+    "artifacts_dir": "data/artifacts",
+    "reports_dir": "data/reports",
+    "raw_dataset": "data/raw/skill_builder_data_corrected_collapsed.csv",
+    "download_metadata": "data/raw/download_metadata.json",
+    "inspection_summary_json": "data/reports/dataset_inspection_summary.json",
+    "inspection_summary_md": "data/reports/dataset_inspection_summary.md",
+    "scope_validation_md": "data/reports/task_scope_validation.md",
+    "normalized_dataset": "data/interim/assistments_interactions_normalized.parquet",
+    "prepare_metadata": "data/interim/prepare_metadata.json",
+    "processed_dataset": "data/processed/assistments_bootstrap_features.parquet",
+    "feature_schema": "data/processed/feature_schema.json",
+    "split_metadata": "data/processed/split_metadata.json"
+  },
+  "schema": {
+    "required_target_column": "correct",
+    "identifier_columns": [
+      "assignment_id",
+      "user_id",
+      "assistment_id",
+      "problem_id",
+      "original",
+      "sequence_id",
+      "student_class_id",
+      "base_sequence_id",
+      "skill_id",
+      "skill_name",
+      "teacher_id",
+      "school_id",
+      "template_id",
+      "answer_id"
+    ],
+    "text_columns": [
+      "tutor_mode",
+      "answer_type",
+      "type",
+      "answer_text"
+    ],
+    "numeric_columns": [
+      "order_id",
+      "correct",
+      "attempt_count",
+      "ms_first_response",
+      "position",
+      "hint_count",
+      "hint_total",
+      "overlap_time",
+      "first_action",
+      "bottom_hint",
+      "opportunity",
+      "opportunity_original"
+    ],
+    "timestamp_columns": []
+  },
+  "baseline_features": {
+    "current_numeric_features": [
+      "position",
+      "opportunity",
+      "opportunity_original"
+    ],
+    "current_categorical_features": [
+      "skill_id",
+      "tutor_mode",
+      "answer_type",
+      "type"
+    ],
+    "history_windows": [
+      3,
+      5
+    ],
+    "drop_reasons": {
+      "attempt_count": "Excluded from default baseline because it is realized during the same interaction and can leak within-step information.",
+      "hint_count": "Excluded from default baseline because it is realized during the same interaction and can leak within-step information.",
+      "hint_total": "Excluded from default baseline because it is realized during the same interaction and can leak within-step information.",
+      "ms_first_response": "Excluded from default baseline because it is observed after the interaction starts and is not a strict pre-attempt feature.",
+      "overlap_time": "Excluded from default baseline because it is observed after the interaction starts and is not a strict pre-attempt feature.",
+      "bottom_hint": "Excluded from default baseline because it is observed after the interaction starts and is not a strict pre-attempt feature.",
+      "assignment_id": "Administrative identifier, not used as a baseline feature.",
+      "assistment_id": "High-cardinality item identifier omitted in the first transparent baseline to reduce memorization risk.",
+      "problem_id": "High-cardinality item identifier omitted in the first transparent baseline to reduce memorization risk.",
+      "original": "High-cardinality item identifier omitted in the first transparent baseline to reduce memorization risk.",
+      "sequence_id": "Administrative/context identifier not used directly in the first baseline.",
+      "student_class_id": "Administrative/context identifier not used directly in the first baseline.",
+      "base_sequence_id": "Administrative/context identifier not used directly in the first baseline.",
+      "teacher_id": "Administrative/context identifier not used directly in the first baseline.",
+      "school_id": "Administrative/context identifier not used directly in the first baseline.",
+      "template_id": "Administrative/context identifier not used directly in the first baseline.",
+      "answer_id": "Answer option identifier not used directly in the first baseline.",
+      "answer_text": "Free-text answer content is excluded from the first structured baseline.",
+      "skill_name": "Human-readable duplicate of skill_id; kept as metadata only.",
+      "user_id": "Used for sequential history aggregation but not passed as a direct categorical feature.",
+      "order_id": "Used for leakage-safe ordering and split assignment, not as a direct model feature.",
+      "first_action": "Within-interaction first-action code (0/1/2), excluded from the first baseline.",
+      "event_timestamp": "Derived temporal metadata used for recency support, not as a direct feature.",
+      "event_order": "Derived ordering metadata used for leakage-safe processing, not as a direct feature.",
+      "row_index": "Internal row tracking field, not a model feature.",
+      "correct": "Target column."
+    }
+  },
+  "split": {
+    "strategy": "global_chronological",
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "test_fraction": 0.15
+  },
+  "evaluation": {
+    "calibration_bins": 10
+  },
+  "models": {
+    "logistic_regression": {
+      "enabled": true,
+      "max_iter": 1200,
+      "C": 1.0,
+      "min_frequency": 25
+    },
+    "random_forest": {
+      "enabled": true,
+      "n_estimators": 300,
+      "max_depth": 18,
+      "min_samples_leaf": 20,
+      "max_features": "sqrt"
+    },
+    "hist_gradient_boosting": {
+      "enabled": true,
+      "learning_rate": 0.05,
+      "max_iter": 250,
+      "max_depth": 8,
+      "min_samples_leaf": 50,
+      "l2_regularization": 0.1
+    },
+    "mlp_classifier": {
+      "enabled": false
+    }
+  }
+}

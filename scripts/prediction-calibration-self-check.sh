@@ -14,15 +14,10 @@ npx tsc \
   --skipLibCheck \
   --rootDir src \
   --outDir "$TMP_DIR" \
-  src/lib/tags.ts \
-  src/lib/prediction-params.ts \
-  src/lib/prediction-baselines.ts \
-  src/lib/prediction-duration.ts \
-  src/lib/prediction-backtest.ts \
-  src/lib/prediction-calibration.ts
+  src/lib/*.ts
 
-mkdir -p "$TMP_DIR/node_modules/@/lib"
-cp "$TMP_DIR/lib/tags.js" "$TMP_DIR/node_modules/@/lib/tags.js"
+mkdir -p "$TMP_DIR/node_modules/@"
+ln -sfn "$TMP_DIR/lib" "$TMP_DIR/node_modules/@/lib"
 
 CHECK_MODULE="$TMP_DIR/lib/prediction-calibration.js" node -e '
   const modulePath = process.env.CHECK_MODULE;

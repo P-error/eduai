@@ -9,31 +9,27 @@ import {
   decideDifficultyTarget,
   isPersonalizationReady,
 } from "@/lib/statistics";
-import { DEFAULT_COLLECTION_NAME } from "@/lib/collection-constants";
+import { isDefaultCollectionName } from "@/lib/collection-constants";
 import { PED_AXES, TAGS_BY_AXIS, UX_AXES } from "@/lib/tags";
+import { buildPredictionFeaturePayload } from "@/lib/prediction-feature-layer";
+import { runPredictionRuntime } from "@/lib/prediction-runtime";
 import {
-  predictExpectedAccuracyBeta,
-  predictExpectedAccuracyRawMean,
-} from "@/lib/prediction";
-import {
-  clampDifficulty,
-  expectedTotalDurationBaselineMs,
-} from "@/lib/prediction-baselines";
-import {
-  assertUnifiedDurationPrediction,
   DURATION_HISTORY_WINDOW_ATTEMPTS,
-  DURATION_PREDICTOR_VERSION,
-  predictExpectedTotalDurationMsUnified,
 } from "@/lib/prediction-duration";
 import {
-  getActivePredictionPolicyId,
-  PREDICTION_POLICY_V1,
+  getActivePredictionRuntimeConfig,
 } from "@/lib/active-policy";
+import { recordEvaluationTestOutcome } from "@/lib/evaluation";
 import {
-  getRequestIp,
-  RateLimitExceededError,
-  rateLimitOrThrow,
+  buildRateLimitErrorResponse,
+  rateLimitRouteOrThrow,
 } from "@/lib/rate-limit";
+import {
+  buildLearnerAttemptEvidenceContract,
+  normalizeLearningExclusionReason,
+  type LearnerAttemptEvidenceContract,
+  type LearningExclusionReasonCode,
+} from "@/lib/learning-evidence-contract";
 
 export const runtime = "nodejs";
 
@@ -55,6 +51,7 @@ type AxisStats = {
 };
 
 type AttemptPolicyMeta = {
+  evidence?: LearnerAttemptEvidenceContract;
   learning: {
     eligible: boolean;
     skipped: boolean;
@@ -83,6 +80,38 @@ type AttemptPolicyMeta = {
   recommendation: {
     explorationUsed: boolean;
   };
+  evaluation: {
+    episodeId: string | null;
+    protocolKey: string | null;
+    signalQuality: string;
+    touchpointType: string | null;
+    sequenceRole: string | null;
+    itemRole: string | null;
+    itemVariant: string | null;
+    linkageKind: string | null;
+    linkedContentId: string | null;
+    assessmentChannel: string | null;
+    policyArm: string | null;
+    assignmentSource: string | null;
+    conceptKey: string | null;
+    skillKey: string | null;
+    familyKey: string | null;
+    holdoutStrategy: string | null;
+    delayedMinutes: number | null;
+    contentKind: string;
+    contentId: string;
+    subjectId: string;
+    sectionId: string | null;
+    topic: string;
+    pedagogicalDecision:
+      | {
+          difficulty: string;
+          depth: string;
+        }
+      | null;
+    testsPrimary: boolean;
+    chatSecondary: boolean;
+  };
   policy: {
     policyMode: string | null;
     policyId: string | null;
@@ -100,14 +129,43 @@ type AttemptPolicyMeta = {
     computedAtIso: string;
     policyMode: string | null;
     policyId: string | null;
+    runtime?: {
+      policyId: string;
+      policyVersion: string;
+      configVersion: string;
+      selectionSource: string;
+      selectionWarning: string | null;
+      backendKind: string;
+      backendId: string;
+      backendStatus: string;
+      featurePayloadVersion: string;
+      accuracyFeatureSchemaVersion: string;
+      artifact: {
+        status: string;
+        path: string | null;
+        warning: string | null;
+        modelVersion: string | null;
+        artifactSchemaVersion: string | null;
+      };
+    } | null;
+    targets?: {
+      expectedAccuracy: {
+        status: string;
+        sourceType: string;
+        producerId: string;
+        artifactStatus: string;
+      };
+      expectedTotalDurationMs: {
+        status: string;
+        sourceType: string;
+        producerId: string;
+        artifactStatus: string;
+      };
+    } | null;
     actualAccuracy: number;
     actualTotalDurationMs: number | null;
   };
 };
-
-const MINUTE_MS = 60 * 1000;
-const SUBMIT_LIMIT_PER_USER_PER_MINUTE = 20;
-const SUBMIT_LIMIT_PER_IP_PER_MINUTE = 80;
 
 function errorResponse(
   status: number,
@@ -121,35 +179,19 @@ function errorResponse(
   );
 }
 
-function maybeRateLimitSubmit(request: Request, userId: string) {
+async function maybeRateLimitSubmit(request: Request, userId: string) {
   try {
-    const ip = getRequestIp(request);
-    rateLimitOrThrow(
-      `tests:submit:user:${userId}`,
-      SUBMIT_LIMIT_PER_USER_PER_MINUTE,
-      MINUTE_MS,
-    );
-    rateLimitOrThrow(
-      `tests:submit:ip:${ip}`,
-      SUBMIT_LIMIT_PER_IP_PER_MINUTE,
-      MINUTE_MS,
-    );
+    await rateLimitRouteOrThrow({
+      routeClass: "test_submit",
+      request,
+      userId,
+    });
     return null;
   } catch (error) {
-    if (error instanceof RateLimitExceededError) {
-      return NextResponse.json(
-        {
-          error: "RATE_LIMITED",
-          message: "Submit rate limit reached. Please try again later.",
-          retryAfterSeconds: error.retryAfterSeconds,
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(error.retryAfterSeconds) },
-        },
-      );
-    }
-    throw error;
+    return buildRateLimitErrorResponse(
+      error,
+      "Submit rate limit reached. Please try again later.",
+    );
   }
 }
 
@@ -173,6 +215,25 @@ function dominantTagForAxis(
 
 function inferDifficultyFromByTag(byTag: unknown): string | null {
   if (!byTag || typeof byTag !== "object") return null;
+  const meta = (byTag as Record<string, unknown>)._meta;
+  if (meta && typeof meta === "object") {
+    const evaluation = (meta as Record<string, unknown>).evaluation;
+    if (evaluation && typeof evaluation === "object") {
+      const pedagogicalDecision = (evaluation as Record<string, unknown>)
+        .pedagogicalDecision;
+      if (
+        pedagogicalDecision &&
+        typeof pedagogicalDecision === "object" &&
+        typeof (pedagogicalDecision as Record<string, unknown>).difficulty ===
+          "string"
+      ) {
+        return String(
+          (pedagogicalDecision as Record<string, unknown>).difficulty,
+        );
+      }
+    }
+  }
+
   const difficulty = (byTag as Record<string, unknown>).difficulty_target;
   if (!difficulty || typeof difficulty !== "object") return null;
 
@@ -220,17 +281,24 @@ function buildPublicByTag(byTag: Record<string, unknown>) {
 }
 
 function friendlyLearningSkipReason(reason: string | null) {
-  if (!reason) return null;
-  if (reason === "LOW_UX_COMPLIANCE") {
+  const normalized = normalizeLearningExclusionReason(reason);
+  if (!normalized) return null;
+  if (normalized === "LOW_UX_COMPLIANCE") {
     return "Excluded from learning due to low answer-style consistency.";
   }
-  if (reason === "INVALID_TAG_WARNINGS") {
+  if (normalized === "INVALID_TAG_WARNINGS") {
     return "Excluded from learning due to low data quality in tagging.";
   }
-  if (reason === "LEARNING_INELIGIBLE") {
+  if (normalized === "FALLBACK_GENERATION") {
+    return "Excluded from learning because the test was generated through the fallback path.";
+  }
+  if (normalized === "FALLBACK_TAGGING") {
+    return "Excluded from learning because fallback tagging was used.";
+  }
+  if (normalized === "LEARNING_INELIGIBLE") {
     return "Excluded from learning due to generation quality safeguards.";
   }
-  if (reason === "DEFAULT_COLLECTION") {
+  if (normalized === "DEFAULT_COLLECTION") {
     return "Excluded from learning because this is a baseline/default collection.";
   }
   return "Excluded from learning due to quality safeguards.";
@@ -254,6 +322,11 @@ function parseAttemptMeta(byTagJson: unknown): AttemptPolicyMeta | null {
 
 function submitSuccessResponse(
   attempt: { score: number; byTagJson: unknown },
+  test: {
+    mode: string;
+    evaluationEpisodeId: string | null;
+    validationMetaJson: unknown;
+  },
   alreadySubmitted: boolean,
 ) {
   const byTag =
@@ -261,6 +334,37 @@ function submitSuccessResponse(
       ? (attempt.byTagJson as Record<string, unknown>)
       : {};
   const meta = parseAttemptMeta(byTag);
+  const validationMeta =
+    test.validationMetaJson && typeof test.validationMetaJson === "object"
+      ? (test.validationMetaJson as Record<string, unknown>)
+      : {};
+  const validationEvaluation =
+    validationMeta.evaluation && typeof validationMeta.evaluation === "object"
+      ? (validationMeta.evaluation as Record<string, unknown>)
+      : null;
+  const learningEligible =
+    typeof meta?.learning.eligible === "boolean"
+      ? meta.learning.eligible
+      : validationMeta.learningEligible === false
+        ? false
+        : true;
+  const learningSkipReason =
+    normalizeLearningExclusionReason(meta?.learning.skipReason) ??
+    normalizeLearningExclusionReason(validationMeta.learningExcludedReason);
+  const evidence =
+    meta?.evidence ??
+    buildLearnerAttemptEvidenceContract({
+      testMode: test.mode,
+      evaluationEpisodeId:
+        meta?.evaluation.episodeId ?? test.evaluationEpisodeId ?? null,
+      sequenceRole: meta?.evaluation.sequenceRole ?? null,
+      learningEligible,
+      learningSkipReason,
+      testsPrimary: meta?.evaluation.testsPrimary ?? true,
+      chatSecondary:
+        meta?.evaluation.chatSecondary ??
+        (test.evaluationEpisodeId != null || validationEvaluation != null),
+    });
 
   return NextResponse.json({
     score: attempt.score,
@@ -279,19 +383,58 @@ function submitSuccessResponse(
             components: meta.prediction.durationComponents ?? null,
             predictorVersion: meta.prediction.predictorVersion ?? null,
           },
+          predictionRuntime: meta.prediction.runtime ?? null,
           nextDifficultySuggestion: {
             value: meta.pedagogy.nextDifficulty,
             reason: friendlyDifficultyReason(meta.pedagogy.reason),
           },
+          evidence,
           dataQuality: {
             excludedFromLearning: meta.learning.skipped,
-            reasonCode: meta.learning.skipReason,
-            reasonLabel: friendlyLearningSkipReason(meta.learning.skipReason),
+            reasonCode: learningSkipReason,
+            reasonLabel: friendlyLearningSkipReason(learningSkipReason),
           },
         }
-      : null,
+      : {
+          evidence,
+          dataQuality: {
+            excludedFromLearning: !learningEligible,
+            reasonCode: learningSkipReason,
+            reasonLabel: friendlyLearningSkipReason(learningSkipReason),
+          },
+        },
     alreadySubmitted,
   });
+}
+
+function resolveLearningSkipReason(params: {
+  isDefaultCollection: boolean;
+  complianceFailed: boolean;
+  explicitLearningEligible: unknown;
+  learningEligible: boolean;
+  hasInvalidTagWarnings: boolean;
+  validationReason: unknown;
+}) {
+  if (params.isDefaultCollection) {
+    return "DEFAULT_COLLECTION" satisfies LearningExclusionReasonCode;
+  }
+  if (params.complianceFailed) {
+    return "LOW_UX_COMPLIANCE" satisfies LearningExclusionReasonCode;
+  }
+  if (params.hasInvalidTagWarnings) {
+    return "INVALID_TAG_WARNINGS" satisfies LearningExclusionReasonCode;
+  }
+
+  const normalizedValidationReason = normalizeLearningExclusionReason(
+    params.validationReason,
+  );
+  if (params.explicitLearningEligible === false && normalizedValidationReason) {
+    return normalizedValidationReason;
+  }
+  if (!params.learningEligible) {
+    return normalizedValidationReason ?? "LEARNING_INELIGIBLE";
+  }
+  return null;
 }
 
 export async function POST(
@@ -304,17 +447,6 @@ export async function POST(
     return errorResponse(400, "INVALID_INPUT", "Missing test id.");
   }
 
-  let payload: z.infer<typeof SubmitSchema>;
-  try {
-    payload = SubmitSchema.parse(await request.json());
-  } catch {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Invalid submit payload.",
-    );
-  }
-
   const user = await getUserFromRequest(request);
   if (!user) {
     return errorResponse(
@@ -324,9 +456,20 @@ export async function POST(
     );
   }
 
-  const rateLimited = maybeRateLimitSubmit(request, user.id);
+  const rateLimited = await maybeRateLimitSubmit(request, user.id);
   if (rateLimited) {
     return rateLimited;
+  }
+
+  let payload: z.infer<typeof SubmitSchema>;
+  try {
+    payload = SubmitSchema.parse(await request.json());
+  } catch {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Invalid submit payload.",
+    );
   }
 
   const test = await prisma.generatedTest.findUnique({
@@ -362,7 +505,7 @@ export async function POST(
     },
   });
   if (existingAttempt) {
-    return submitSuccessResponse(existingAttempt, true);
+    return submitSuccessResponse(existingAttempt, test, true);
   }
 
   const questionsRaw = test.questionsJson;
@@ -479,9 +622,9 @@ export async function POST(
       ? correctness.filter(Boolean).length / correctness.length
       : 0;
 
-  const isDefaultCollection =
-    test.subject.collection?.name?.toLowerCase() ===
-    DEFAULT_COLLECTION_NAME.toLowerCase();
+  const isDefaultCollection = test.subject.collection
+    ? isDefaultCollectionName(test.subject.collection.name)
+    : false;
 
   const answerChangeCount = payload.answerChangeCount ?? 0;
   const totalDurationMs = payload.totalDurationMs ?? null;
@@ -542,16 +685,16 @@ export async function POST(
     explicitLearningEligible === false
       ? false
       : !generationFallback && !taggingFallback;
-  const learningSkipReason = isDefaultCollection
-    ? "DEFAULT_COLLECTION"
-    : complianceFailed
-      ? "LOW_UX_COMPLIANCE"
-    : !learningEligible
-      ? "LEARNING_INELIGIBLE"
-    : hasInvalidTagWarnings
-        ? "INVALID_TAG_WARNINGS"
-        : null;
+  const learningSkipReason = resolveLearningSkipReason({
+    isDefaultCollection,
+    complianceFailed,
+    explicitLearningEligible,
+    learningEligible,
+    hasInvalidTagWarnings,
+    validationReason: validationMeta.learningExcludedReason,
+  });
   const shouldSkipLearning = learningSkipReason !== null;
+  const isEpisodeAttempt = Boolean(test.evaluationEpisodeId);
 
   const recommendationSnapshot =
     test.recommendationSnapshot && typeof test.recommendationSnapshot === "object"
@@ -568,9 +711,18 @@ export async function POST(
           .meta as Record<string, unknown>)
       : null;
   const explorationUsed = recommendationMeta?.exploration === true;
+  const validationEvaluation =
+    validationMeta.evaluation && typeof validationMeta.evaluation === "object"
+      ? (validationMeta.evaluation as Record<string, unknown>)
+      : null;
+  const evaluationPedagogicalDecision =
+    validationEvaluation?.pedagogicalDecision &&
+    typeof validationEvaluation.pedagogicalDecision === "object"
+      ? (validationEvaluation.pedagogicalDecision as Record<string, unknown>)
+      : null;
 
   const byTagWithMeta: Record<string, unknown> = { ...byTag };
-  const activePredictionPolicyId = await getActivePredictionPolicyId();
+  const activePredictionRuntime = await getActivePredictionRuntimeConfig();
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -639,46 +791,20 @@ export async function POST(
         attemptsSinceLastDifficultyChange,
       });
 
-      const expectedAccuracyCell =
-        activePredictionPolicyId === PREDICTION_POLICY_V1
-          ? predictExpectedAccuracyRawMean({
-              attempts: [...historicalAttempts].reverse(),
-              subjectId: test.subjectId,
-            })
-          : predictExpectedAccuracyBeta({
-              attempts: [...historicalAttempts].reverse(),
-              difficultyTarget: clampDifficulty(testDifficultyTag),
-              subjectId: test.subjectId,
-            });
-      const durationBaselineValue = expectedTotalDurationBaselineMs({
-        difficultyTarget: testDifficultyTag,
-        responseFormat: testResponseFormatTag,
-        questionCount: test.questionCount,
+      const predictionRuntime = runPredictionRuntime({
+        snapshot: activePredictionRuntime,
+        featurePayload: buildPredictionFeaturePayload({
+          historyAttempts: historicalAttempts,
+          durationAttempts: durationHistoricalAttempts,
+          subjectId: test.subjectId,
+          difficultyTarget: testDifficultyTag,
+          responseFormat: testResponseFormatTag,
+          questionCount: test.questionCount,
+          currentAt: new Date(),
+        }),
       });
-      const durationPrediction =
-        activePredictionPolicyId === PREDICTION_POLICY_V1
-          ? {
-              value: durationBaselineValue,
-              confidence: 0,
-              basis: `${PREDICTION_POLICY_V1}|baseline_only`,
-              components: {
-                baseline: durationBaselineValue,
-              },
-            }
-          : predictExpectedTotalDurationMsUnified({
-              difficultyTarget: testDifficultyTag,
-              responseFormat: testResponseFormatTag,
-              questionCount: test.questionCount,
-              historicalAttempts: durationHistoricalAttempts,
-            });
-      assertUnifiedDurationPrediction(
-        durationPrediction,
-        "submit.policyMeta.prediction.expectedTotalDurationMs",
-      );
-      const durationPredictorVersion =
-        activePredictionPolicyId === PREDICTION_POLICY_V1
-          ? "baseline_duration_v1_2026_02"
-          : DURATION_PREDICTOR_VERSION;
+      const expectedAccuracyCell = predictionRuntime.predicted.expectedAccuracy;
+      const durationPrediction = predictionRuntime.predicted.expectedTotalDurationMs;
       const predictionComputedAtIso = new Date().toISOString();
 
       const policyMeta: AttemptPolicyMeta = {
@@ -687,6 +813,18 @@ export async function POST(
           skipped: shouldSkipLearning,
           skipReason: learningSkipReason,
         },
+        evidence: buildLearnerAttemptEvidenceContract({
+          testMode: test.mode,
+          evaluationEpisodeId: test.evaluationEpisodeId,
+          sequenceRole:
+            typeof validationEvaluation?.sequenceRole === "string"
+              ? validationEvaluation.sequenceRole
+              : null,
+          learningEligible: !shouldSkipLearning,
+          learningSkipReason,
+          testsPrimary: true,
+          chatSecondary: isEpisodeAttempt,
+        }),
         ux: {
           eligible: uxReward.eligible,
           reward: uxReward.reward,
@@ -710,6 +848,98 @@ export async function POST(
         recommendation: {
           explorationUsed,
         },
+        evaluation: {
+          episodeId: test.evaluationEpisodeId ?? null,
+          protocolKey:
+            typeof validationEvaluation?.protocolKey === "string"
+              ? validationEvaluation.protocolKey
+              : null,
+          signalQuality:
+            typeof validationEvaluation?.signalQuality === "string"
+              ? validationEvaluation.signalQuality
+              : "primary_test",
+          touchpointType:
+            typeof validationEvaluation?.touchpointType === "string"
+              ? validationEvaluation.touchpointType
+              : null,
+          sequenceRole:
+            typeof validationEvaluation?.sequenceRole === "string"
+              ? validationEvaluation.sequenceRole
+              : null,
+          itemRole:
+            typeof validationEvaluation?.itemRole === "string"
+              ? validationEvaluation.itemRole
+              : null,
+          itemVariant:
+            typeof validationEvaluation?.itemVariant === "string"
+              ? validationEvaluation.itemVariant
+              : null,
+          linkageKind:
+            typeof validationEvaluation?.linkageKind === "string"
+              ? validationEvaluation.linkageKind
+              : null,
+          linkedContentId:
+            typeof validationEvaluation?.linkedContentId === "string"
+              ? validationEvaluation.linkedContentId
+              : null,
+          assessmentChannel:
+            typeof validationEvaluation?.assessmentChannel === "string"
+              ? validationEvaluation.assessmentChannel
+              : null,
+          policyArm:
+            typeof validationEvaluation?.policyArm === "string"
+              ? validationEvaluation.policyArm
+              : null,
+          assignmentSource:
+            validationEvaluation?.assignment &&
+            typeof validationEvaluation.assignment === "object" &&
+            typeof (validationEvaluation.assignment as Record<string, unknown>)
+              .assignmentSource === "string"
+              ? String(
+                  (validationEvaluation.assignment as Record<string, unknown>)
+                    .assignmentSource,
+                )
+              : null,
+          conceptKey:
+            typeof validationEvaluation?.conceptKey === "string"
+              ? validationEvaluation.conceptKey
+              : null,
+          skillKey:
+            typeof validationEvaluation?.skillKey === "string"
+              ? validationEvaluation.skillKey
+              : null,
+          familyKey:
+            typeof validationEvaluation?.familyKey === "string"
+              ? validationEvaluation.familyKey
+              : null,
+          holdoutStrategy:
+            typeof validationEvaluation?.holdoutStrategy === "string"
+              ? validationEvaluation.holdoutStrategy
+              : null,
+          delayedMinutes:
+            typeof validationEvaluation?.delayedMinutes === "number" &&
+            Number.isFinite(validationEvaluation.delayedMinutes)
+              ? validationEvaluation.delayedMinutes
+              : null,
+          contentKind:
+            typeof validationEvaluation?.contentKind === "string"
+              ? validationEvaluation.contentKind
+              : "generated_test",
+          contentId: test.id,
+          subjectId: test.subjectId,
+          sectionId: test.sectionId,
+          topic: test.topic,
+          pedagogicalDecision:
+            typeof evaluationPedagogicalDecision?.difficulty === "string" &&
+            typeof evaluationPedagogicalDecision?.depth === "string"
+              ? {
+                  difficulty: evaluationPedagogicalDecision.difficulty,
+                  depth: evaluationPedagogicalDecision.depth,
+                }
+              : null,
+          testsPrimary: true,
+          chatSecondary: isEpisodeAttempt,
+        },
         policy: {
           policyMode:
             typeof validationMeta.policyMode === "string"
@@ -726,13 +956,28 @@ export async function POST(
           durationConfidence: durationPrediction.confidence,
           durationBasis: durationPrediction.basis,
           durationComponents: durationPrediction.components ?? null,
-          predictorVersion: durationPredictorVersion,
+          predictorVersion: durationPrediction.metadata.producerId,
           computedAtIso: predictionComputedAtIso,
           policyMode:
             typeof validationMeta.policyMode === "string"
               ? validationMeta.policyMode
               : null,
-          policyId: activePredictionPolicyId,
+          policyId: predictionRuntime.runtime.policyId,
+          runtime: predictionRuntime.runtime,
+          targets: {
+            expectedAccuracy: {
+              status: expectedAccuracyCell.status,
+              sourceType: expectedAccuracyCell.metadata.sourceType,
+              producerId: expectedAccuracyCell.metadata.producerId,
+              artifactStatus: expectedAccuracyCell.metadata.artifact.status,
+            },
+            expectedTotalDurationMs: {
+              status: durationPrediction.status,
+              sourceType: durationPrediction.metadata.sourceType,
+              producerId: durationPrediction.metadata.producerId,
+              artifactStatus: durationPrediction.metadata.artifact.status,
+            },
+          },
           actualAccuracy: score,
           actualTotalDurationMs: totalDurationMs,
         },
@@ -740,7 +985,7 @@ export async function POST(
 
       byTagWithMeta._meta = policyMeta;
 
-      await tx.testAttempt.create({
+      const createdAttempt = await tx.testAttempt.create({
         data: {
           testId: test.id,
           userId: user.id,
@@ -752,6 +997,18 @@ export async function POST(
             perQuestionFirstAnswerMsJson ?? Prisma.DbNull,
           answerChangeCount,
         },
+      });
+
+      await recordEvaluationTestOutcome({
+        prisma: tx,
+        testId: test.id,
+        attemptId: createdAttempt.id,
+        accuracy: score,
+        questionCount: test.questionCount,
+        totalDurationMs,
+        learningEligible: !shouldSkipLearning,
+        learningSkipReason,
+        submittedAt: createdAttempt.createdAt,
       });
 
       if (shouldSkipLearning) {
@@ -853,7 +1110,7 @@ export async function POST(
         },
       });
       if (attemptAfterConflict) {
-        return submitSuccessResponse(attemptAfterConflict, true);
+        return submitSuccessResponse(attemptAfterConflict, test, true);
       }
       return errorResponse(
         409,
@@ -868,5 +1125,5 @@ export async function POST(
     );
   }
 
-  return submitSuccessResponse({ score, byTagJson: byTagWithMeta }, false);
+  return submitSuccessResponse({ score, byTagJson: byTagWithMeta }, test, false);
 }

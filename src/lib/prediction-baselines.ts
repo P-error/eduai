@@ -4,9 +4,9 @@ import { getActivePredictionModelParams } from "./prediction-params";
 export const BASELINE_QUESTION_COUNT = 5;
 
 export type DifficultyTarget = (typeof DIFFICULTY_ORDER)[number];
-export type ResponseFormat = "mcq" | "short" | "multipart";
+export type ResponseFormat = "mcq";
 
-const RESPONSE_FORMATS: ResponseFormat[] = ["mcq", "short", "multipart"];
+const RESPONSE_FORMATS: ResponseFormat[] = ["mcq"];
 
 export function clampDifficulty(
   difficultyTarget: string | null | undefined,

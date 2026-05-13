@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { ALL_AXES, TAGS_BY_AXIS } from "@/lib/tags";
+import {
+  ALL_AXES,
+  isSupportedDeclaredDepth,
+  sanitizePreferenceMap,
+  TAGS_BY_AXIS,
+} from "@/lib/tags";
 
 export const runtime = "nodejs";
 
@@ -14,6 +19,9 @@ function filterPreferences(input: Record<string, string>) {
     if (input[axis]) {
       filtered[axis] = input[axis];
     }
+  }
+  if (input.depth) {
+    filtered.depth = input.depth;
   }
   return filtered;
 }
@@ -43,6 +51,14 @@ function validatePreferences(input: Record<string, string>) {
       };
     }
   }
+
+  if (input.depth && !isSupportedDeclaredDepth(input.depth)) {
+    return {
+      status: 400,
+      error: "INVALID_INPUT",
+      message: "Invalid value for axis 'depth'.",
+    };
+  }
   return null;
 }
 
@@ -56,8 +72,12 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    declared: (user.declaredPreferencesJson ?? {}) as Record<string, string>,
-    effective: (user.effectivePreferencesJson ?? {}) as Record<string, string>,
+    declared: sanitizePreferenceMap(
+      (user.declaredPreferencesJson ?? {}) as Record<string, unknown>,
+    ),
+    effective: sanitizePreferenceMap(
+      (user.effectivePreferencesJson ?? {}) as Record<string, unknown>,
+    ),
   });
 }
 

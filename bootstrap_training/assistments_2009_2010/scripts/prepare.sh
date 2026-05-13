@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="${PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="python3"
+fi
+
+"$PYTHON_BIN" "$ROOT_DIR/src/prepare_dataset.py" --config "$ROOT_DIR/configs/default.json"
+"$PYTHON_BIN" "$ROOT_DIR/src/feature_engineering.py" --config "$ROOT_DIR/configs/default.json"

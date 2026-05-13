@@ -1,0 +1,16 @@
+{
+  "generated_at_utc": "2026-03-27T03:19:34.518341+00:00",
+  "strategy": "global_chronological",
+  "rationale": "Global chronological split by interaction order was chosen over a user-disjoint split to preserve leakage-safe sequential history for the bootstrap next-step correctness baseline.",
+  "known_tradeoff": "The same learner can appear in train/validation/test at later timestamps, so this evaluates future interactions of seen learners rather than pure cold-start generalization.",
+  "counts": {
+    "total": 346860,
+    "train": 242801,
+    "validation": 52029,
+    "test": 52030
+  },
+  "boundaries": {
+    "train_end_event_order": 242800,
+    "validation_end_event_order": 294829
+  }
+}
