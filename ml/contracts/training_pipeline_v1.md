@@ -46,7 +46,7 @@ Targets:
 
 - `expected_learning_gain_proxy = normalized_learning_gain`, clamped to `0..1`;
 - `expected_next_step_success = next_step_success`, normalized to `0/1`;
-- `combined_outcome_score = 0.75 * normalized_learning_gain + 0.25 * next_step_success`.
+- `combined_outcome_score = 0.75 * expected_learning_gain_proxy + 0.25 * expected_next_step_success`, clamped to `0..1`.
 
 Rows without available outcome are skipped for training and counted in evaluation reports.
 
@@ -104,6 +104,17 @@ python ml/scripts/train_candidate_scorer.py \
   --seed 42
 ```
 
+For longitudinal learner holdout, use a user-level split:
+
+```bash
+python ml/scripts/train_candidate_scorer.py \
+  --input ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl \
+  --artifact-out ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42.json \
+  --eval-out ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42_eval.json \
+  --seed 42 \
+  --split-strategy user_id_hash
+```
+
 Evaluate:
 
 ```bash
@@ -111,6 +122,17 @@ python ml/scripts/evaluate_candidate_scorer.py \
   --input ml/examples/synthetic_dataset.sample.jsonl \
   --artifact ml/examples/candidate_scorer_artifact.example.json \
   --eval-out ml/examples/candidate_scorer_eval.example.json
+```
+
+Compare trained scorer metrics against transparent baselines:
+
+```bash
+python ml/scripts/compare_candidate_scorer_metrics.py \
+  --input ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl \
+  --artifact ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42.json \
+  --out ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42_comparison.json \
+  --seed 42 \
+  --split-strategy user_id_hash
 ```
 
 Score candidates for one observation:

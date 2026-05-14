@@ -1,0 +1,21 @@
+{
+  "runtimeArtifactKind": "eduai_six_factor_candidate_scorer_runtime_copy",
+  "runtimeArtifactSchemaVersion": "runtime_manifest.v1_2026_05",
+  "modelVersion": "linear_candidate_scorer_v1_seed_42",
+  "modelFamily": "linear_candidate_scorer_v1",
+  "trainingArtifactPath": "ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42.json",
+  "runtimeArtifactPath": "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
+  "sha256": "7dd4b9978e5ece3b819876d75e1a412c499c8ab6a1e540ac0f18c2ac9d29070e",
+  "sourceDataset": {
+    "sourceKind": "synthetic",
+    "lane": "THU",
+    "path": "ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl"
+  },
+  "activation": {
+    "activeByDefault": false,
+    "currentPointerUpdated": false,
+    "requiresEnvFlags": true
+  },
+  "createdAtIso": "2026-05-14T17:36:31Z",
+  "honestyNote": "Trained on synthetic THU observations; real-user efficacy is not proven."
+}

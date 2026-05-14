@@ -103,3 +103,14 @@ Summarize a dataset:
 ```bash
 python ml/scripts/summarize_dataset.py --input ml/examples/synthetic_dataset.sample.jsonl
 ```
+
+Merge a THU synthetic longitudinal lane into one supervised JSONL dataset:
+
+```bash
+python ml/scripts/merge_training_observations.py \
+  --input-dir ml/src/eduai_ml/training/THU \
+  --output ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl \
+  --summary-out ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1_summary.json \
+  --expected-users 50 \
+  --expected-observations 1528
+```

@@ -27,6 +27,14 @@ pre-decision features + candidate_config -> predicted outcome
 `EDUAI_SIX_FACTOR_APPLY` requires shadow mode.
 It does not enable ML policy by itself.
 
+The THU scorer runtime copy prepared for local/demo/production shadow or apply is:
+
+```text
+artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+```
+
+The older `artifacts/runtime/eduai_native_pedagogy/current` slot is not used as the THU scorer activation pointer.
+
 ## Applied Paths
 
 The applied v1 paths are:
@@ -66,10 +74,11 @@ When apply mode is active, `sixFactorShadow` metadata records:
 - `appliedPath=chat | learning_content | test_generation`
 
 If the artifact is missing or invalid, the adapter falls back to the explicit heuristic/static six-factor bridge and records warnings.
+If the scorer produces a non-finite score, the adapter also falls back and records a `scoring_error` warning.
 
 ## Honesty Note
 
-The example artifact is trained on synthetic data.
+The THU artifact is trained on synthetic data.
 Apply mode verifies the runtime path and provenance.
 It does not prove that the selected six-factor configuration improves real learning outcomes.
 

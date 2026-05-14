@@ -1,0 +1,249 @@
+{
+  "dataset_summary": {
+    "factor_distribution": {
+      "depth": {
+        "brief": 423,
+        "detailed": 370,
+        "standard": 735
+      },
+      "difficulty": {
+        "easy": 176,
+        "hard": 670,
+        "medium": 682
+      },
+      "examples_level": {
+        "multiple": 222,
+        "none": 328,
+        "single": 978
+      },
+      "presentation_format": {
+        "paragraph": 396,
+        "qa": 344,
+        "step_by_step": 280,
+        "structured_list": 508
+      },
+      "support_level": {
+        "guided": 917,
+        "minimal": 433,
+        "scaffolded": 178
+      },
+      "terminology_level": {
+        "balanced": 701,
+        "simple": 239,
+        "technical": 588
+      }
+    },
+    "leakage_guard_violations_count": 0,
+    "outcome_available_count": 1528,
+    "outcome_stats": {
+      "average_normalized_learning_gain": 0.1108,
+      "average_post_score": 0.7586,
+      "average_pre_score": 0.7089,
+      "next_step_success_rate": 0.8325
+    },
+    "source_kind_counts": {
+      "synthetic": 1528
+    },
+    "supervised_unusable_count": 0,
+    "supervised_unusable_reasons": {},
+    "supervised_usable_count": 1528,
+    "total_observations": 1528
+  },
+  "excluded_files": [],
+  "expected": {
+    "observations": 1528,
+    "users": 50
+  },
+  "failure_count": 256,
+  "included_files": [
+    {
+      "file": "synthetic_user_001_algebra_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_001_algebra_longitudinal_v1.jsonl",
+      "rows": 25,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_002_programming_strong_technical_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_002_programming_strong_technical_longitudinal_v1.jsonl",
+      "rows": 30,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_003_physics_overconfident_weak_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_003_physics_overconfident_weak_longitudinal_v1.jsonl",
+      "rows": 35,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_004_biology_anxious_novice_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_004_biology_anxious_novice_longitudinal_v1.jsonl",
+      "rows": 32,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_005_chemistry_fast_improver_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_005_chemistry_fast_improver_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_006_statistics_careless_strong_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_006_statistics_careless_strong_longitudinal_v1.jsonl",
+      "rows": 34,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_007_history_humanities_conceptual_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_007_history_humanities_conceptual_longitudinal_v1.jsonl",
+      "rows": 33,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_008_economics_fatigue_unstable_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_008_economics_fatigue_unstable_longitudinal_v1.jsonl",
+      "rows": 34,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_009_english_memory_weak_transfer_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_009_english_memory_weak_transfer_longitudinal_v1.jsonl",
+      "rows": 34,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_010_geometry_visual_schematic_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_010_geometry_visual_schematic_longitudinal_v1.jsonl",
+      "rows": 35,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_011_literature_auditory_explanatory_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_011_literature_auditory_explanatory_longitudinal_v1.jsonl",
+      "rows": 35,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_012_probability_anxious_aligned_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_012_probability_anxious_aligned_longitudinal_v1.jsonl",
+      "rows": 35,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_013_algorithms_brief_intolerant_technical_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_013_algorithms_brief_intolerant_technical_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_014_basic_math_honest_weak_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_014_basic_math_honest_weak_longitudinal_v1.jsonl",
+      "rows": 35,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_015_sql_overconfident_intermediate_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_015_sql_overconfident_intermediate_longitudinal_v1.jsonl",
+      "rows": 37,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_016_calculus_fast_improver_plateau_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_016_calculus_fast_improver_plateau_longitudinal_v1.jsonl",
+      "rows": 38,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_017_social_science_technical_averse_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_017_social_science_technical_averse_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_018_physics_weak_visual_scaffolded_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_018_physics_weak_visual_scaffolded_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_019_networking_break_recovery_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_019_networking_break_recovery_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_user_020_logic_weak_memory_strong_transfer_longitudinal_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_user_020_logic_weak_memory_strong_transfer_longitudinal_v1.jsonl",
+      "rows": 36,
+      "status": "included",
+      "users": 1
+    },
+    {
+      "file": "synthetic_users_021_030_anxious_honest_beginner_batch_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_users_021_030_anxious_honest_beginner_batch_v1.jsonl",
+      "rows": 260,
+      "status": "included",
+      "users": 10
+    },
+    {
+      "file": "synthetic_users_031_040_technical_intermediate_strong_batch_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_users_031_040_technical_intermediate_strong_batch_v1.jsonl",
+      "rows": 280,
+      "status": "included",
+      "users": 10
+    },
+    {
+      "file": "synthetic_users_041_050_unstable_misaligned_intermediate_batch_v1.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/THU/synthetic_users_041_050_unstable_misaligned_intermediate_batch_v1.jsonl",
+      "rows": 300,
+      "status": "included",
+      "users": 10
+    }
+  ],
+  "input_dir": "/home/perror/eduai/ml/src/eduai_ml/training/THU",
+  "negative_gain_rows": 421,
+  "output_path": "ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl",
+  "output_sha256": "e9846a2ceeb40bd2ab898bcfdccc4d9ccba8c2ba0608801911bbeab9d2c93bcc",
+  "rows": 1528,
+  "schema_version": "training_merge_summary.v1",
+  "subjects": 50,
+  "success_count": 1272,
+  "summary_path": "ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1_summary.json",
+  "topics": 354,
+  "unique_candidate_configs": 97,
+  "unique_delivered_configs": 97,
+  "users": 50,
+  "validation": {
+    "broken_json_count": 0,
+    "candidate_config_present": true,
+    "delivered_config_present": true,
+    "duplicate_observation_ids_count": 0,
+    "empty_lines_count": 0,
+    "expected_observations_match": true,
+    "expected_users_match": true,
+    "leakage_guard_ok": true,
+    "schema_version_ok": true,
+    "source_kind_validation": "ok",
+    "supervised_unusable_count": 0,
+    "supervised_unusable_reasons": {},
+    "timestamp_validation": "ok"
+  }
+}

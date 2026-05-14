@@ -34,6 +34,17 @@ Required values in `.env.local`:
 - optional `CHAT_STORE_RAW_CONTENT`
 - optional `DATASET_EXPORT_SECRET`
 
+The local template enables the THU six-factor ML scorer for local/demo apply mode:
+
+```bash
+EDUAI_SIX_FACTOR_SHADOW=1
+EDUAI_SIX_FACTOR_ML_POLICY=1
+EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+EDUAI_SIX_FACTOR_APPLY=1
+```
+
+For a fast local rollback, set `EDUAI_SIX_FACTOR_APPLY=0`.
+
 ## 3) Start local DB (Docker)
 
 ```bash

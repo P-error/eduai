@@ -23,7 +23,7 @@ The app contract stays `features -> six-factor decision`. Candidate scoring is a
 - `EDUAI_SIX_FACTOR_SHADOW=1`: allows six-factor metadata construction.
 - `EDUAI_SIX_FACTOR_ML_POLICY=1`: allows the metadata path to load an artifact and select a candidate through the scorer.
 - `EDUAI_SIX_FACTOR_APPLY=1`: explicitly applies six-factor render instructions to the learner-facing learning content prompt.
-- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional JSON artifact path. If omitted, the adapter uses `ml/examples/candidate_scorer_artifact.example.json` only when that file exists.
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional JSON artifact path. For the productized THU scorer use `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`. If omitted, the adapter uses `ml/examples/candidate_scorer_artifact.example.json` only when that file exists.
 
 With `EDUAI_SIX_FACTOR_SHADOW` off, no `sixFactorShadow` metadata is emitted.
 With `EDUAI_SIX_FACTOR_ML_POLICY` off, the adapter returns the existing heuristic/static six-factor bridge.

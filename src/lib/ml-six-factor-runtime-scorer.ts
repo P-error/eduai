@@ -50,6 +50,13 @@ function dot(weights: number[], vector: number[]) {
   return weights.reduce((total, weight, index) => total + weight * vector[index], 0);
 }
 
+function requireFiniteScore(name: string, value: number) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Non-finite six-factor scorer output for ${name}.`);
+  }
+  return value;
+}
+
 function stableHashBucket(value: string | null, buckets = 16) {
   if (value == null || value.length === 0) return 0;
   const hex = createHash("sha256").update(value).digest("hex").slice(0, 8);
@@ -247,15 +254,26 @@ export function scoreSixFactorCandidate(
   );
   validateWeights("combined_outcome_score", weights.combined_outcome_score, width);
 
+  const expectedLearningGainRaw = requireFiniteScore(
+    "expected_learning_gain_proxy",
+    dot(weights.expected_learning_gain_proxy, vector),
+  );
+  const expectedNextStepSuccessLogit = requireFiniteScore(
+    "expected_next_step_success_logit",
+    dot(weights.expected_next_step_success_logit, vector),
+  );
+  const combinedOutcomeScoreRaw = requireFiniteScore(
+    "combined_outcome_score",
+    dot(weights.combined_outcome_score, vector),
+  );
+
   return {
     candidate,
-    predictedLearningGain: clamp(
-      dot(weights.expected_learning_gain_proxy, vector),
-    ),
+    predictedLearningGain: clamp(expectedLearningGainRaw),
     predictedNextStepSuccess: clamp(
-      sigmoid(dot(weights.expected_next_step_success_logit, vector)),
+      sigmoid(expectedNextStepSuccessLogit),
     ),
-    predictedCombinedScore: clamp(dot(weights.combined_outcome_score, vector)),
+    predictedCombinedScore: clamp(combinedOutcomeScoreRaw),
     warnings: [],
   };
 }

@@ -27,6 +27,7 @@ import {
 import {
   isSixFactorMlPolicyEnabled,
   resolveSixFactorPolicyDecision,
+  resolveSixFactorPolicyDecisionForFeatures,
 } from "@/lib/ml-six-factor-policy-adapter";
 import {
   buildAppliedSixFactorPromptInstructions,
@@ -906,6 +907,24 @@ export function runMlSixFactorShadowSelfCheck() {
     "valid artifact mode must not mark fallbackUsed",
   );
 
+  const nonFiniteScoreDecision = resolveSixFactorPolicyDecisionForFeatures(
+    {
+      ...buildEduAIAppPolicyFeaturesV1(shadowContext),
+      priorCorrectRate: Number.NaN,
+    },
+    { env: mlFlagEnv },
+  );
+  assert(
+    nonFiniteScoreDecision.fallbackUsed === true,
+    "non-finite scorer output must fall back safely",
+  );
+  assert(
+    nonFiniteScoreDecision.warnings.some((warning) =>
+      warning.includes("scoring_error"),
+    ),
+    "non-finite scorer fallback must include scoring_error warning",
+  );
+
   const mlMetadata = buildOptionalSixFactorShadowMetadata(shadowContext, mlFlagEnv);
   assert(mlMetadata != null, "ML policy shadow mode must return metadata");
   assert(
@@ -1108,6 +1127,7 @@ export function runMlSixFactorShadowSelfCheck() {
       "guardrails allow advanced config only with mastered history",
       "flag-on ML-on valid artifact returns ml_policy",
       "flag-on ML-on valid artifact has modelVersion and candidateCount",
+      "non-finite ML scorer output falls back with warning",
       "flag-on ML-on metadata remains unapplied",
       "metadata feature snapshot excludes outcome fields",
       "flag-on ML-on invalid artifact falls back with warning",

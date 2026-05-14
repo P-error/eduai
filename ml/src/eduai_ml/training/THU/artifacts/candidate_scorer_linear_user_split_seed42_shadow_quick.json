@@ -1,0 +1,67 @@
+{
+  "artifact_path": "ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42.json",
+  "candidate_config_fields": [
+    "difficulty",
+    "depth",
+    "support_level",
+    "presentation_format",
+    "examples_level",
+    "terminology_level"
+  ],
+  "candidate_count_max": 27,
+  "candidate_count_mean": 14.34,
+  "candidate_count_min": 4,
+  "dataset_path": "ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl",
+  "delivered_config_match_count": 0,
+  "feature_count": 74,
+  "forbidden_fields_found": [],
+  "guardrail_checked": true,
+  "guardrail_fallback_count": 0,
+  "guardrail_filtered_total": 645,
+  "loaded": true,
+  "max_candidates": 30,
+  "model_type": "linear_candidate_scorer_v1",
+  "model_version": "linear_candidate_scorer_v1_seed_42",
+  "nan_or_inf_count": 0,
+  "predicted_score": {
+    "max": 0.606238,
+    "mean": 0.46793,
+    "min": 0.261897
+  },
+  "sample_mode": "first",
+  "sample_size": 100,
+  "score_range_expected": "0..1",
+  "source_kind_for_scoring": "real_user",
+  "top1_factor_distributions": {
+    "depth": {
+      "brief": 7,
+      "detailed": 48,
+      "standard": 45
+    },
+    "difficulty": {
+      "easy": 1,
+      "hard": 21,
+      "medium": 78
+    },
+    "examples_level": {
+      "multiple": 8,
+      "single": 92
+    },
+    "presentation_format": {
+      "paragraph": 1,
+      "qa": 42,
+      "step_by_step": 41,
+      "structured_list": 16
+    },
+    "support_level": {
+      "guided": 98,
+      "scaffolded": 2
+    },
+    "terminology_level": {
+      "balanced": 78,
+      "simple": 19,
+      "technical": 3
+    }
+  },
+  "unique_top1_configs": 26
+}

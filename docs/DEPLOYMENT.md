@@ -12,6 +12,10 @@ Optional variables:
 - `OPENAI_BASE_URL` (defaults to OpenAI-compatible `/v1`)
 - `CHAT_STORE_RAW_CONTENT` (privacy control, default redacted storage)
 - `DATASET_EXPORT_SECRET` (recommended for export pseudonymization; falls back to `JWT_SECRET` only outside production)
+- `EDUAI_SIX_FACTOR_SHADOW=1`
+- `EDUAI_SIX_FACTOR_ML_POLICY=1`
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`
+- `EDUAI_SIX_FACTOR_APPLY=1` for active ML apply, or `0` for shadow-only rollback
 
 Production startup now fails fast on invalid critical env:
 - `DATABASE_URL`
@@ -45,6 +49,7 @@ Why:
 
 1. Push repository to GitHub (without secrets).
 2. Configure env vars in Vercel Project Settings.
+   - For the THU ML scorer, add the `EDUAI_SIX_FACTOR_*` values from `.env.production.example`; these repository templates do not configure hosted env automatically.
 3. Run migrations from CI/job/terminal against production DB:
    - `npx prisma migrate deploy`
 4. Trigger Vercel deploy.

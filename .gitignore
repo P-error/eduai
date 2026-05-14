@@ -97,3 +97,6 @@ env/
 /artifacts/runtime/eduai_native_pedagogy/current/*
 !/artifacts/runtime/eduai_native_pedagogy/current/README.md
 !/artifacts/runtime/eduai_native_pedagogy/current/slot_metadata.json
+!/artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/
+!/artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+!/artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/runtime_manifest.json
