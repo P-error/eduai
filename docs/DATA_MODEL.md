@@ -79,6 +79,7 @@ Expected keys in current pipeline:
 - `deliveryCompliance.ux.perAxis[]`
 - `deliveryCompliance.ux.averageMatchRate`
 - `deliveryCompliance.ux.minAxisMatchRate`
+- `deliveryComplianceGate: { status, learningExclusion, reasonCode, styleConsistencyScore, minAxisScore, thresholds, requestedAxes, missingFields }`
 - `deliveryComplianceFailed: boolean`
 - `policyMode: "personalization_on" | "personalization_off" | "self_report_preference" | "heuristic_default" | "manual_delivery_override" | "observational"`
 - `policyId: "v2_personalized" | "v2_baseline" | "v2_manual" | "v2_self_report" | "v2_heuristic_default" | "v2_observational"`
@@ -165,12 +166,13 @@ Expected keys in current pipeline:
 Learning updates are skipped when any gating condition is true:
 - fallback generation (`generationSource=fallback`),
 - fallback/mixed tagging (`taggingSource != llm`),
-- low UX compliance (`deliveryComplianceFailed=true`),
+- proven low UX compliance (`deliveryComplianceGate.learningExclusion=true`, currently only when explicit/manual UX delivery requirements have complete style-tag evidence below threshold),
 - invalid tag warnings,
 - default collection exclusion rule,
 - missing telemetry for UX reward (UX axis updates only).
 
 Attempts are still stored even when learning updates are skipped.
+Missing or optional rendering-style metadata is not itself a low-UX-compliance failure.
 
 ## Security-Relevant Data Exposure Rules
 

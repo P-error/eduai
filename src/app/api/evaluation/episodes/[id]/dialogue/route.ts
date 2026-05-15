@@ -9,6 +9,7 @@ import {
 } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const DialogueTurnSchema = z.object({
   message: z.string().trim().min(1).max(LEARNING_DIALOGUE_MAX_MESSAGE_CHARS),

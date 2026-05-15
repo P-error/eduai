@@ -12,6 +12,7 @@ import {
 } from "@/lib/test-generation";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 async function maybeRateLimitGenerate(request: Request, userId: string) {
   try {

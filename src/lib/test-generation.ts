@@ -50,10 +50,16 @@ import {
 import {
   MAX_RETRIES,
   sanitizePreferenceMap,
-  UX_AVG_THRESHOLD,
-  UX_AXES,
-  UX_MIN_AXIS_THRESHOLD,
 } from "@/lib/tags";
+import {
+  computeUxCompliance,
+  evaluateUxComplianceGate,
+  logLearningQualityGateDecision,
+  pickRequestedUxAxes,
+  type CoreDeliveryRequest,
+  type ObservedQuestionTags,
+  type UxComplianceGateDecision,
+} from "@/lib/learning-quality-gate";
 import { type TrainingDatasetCollectionMeta } from "@/lib/training-dataset-contract";
 
 export const DeliverySchema = z
@@ -122,28 +128,6 @@ export const GenerateSchema = z.object({
 
 type DeliveryRequest = NonNullable<z.infer<typeof DeliveryComplianceSchema>>;
 export type GenerateTestPayload = z.infer<typeof GenerateSchema>;
-
-type CoreDeliveryRequest = {
-  tone?: string;
-  explanation_style?: string;
-  response_format?: string;
-  difficulty_target?: string;
-  depth?: string;
-};
-
-type ObservedQuestionTags = Record<string, string>;
-
-type UxCompliance = {
-  perAxis: Array<{
-    axis: string;
-    requested: string;
-    matchCount: number;
-    total: number;
-    matchRate: number;
-  }>;
-  averageMatchRate: number;
-  minAxisMatchRate: number;
-};
 
 type SubjectSnapshot = {
   id: string;
@@ -278,74 +262,6 @@ function pickCoreDeliveryFields(
         ? root.difficulty_target
         : undefined,
     depth: typeof root.depth === "string" ? root.depth : undefined,
-  };
-}
-
-function pickRequestedUxAxes(
-  requestedDelivery: CoreDeliveryRequest,
-): Record<string, string> {
-  const picked: Record<string, string> = {};
-  const source = (requestedDelivery ?? {}) as Record<string, unknown>;
-
-  for (const axis of UX_AXES) {
-    const value = source[axis];
-    if (typeof value === "string" && value.trim().length > 0) {
-      picked[axis] = value;
-    }
-  }
-
-  return picked;
-}
-
-function computeUxCompliance(
-  requestedDelivery: CoreDeliveryRequest,
-  observedTagsPerQuestion: ObservedQuestionTags[],
-): { ux: UxCompliance } {
-  const requestedUx = pickRequestedUxAxes(requestedDelivery);
-  const requestedAxes = Object.keys(requestedUx);
-
-  if (requestedAxes.length === 0) {
-    return {
-      ux: {
-        perAxis: [],
-        averageMatchRate: 1,
-        minAxisMatchRate: 1,
-      },
-    };
-  }
-
-  const total = observedTagsPerQuestion.length;
-  const perAxis = requestedAxes.map((axis) => {
-    const requested = requestedUx[axis];
-    const matchCount = observedTagsPerQuestion.reduce((count, observed) => {
-      return count + (observed?.[axis] === requested ? 1 : 0);
-    }, 0);
-    const matchRate = total > 0 ? matchCount / total : 0;
-
-    return {
-      axis,
-      requested,
-      matchCount,
-      total,
-      matchRate,
-    };
-  });
-
-  const averageMatchRate =
-    perAxis.length > 0
-      ? perAxis.reduce((sum, axis) => sum + axis.matchRate, 0) / perAxis.length
-      : 1;
-  const minAxisMatchRate =
-    perAxis.length > 0
-      ? Math.min(...perAxis.map((axis) => axis.matchRate))
-      : 1;
-
-  return {
-    ux: {
-      perAxis,
-      averageMatchRate,
-      minAxisMatchRate,
-    },
   };
 }
 
@@ -727,7 +643,9 @@ export async function generateTestForUser(
   );
   const promptTemplate = await getActivePromptTemplate("test_generation_v1");
   const llmModel = "gpt-4o-mini";
-  const requestedUx = pickRequestedUxAxes(plan.appliedDelivery);
+  const requestedUx = pickRequestedUxAxes(
+    hasManualDeliveryOverride ? clientRequestedDelivery : {},
+  );
   const hasRequestedUx = Object.keys(requestedUx).length > 0;
   const syntheticLlmDisabled = (() => {
     const raw = process.env.EDUAI_SYNTHETIC_DISABLE_LLM?.trim().toLowerCase();
@@ -902,7 +820,12 @@ export async function generateTestForUser(
     tagId: string;
   }[] = [];
   let finalCompliance = computeUxCompliance(plan.appliedDelivery, []);
-  let finalComplianceFailed = false;
+  let finalComplianceGate: UxComplianceGateDecision = evaluateUxComplianceGate({
+    requestedDelivery: clientRequestedDelivery,
+    observedTagsPerQuestion: [],
+    hasManualDeliveryOverride,
+    taggingSource: finalTaggingSource,
+  });
 
   const maxAttempts = 1 + MAX_RETRIES;
   const sectionLine = section.sectionSnapshot
@@ -1043,9 +966,12 @@ export async function generateTestForUser(
     }
 
     const compliance = computeUxCompliance(plan.appliedDelivery, observedTagsPerQuestion);
-    const complianceFailed =
-      compliance.ux.averageMatchRate < UX_AVG_THRESHOLD ||
-      compliance.ux.minAxisMatchRate < UX_MIN_AXIS_THRESHOLD;
+    const complianceGate = evaluateUxComplianceGate({
+      requestedDelivery: clientRequestedDelivery,
+      observedTagsPerQuestion,
+      hasManualDeliveryOverride,
+      taggingSource,
+    });
 
     finalTestPayload = currentTestPayload;
     finalRawLlmOutput = currentRawLlmOutput;
@@ -1057,11 +983,10 @@ export async function generateTestForUser(
     finalTaggingSource = taggingSource;
     finalFilteredAssignments = filteredAssignments;
     finalCompliance = compliance;
-    finalComplianceFailed = hasRequestedUx ? complianceFailed : false;
+    finalComplianceGate = complianceGate;
 
     const shouldRetry =
-      hasRequestedUx &&
-      complianceFailed &&
+      complianceGate.status === "failed" &&
       attempts < maxAttempts &&
       taggingSource === "llm";
     if (shouldRetry) {
@@ -1078,14 +1003,14 @@ export async function generateTestForUser(
   );
   const taggingIsLlm = finalTaggingSource === "llm" && !hasInvalidTagWarnings;
   const learningEligible =
-    generationIsLlm && taggingIsLlm && !finalComplianceFailed;
+    generationIsLlm && taggingIsLlm && !finalComplianceGate.learningExclusion;
 
   let learningExcludedReason: string | null = null;
   if (!generationIsLlm) {
     learningExcludedReason = "FALLBACK_GENERATION";
   } else if (!taggingIsLlm) {
     learningExcludedReason = "FALLBACK_TAGGING";
-  } else if (finalComplianceFailed) {
+  } else if (finalComplianceGate.learningExclusion) {
     learningExcludedReason = "LOW_UX_COMPLIANCE";
   }
 
@@ -1102,7 +1027,7 @@ export async function generateTestForUser(
       appliedPath: "test_generation",
     });
 
-  const savedTest = await prisma.$transaction(async (tx) => {
+  const saved = await prisma.$transaction(async (tx) => {
     const createdTest = await tx.generatedTest.create({
       data: {
         userId: params.user.id,
@@ -1149,7 +1074,8 @@ export async function generateTestForUser(
           deliveryCompliance: {
             ux: finalCompliance.ux,
           },
-          deliveryComplianceFailed: finalComplianceFailed,
+          deliveryComplianceGate: finalComplianceGate,
+          deliveryComplianceFailed: finalComplianceGate.learningExclusion,
           policyMode: plan.policyMode,
           policyId: plan.policyId,
           policyMeta: plan.policyMeta,
@@ -1171,8 +1097,13 @@ export async function generateTestForUser(
       },
     });
 
+    let evaluationItem: {
+      id: string;
+      episodeId: string;
+      sequenceIndex: number;
+    } | null = null;
     if (testEvaluation) {
-      await registerEvaluationEpisodeItem({
+      evaluationItem = await registerEvaluationEpisodeItem({
         prisma: tx,
         item: testEvaluation,
         contentId: createdTest.id,
@@ -1193,7 +1124,24 @@ export async function generateTestForUser(
       });
     }
 
-    return createdTest;
+    return { test: createdTest, evaluationItem };
+  });
+  const savedTest = saved.test;
+
+  logLearningQualityGateDecision({
+    phase: "test_generation",
+    testId: savedTest.id,
+    episodeId: resolvedEpisode?.id ?? null,
+    itemIds: saved.evaluationItem ? [saved.evaluationItem.id] : [],
+    styleConsistencyScore: finalComplianceGate.styleConsistencyScore,
+    minStyleAxisScore: finalComplianceGate.minAxisScore,
+    thresholds: finalComplianceGate.thresholds,
+    gateStatus: finalComplianceGate.status,
+    reasonCode: learningExcludedReason,
+    missingFields: finalComplianceGate.missingFields,
+    decision: learningEligible ? "include" : "exclude",
+    generationSource: finalGenerationSource,
+    taggingSource: finalTaggingSource,
   });
 
   return {

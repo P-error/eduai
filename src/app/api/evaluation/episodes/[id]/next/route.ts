@@ -8,6 +8,7 @@ import {
 } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const AdvanceSchema = z.object({
   acknowledgeLearningContent: z.boolean().optional().default(false),

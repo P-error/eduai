@@ -36,6 +36,7 @@
     "analytics-next-step:self-check": "bash scripts/analytics-next-step-self-check.sh",
     "analytics-subject-url:self-check": "bash scripts/analytics-subject-url-self-check.sh",
     "learner-orchestration:self-check": "bash scripts/learner-orchestration-self-check.sh",
+    "learning-quality-gate:self-check": "bash scripts/learning-quality-gate-self-check.sh",
     "learning-evidence:self-check": "bash scripts/learning-evidence-self-check.sh",
     "learner-truth:self-check": "bash scripts/learner-truth-self-check.sh",
     "pilot-readiness:smoke": "bash scripts/pilot-readiness-smoke.sh"

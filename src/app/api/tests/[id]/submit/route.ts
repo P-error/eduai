@@ -30,6 +30,10 @@ import {
   type LearnerAttemptEvidenceContract,
   type LearningExclusionReasonCode,
 } from "@/lib/learning-evidence-contract";
+import {
+  logLearningQualityGateDecision,
+  resolveStoredUxComplianceGate,
+} from "@/lib/learning-quality-gate";
 
 export const runtime = "nodejs";
 
@@ -677,10 +681,21 @@ export async function POST(
   const hasInvalidTagWarnings = taggingWarnings.some(
     (warning) => typeof warning === "string" && warning.includes(":invalid_"),
   );
-  const complianceFailed =
-    validationMeta.deliveryComplianceFailed === true ||
-    validationMeta.learningExcludedReason === "LOW_UX_COMPLIANCE";
-  const explicitLearningEligible = validationMeta.learningEligible;
+  const uxComplianceGate = resolveStoredUxComplianceGate(validationMeta);
+  const complianceFailed = uxComplianceGate.learningExclusion;
+  const normalizedValidationReason = normalizeLearningExclusionReason(
+    validationMeta.learningExcludedReason,
+  );
+  const validationReasonForSkip =
+    normalizedValidationReason === "LOW_UX_COMPLIANCE" && !complianceFailed
+      ? null
+      : normalizedValidationReason;
+  const explicitLearningEligible =
+    validationMeta.learningEligible === false &&
+    normalizedValidationReason === "LOW_UX_COMPLIANCE" &&
+    !complianceFailed
+      ? true
+      : validationMeta.learningEligible;
   const learningEligible =
     explicitLearningEligible === false
       ? false
@@ -691,10 +706,47 @@ export async function POST(
     explicitLearningEligible,
     learningEligible,
     hasInvalidTagWarnings,
-    validationReason: validationMeta.learningExcludedReason,
+    validationReason: validationReasonForSkip,
   });
   const shouldSkipLearning = learningSkipReason !== null;
   const isEpisodeAttempt = Boolean(test.evaluationEpisodeId);
+  const evaluationItemForDiagnostics = isEpisodeAttempt
+    ? await prisma.evaluationEpisodeItem.findUnique({
+        where: {
+          contentKind_contentId: {
+            contentKind: "generated_test",
+            contentId: test.id,
+          },
+        },
+        select: {
+          id: true,
+          episodeId: true,
+        },
+      })
+    : null;
+
+  logLearningQualityGateDecision({
+    phase: "test_submit",
+    testId: test.id,
+    episodeId:
+      evaluationItemForDiagnostics?.episodeId ?? test.evaluationEpisodeId ?? null,
+    itemIds: evaluationItemForDiagnostics ? [evaluationItemForDiagnostics.id] : [],
+    styleConsistencyScore: uxComplianceGate.styleConsistencyScore,
+    minStyleAxisScore: uxComplianceGate.minAxisScore,
+    thresholds: uxComplianceGate.thresholds,
+    gateStatus: uxComplianceGate.status,
+    reasonCode: learningSkipReason,
+    missingFields: uxComplianceGate.missingFields,
+    decision: shouldSkipLearning ? "exclude" : "include",
+    generationSource:
+      typeof validationMeta.generationSource === "string"
+        ? validationMeta.generationSource
+        : null,
+    taggingSource:
+      typeof validationMeta.taggingSource === "string"
+        ? validationMeta.taggingSource
+        : null,
+  });
 
   const recommendationSnapshot =
     test.recommendationSnapshot && typeof test.recommendationSnapshot === "object"

@@ -48,6 +48,7 @@ import {
 import { sanitizePreferenceMap } from "@/lib/tags";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),

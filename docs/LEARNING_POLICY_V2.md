@@ -90,10 +90,11 @@ It is not evidence that those axes are equal dissertation ML targets.
 
 From generate pipeline:
 - compliance computed on final observed tags (LLM or fallback result used for assignments)
-- `deliveryComplianceFailed` if average/min axis threshold fails
+- `deliveryComplianceGate` turns style compliance into learning exclusion only when explicit/manual UX delivery requirements have complete LLM style-tag evidence below the average/min thresholds
+- internal episode/rendering defaults remain diagnostic rendering metadata; missing or unknown style evidence is not treated as low UX compliance
 
 Learning eligibility at test level:
-- true only when generation source is llm, tagging source is llm, compliance passes
+- true only when generation source is llm, tagging source is llm, and no proven learning-exclusion gate failed
 
 Submit-time skip reasons include:
 - `DEFAULT_COLLECTION`
