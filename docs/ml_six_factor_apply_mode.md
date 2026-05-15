@@ -76,6 +76,15 @@ When apply mode is active, `sixFactorShadow` metadata records:
 If the artifact is missing or invalid, the adapter falls back to the explicit heuristic/static six-factor bridge and records warnings.
 If the scorer produces a non-finite score, the adapter also falls back and records a `scoring_error` warning.
 
+## Learner-facing UI
+
+When `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`, `/learn` shows a compact
+`ML-персонализация` card for learning-content and assistant dialogue outputs
+that have canonical six-factor delivered metadata. The card uses a safe summary
+only: selected six-factor config, decision source, fallback flag, artifact
+version, and whether the decision was applied to the learner-facing output.
+It does not show raw feature snapshots, warnings, prompt text, or debug JSON.
+
 ## Honesty Note
 
 The THU artifact is trained on synthetic data.

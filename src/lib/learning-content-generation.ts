@@ -23,7 +23,10 @@ import {
   type LearningContentGenerationPackage,
 } from "@/lib/episode-generation";
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
-import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildOptionalSixFactorDeliveredConfigMetadata,
+  type SixFactorDeliveredConfigMetadataV1,
+} from "@/lib/ml-six-factor-decision-metadata";
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
@@ -97,6 +100,7 @@ export type GeneratedLearningContentArtifact = {
   generationPackage: LearningContentGenerationPackage;
   card: LearningContentCard;
   renderedContent: string;
+  sixFactorDeliveredConfig: SixFactorDeliveredConfigMetadataV1 | null;
 };
 
 function buildFallbackCard(params: {
@@ -473,5 +477,6 @@ export async function generateLearningContentForEpisode(
     generationPackage,
     card,
     renderedContent,
+    sixFactorDeliveredConfig,
   };
 }

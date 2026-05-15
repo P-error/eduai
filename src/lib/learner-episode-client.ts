@@ -2,6 +2,7 @@ import type {
   LearnerAttemptEvidenceContract,
   LearningExclusionReasonCode,
 } from "@/lib/learning-evidence-contract";
+import type { MlPersonalizationView } from "@/lib/ml-personalization-view";
 
 export type LearnerEpisodeSequenceRole =
   | "precheck"
@@ -46,6 +47,7 @@ export type LearnerEpisodeLearningContent = {
     role: "user" | "assistant";
     content: string;
     createdAtIso: string;
+    mlPersonalization?: MlPersonalizationView | null;
   }>;
   dialogueBudget: {
     maxLearnerTurns: number;
@@ -62,6 +64,7 @@ export type LearnerEpisodeLearningContent = {
     policyId: string | null;
     personalizationMode: "on" | "off";
   };
+  mlPersonalization?: MlPersonalizationView | null;
 };
 
 export type LearnerEpisodeStep =

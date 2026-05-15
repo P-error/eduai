@@ -41,6 +41,7 @@ import {
 } from "@/lib/ml-six-factor-shadow";
 import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
+import { buildMlPersonalizationView } from "@/lib/ml-personalization-view";
 import {
   buildRateLimitErrorResponse,
   rateLimitRouteOrThrow,
@@ -358,6 +359,8 @@ export async function POST(request: Request) {
       featuresCutoffAt: decisionAtIso,
       appliedPath: "chat",
     });
+  const sixFactorPersonalization =
+    buildMlPersonalizationView(sixFactorDeliveredConfig);
 
   let systemTemplate;
   try {
@@ -573,6 +576,9 @@ export async function POST(request: Request) {
         quality: "secondary_chat_support",
         role: "supporting_secondary",
       },
+      ...(sixFactorPersonalization
+        ? { sixFactorPersonalization }
+        : {}),
       signalsStored: true,
     },
   });

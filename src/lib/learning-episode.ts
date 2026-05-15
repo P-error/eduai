@@ -37,6 +37,10 @@ import {
   type GenerateLearningContentPlan,
 } from "@/lib/learning-content-generation";
 import {
+  buildMlPersonalizationView,
+  type MlPersonalizationView,
+} from "@/lib/ml-personalization-view";
+import {
   generateTestForUser,
   type GenerateTestPlan,
   type GenerateTestPayload,
@@ -163,6 +167,7 @@ export type MaterializedEpisodeStep =
           role: "user" | "assistant";
           content: string;
           createdAtIso: string;
+          mlPersonalization?: MlPersonalizationView | null;
         }>;
         dialogueBudget: {
           maxLearnerTurns: number;
@@ -179,6 +184,7 @@ export type MaterializedEpisodeStep =
           policyId: string | null;
           personalizationMode: "on" | "off";
         };
+        mlPersonalization: MlPersonalizationView | null;
       };
       dueAtIso: null;
     }
@@ -986,6 +992,10 @@ async function hydrateLearningContentStep(
         role: message.role,
         content,
         createdAtIso: message.createdAt.toISOString(),
+        mlPersonalization:
+          message.role === "assistant"
+            ? buildMlPersonalizationView(signals)
+            : null,
       };
     })
     .filter(Boolean) as Array<{
@@ -993,6 +1003,7 @@ async function hydrateLearningContentStep(
     role: "user" | "assistant";
     content: string;
     createdAtIso: string;
+    mlPersonalization?: MlPersonalizationView | null;
   }>;
   const learnerTurnsUsed = dialogueThread.filter(
     (message) => message.role === "user",
@@ -1084,6 +1095,7 @@ async function hydrateLearningContentStep(
       personalizationMode:
         assistantSignals?.personalizationMode === "off" ? "off" : "on",
     },
+    mlPersonalization: buildMlPersonalizationView(assistantSignals),
   };
 }
 
@@ -1304,6 +1316,9 @@ async function materializeNewStep(params: {
         policyId: params.orchestration.policy.policyId,
         personalizationMode: params.orchestration.personalizationMode,
       },
+      mlPersonalization: buildMlPersonalizationView(
+        artifact.sixFactorDeliveredConfig,
+      ),
     },
     dueAtIso: null,
   } satisfies MaterializedEpisodeStep;

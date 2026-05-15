@@ -334,13 +334,15 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - stores chat signals
   - marks chat telemetry as `secondary_chat_support`
   - updates UX stats with weak reward proxy
-- Response: `{ reply, meta: { policyMode, policyId, uxPreset, pedagogicalDecision, evaluationSignal, signalsStored } }`
+- Response: `{ reply, meta: { policyMode, policyId, uxPreset, pedagogicalDecision, evaluationSignal, sixFactorPersonalization?, signalsStored } }`
+  - `sixFactorPersonalization` is a safe learner-facing summary when six-factor metadata exists. It includes `selected_config`, `decisionSource`, `fallbackUsed`, `artifactVersion`, `appliedToLearnerFacingOutput`, `appliedPromptInstructionCount`, and `appliedPath`; it does not expose raw feature snapshots, warnings, or debug JSON.
 - Errors: `AUTH_REQUIRED`, `INVALID_INPUT`, `INVALID_EVALUATION_ASSIGNMENT`, `INVALID_EVALUATION_EPISODE`, `LLM_BAD_RESPONSE`, `INTERNAL_ERROR`
 
 ### Episode step semantics
 - `learning_content` is now a first-class episode role, not an out-of-band helper function.
 - The coordinator materializes learning content as a structured explanation plus bounded episode-local dialogue loop inside the same evaluation episode contract.
 - Follow-up learner questions stay on the same episode-linked `chat_session`; `/chat` does not return as the canonical learner route.
+- `/learn` episode state may include `learningContent.mlPersonalization` and assistant dialogue message `mlPersonalization` fields. The UI shows them only when `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`.
 - Tests remain the primary learning signal; the learning-content/chat step is logged only as secondary/supporting evidence.
 
 ### `POST /api/chat/send` (legacy)

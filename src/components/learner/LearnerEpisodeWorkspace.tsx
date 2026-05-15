@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { authFetch } from "@/lib/client-auth";
 import { useUiLocale } from "@/components/i18n/UiLocaleProvider";
 import AttemptEvidenceSummary from "@/components/learner/AttemptEvidenceSummary";
+import MlPersonalizationCard from "@/components/ml-personalization-card";
 import {
   advanceLearnerEpisode,
   buildPendingStartFingerprint,
@@ -1107,6 +1108,11 @@ export default function LearnerEpisodeWorkspace() {
                 </div>
               </div>
 
+              <MlPersonalizationCard
+                className="mt-5"
+                metadata={activeStep.learningContent.mlPersonalization}
+              />
+
               <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <div className="rounded-3xl border border-current/20 bg-slate-950/30 p-5">
                   <p className="text-xs uppercase tracking-[0.18em] text-current/70">
@@ -1224,6 +1230,12 @@ export default function LearnerEpisodeWorkspace() {
                                 <p className="mt-2 whitespace-pre-wrap">
                                   {message.content}
                                 </p>
+                                {!isLearner ? (
+                                  <MlPersonalizationCard
+                                    className="mt-3"
+                                    metadata={message.mlPersonalization}
+                                  />
+                                ) : null}
                               </div>
                             </div>
                           );
