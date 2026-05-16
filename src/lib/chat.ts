@@ -47,7 +47,7 @@ export type ChatEventMeta = {
   uxPreset: { tone: string; explanation_style: string };
   pedagogicalDecision?: { difficulty: string; depth: string };
   rulesLayer?: { id: string; basis: string };
-  generationSource?: "llm" | "fallback";
+  generationSource?: "llm" | "llm_repaired" | "fallback";
   generationPackage?: Record<string, unknown> | null;
   learningContentCard?: Record<string, unknown> | null;
   evaluationSignal?: {

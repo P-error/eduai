@@ -5,6 +5,8 @@ export const SIX_FACTOR_ARTIFACT_PATH_ENV =
   "EDUAI_SIX_FACTOR_ARTIFACT_PATH" as const;
 
 const DEFAULT_CANDIDATE_SCORER_ARTIFACT_PATH =
+  "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json" as const;
+const LEGACY_EXAMPLE_CANDIDATE_SCORER_ARTIFACT_PATH =
   "ml/examples/candidate_scorer_artifact.example.json" as const;
 
 export type LinearCandidateScorerPayloadV1 = {
@@ -13,6 +15,7 @@ export type LinearCandidateScorerPayloadV1 = {
   target_names: string[];
   weights: {
     expected_learning_gain_proxy: number[];
+    expected_learning_gain_signed?: number[];
     expected_next_step_success_logit: number[];
     combined_outcome_score: number[];
   };
@@ -48,6 +51,7 @@ export type SixFactorArtifactLoadError = {
     | "artifact_file_missing"
     | "artifact_read_error"
     | "artifact_parse_error"
+    | "artifact_unsupported_model_family"
     | "artifact_invalid";
   artifactPath: string | null;
   warnings: string[];
@@ -74,7 +78,12 @@ function resolveArtifactPath(env: Record<string, string | undefined>) {
   }
 
   const defaultPath = resolve(process.cwd(), DEFAULT_CANDIDATE_SCORER_ARTIFACT_PATH);
-  return existsSync(defaultPath) ? defaultPath : null;
+  if (existsSync(defaultPath)) return defaultPath;
+  const legacyExamplePath = resolve(
+    process.cwd(),
+    LEGACY_EXAMPLE_CANDIDATE_SCORER_ARTIFACT_PATH,
+  );
+  return existsSync(legacyExamplePath) ? legacyExamplePath : null;
 }
 
 function readNumberArray(value: unknown) {
@@ -96,7 +105,7 @@ function validateArtifactShape(
 
   const model = value.model;
   if (!isRecord(model)) return false;
-  if (readString(model.model_family) == null) return false;
+  if (model.model_family !== "linear_candidate_scorer_v1") return false;
   if (!isRecord(model.weights_or_serialized_payload)) return false;
 
   const payload = model.weights_or_serialized_payload;
@@ -115,11 +124,16 @@ function validateArtifactShape(
     payload.weights.expected_next_step_success_logit,
   );
   const combinedWeights = readNumberArray(payload.weights.combined_outcome_score);
+  const signedGainWeights =
+    payload.weights.expected_learning_gain_signed === undefined
+      ? undefined
+      : readNumberArray(payload.weights.expected_learning_gain_signed);
 
   return (
     gainWeights?.length === expectedWidth &&
     successWeights?.length === expectedWidth &&
-    combinedWeights?.length === expectedWidth
+    combinedWeights?.length === expectedWidth &&
+    (signedGainWeights === undefined || signedGainWeights?.length === expectedWidth)
   );
 }
 
@@ -173,6 +187,22 @@ export function loadSixFactorPolicyArtifact(
     };
   }
 
+  if (
+    isRecord(parsed) &&
+    isRecord(parsed.model) &&
+    parsed.model.model_family !== "linear_candidate_scorer_v1"
+  ) {
+    return {
+      ok: false,
+      error: `Six-factor runtime supports only linear_candidate_scorer_v1 artifacts; got ${String(parsed.model.model_family)}.`,
+      errorKind: "artifact_unsupported_model_family",
+      artifactPath,
+      warnings: [
+        "tree_candidate_scorer_v1 artifacts are currently offline-only for this TypeScript runtime.",
+      ],
+    };
+  }
+
   if (!validateArtifactShape(parsed)) {
     return {
       ok: false,
@@ -188,7 +218,8 @@ export function loadSixFactorPolicyArtifact(
     artifact: parsed,
     artifactPath,
     warnings: [
-      "Runtime scorer can read the JSON artifact, but the example artifact is synthetic-trained and is not evidence of real educational effect.",
+      `runtime_compatible_artifact:model_family=${parsed.model.model_family}`,
+      "Runtime scorer can read the JSON artifact, but current artifacts may be synthetic-trained and are not evidence of real educational effect.",
     ],
   };
 }

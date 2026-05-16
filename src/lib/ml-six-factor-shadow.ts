@@ -59,17 +59,17 @@ export type SixFactorShadowResultV1 = {
   appliedToLearnerFacingOutput: boolean;
 };
 
-function enabledValue(value: unknown) {
+function disabledValue(value: unknown) {
   return (
     typeof value === "string" &&
-    ["1", "true", "yes", "on"].includes(value.trim().toLowerCase())
+    ["0", "false", "no", "off"].includes(value.trim().toLowerCase())
   );
 }
 
 export function isSixFactorShadowEnabled(
   env: Record<string, string | undefined> = process.env,
 ) {
-  return enabledValue(env[SIX_FACTOR_SHADOW_ENV]);
+  return !disabledValue(env[SIX_FACTOR_SHADOW_ENV]);
 }
 
 export function buildSixFactorDecisionMetadata(

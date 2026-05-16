@@ -30,10 +30,10 @@ export type ResolveSixFactorPolicyDecisionResult = {
   decision: EduAIAppSixFactorDecisionV1;
 };
 
-function enabledValue(value: unknown) {
+function disabledValue(value: unknown) {
   return (
     typeof value === "string" &&
-    ["1", "true", "yes", "on"].includes(value.trim().toLowerCase())
+    ["0", "false", "no", "off"].includes(value.trim().toLowerCase())
   );
 }
 
@@ -67,7 +67,7 @@ function fallbackDecisionFromFeatures(
 export function isSixFactorMlPolicyEnabled(
   env: Record<string, string | undefined> = process.env,
 ) {
-  return enabledValue(env[SIX_FACTOR_ML_POLICY_ENV]);
+  return !disabledValue(env[SIX_FACTOR_ML_POLICY_ENV]);
 }
 
 export function resolveSixFactorPolicyDecisionForFeatures(
@@ -78,7 +78,7 @@ export function resolveSixFactorPolicyDecisionForFeatures(
 
   if (!isSixFactorMlPolicyEnabled(env)) {
     return fallbackDecisionFromFeatures(features, [
-      "ML policy flag is disabled; using six-factor fallback bridge.",
+      "ML policy explicitly disabled by EDUAI_SIX_FACTOR_ML_POLICY; using six-factor legacy fallback bridge.",
     ]);
   }
 
@@ -130,7 +130,6 @@ export function resolveSixFactorPolicyDecisionForFeatures(
         ...(guardrailResult.fallbackUsed
           ? ["guardrails_safe_fallback_candidate_used"]
           : []),
-        "ML metadata mode selects a candidate for logging only; learner-facing output is unchanged.",
       ],
     };
   } catch (error) {

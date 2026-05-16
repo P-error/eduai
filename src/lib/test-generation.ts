@@ -2,8 +2,19 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ensureTagLegend } from "@/lib/tag-seed";
-import { llmChatJsonWithRaw } from "@/lib/llm/provider";
-import { TestSchema } from "@/lib/test-schema";
+import {
+  llmChatJsonWithRepair,
+  type LlmJsonCallDiagnostics,
+} from "@/lib/llm/provider";
+import {
+  TestSchema,
+  validateGeneratedTestArtifact,
+  type GeneratedTestValidationResult,
+} from "@/lib/test-schema";
+import {
+  judgeGeneratedTestArtifact,
+  type GeneratedTestJudgeRun,
+} from "@/lib/generated-test-judge";
 import { tagQuestion } from "@/lib/tagger";
 import { getActivePromptTemplate, renderPrompt } from "@/lib/prompts";
 import { tagQuestionsWithLLM } from "@/lib/llm-tagger";
@@ -233,14 +244,19 @@ const BASELINE_DELIVERY_PRESET: CoreDeliveryRequest =
 
 function fallbackTest(subject: string, topic: string, count: number) {
   return {
-    title: `${subject}: ${topic}`,
+    title: `${subject}: diagnostic fallback for ${topic}`,
     questions: Array.from({ length: count }).map((_, index) => ({
-      prompt: `Sample question ${index + 1} on ${topic}.`,
-      options: ["Option A", "Option B", "Option C", "Option D"],
+      prompt: `Diagnostic fallback check ${index + 1}: which statement is most directly connected to ${topic}?`,
+      options: [
+        `A statement about ${topic}`,
+        "A statement about an unrelated topic",
+        "A statement with no assessable learning claim",
+      ],
       answerIndex: 0,
-      explanation: "Generated fallback question.",
+      explanation:
+        "Diagnostic fallback item generated because the external LLM path was unavailable or invalid; this item is excluded from learning updates.",
     })),
-  };
+  } satisfies z.infer<typeof TestSchema>;
 }
 
 function pickCoreDeliveryFields(
@@ -277,6 +293,12 @@ function buildStrictDeliveryReinforcement(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function testValidationMessages(result: GeneratedTestValidationResult) {
+  return [...result.errors, ...result.warnings].map((issue) =>
+    `${issue.path ? `${issue.path}:` : ""}${issue.code}: ${issue.message}`,
+  );
 }
 
 async function resolveSectionSnapshot(
@@ -805,12 +827,27 @@ export async function generateTestForUser(
   let attempts = 0;
   let hadRetry = false;
 
-  let finalTestPayload: z.infer<typeof TestSchema> | ReturnType<typeof fallbackTest> =
-    fallbackTest(subject.title, params.payload.topic, params.payload.questionCount);
+  type TestGenerationSource = "llm" | "llm_repaired" | "fallback";
+
+  let finalTestPayload: z.infer<typeof TestSchema> = fallbackTest(
+    subject.title,
+    params.payload.topic,
+    params.payload.questionCount,
+  );
   let finalRawLlmOutput = "";
-  let finalGenerationSource: "llm" | "fallback" = "fallback";
+  let finalGenerationSource: TestGenerationSource = "fallback";
   let finalGenerationError: string | null = "LLM_NOT_ATTEMPTED";
-  let finalNormalizedQuestions: z.infer<typeof TestSchema>["questions"] = [];
+  let finalValidation = validateGeneratedTestArtifact({
+    artifact: finalTestPayload,
+    requestedQuestionCount: params.payload.questionCount,
+    topic: params.payload.topic,
+    subjectTitle: subject.title,
+    source: "fallback",
+  });
+  let finalLlmJsonDiagnostics: LlmJsonCallDiagnostics | null = null;
+  let finalJudge: GeneratedTestJudgeRun | null = null;
+  let finalNormalizedQuestions: z.infer<typeof TestSchema>["questions"] =
+    finalTestPayload.questions;
   let finalTaggingWarnings: string[] = [];
   let finalTaggingFallbackCount = 0;
   let finalTaggingSource: "llm" | "rule_fallback" | "mixed" = "rule_fallback";
@@ -833,15 +870,19 @@ export async function generateTestForUser(
     : "Section context: none";
   const pedagogicalLine = `Pedagogical targets: difficulty=${plan.pedagogicalDecision.difficulty}, depth=${plan.pedagogicalDecision.depth}.`;
   const renderingLine = `Presentation rules: tone=${plan.renderingDecision.tone}, explanation_style=${plan.renderingDecision.explanation_style}, response_format=${plan.renderingDecision.response_format}.`;
+  let generationFeedback: string[] = [];
 
   while (attempts < maxAttempts) {
     attempts += 1;
     hadRetry = attempts > 1;
 
-    let currentTestPayload: z.infer<typeof TestSchema> | ReturnType<typeof fallbackTest>;
+    let currentTestPayload: z.infer<typeof TestSchema> | null = null;
     let currentRawLlmOutput = "";
-    let currentGenerationSource: "llm" | "fallback" = "llm";
+    let currentGenerationSource: TestGenerationSource = "llm";
     let currentGenerationError: string | null = null;
+    let currentValidation: GeneratedTestValidationResult | null = null;
+    let currentLlmJsonDiagnostics: LlmJsonCallDiagnostics | null = null;
+    let currentJudge: GeneratedTestJudgeRun | null = null;
 
     const strictClause =
       hasRequestedUx && attempts > 1
@@ -852,6 +893,13 @@ export async function generateTestForUser(
         ? `Generate ${params.payload.questionCount} multiple-choice questions on ${params.payload.topic} for ${subject.title}. ${sectionLine} ${pedagogicalLine} ${renderingLine} Keep answers clear.`
         : buildTestGenerationPrompt(generationPackage);
     const testGenerationPrompt = appendPromptBlocks(baseUserPrompt, [
+      generationFeedback.length > 0
+        ? [
+            "Regenerate the full MCQ TestSchema JSON. The previous response failed validation:",
+            ...generationFeedback,
+            "Do not reuse invalid answerIndex values, duplicate options, placeholder text, or the wrong question count.",
+          ].join("\n")
+        : null,
       strictClause.trim().length > 0
         ? `Retry delivery enforcement:\n${strictClause.trim()}`
         : null,
@@ -862,7 +910,7 @@ export async function generateTestForUser(
       if (!llmGenerationAvailable) {
         throw new Error("LLM_GENERATION_DISABLED");
       }
-      const response = await llmChatJsonWithRaw(
+      const response = await llmChatJsonWithRepair(
         {
           model: llmModel,
           temperature: 0.4,
@@ -879,13 +927,44 @@ export async function generateTestForUser(
           ],
         },
         TestSchema,
+        {
+          contractName: "TestSchema",
+          repairAttempts: 1,
+        },
       );
-      currentTestPayload = response.data;
-      currentRawLlmOutput = response.raw;
+      currentLlmJsonDiagnostics = response.diagnostics;
+      currentGenerationSource =
+        response.diagnostics.finalSource === "llm_repaired"
+          ? "llm_repaired"
+          : response.diagnostics.finalSource === "llm"
+            ? "llm"
+            : "fallback";
+      currentRawLlmOutput = response.raw ?? "";
+      if (response.data == null) {
+        currentGenerationError =
+          response.diagnostics.providerError ??
+          response.diagnostics.schemaError ??
+          response.diagnostics.parseError ??
+          "LLM_JSON_INVALID";
+      } else {
+        currentTestPayload = response.data;
+      }
     } catch (error) {
       currentGenerationSource = "fallback";
       currentGenerationError = errorMessage(error);
       currentRawLlmOutput = "";
+    }
+
+    if (currentTestPayload == null) {
+      finalRawLlmOutput = currentRawLlmOutput;
+      finalGenerationError = currentGenerationError ?? "LLM_JSON_INVALID";
+      finalLlmJsonDiagnostics = currentLlmJsonDiagnostics;
+      generationFeedback = [finalGenerationError];
+      if (attempts < maxAttempts) {
+        continue;
+      }
+      currentGenerationSource = "fallback";
+      currentGenerationError = currentGenerationError ?? "FALLBACK_GENERATION";
       currentTestPayload = fallbackTest(
         subject.title,
         params.payload.topic,
@@ -893,13 +972,81 @@ export async function generateTestForUser(
       );
     }
 
-    const currentNormalizedQuestions = currentTestPayload.questions.map((question) => {
-      const answerIndex =
-        question.answerIndex >= 0 && question.answerIndex < question.options.length
-          ? question.answerIndex
-          : 0;
-      return { ...question, answerIndex };
+    currentValidation = validateGeneratedTestArtifact({
+      artifact: currentTestPayload,
+      requestedQuestionCount: params.payload.questionCount,
+      topic: params.payload.topic,
+      subjectTitle: subject.title,
+      source: currentGenerationSource,
     });
+    if (!currentValidation.valid && currentGenerationSource !== "fallback") {
+      const messages = testValidationMessages(currentValidation);
+      finalTestPayload = currentTestPayload;
+      finalRawLlmOutput = currentRawLlmOutput;
+      finalGenerationSource = currentGenerationSource;
+      finalGenerationError = messages.join("; ");
+      finalValidation = currentValidation;
+      finalLlmJsonDiagnostics = currentLlmJsonDiagnostics;
+      generationFeedback = messages;
+      if (attempts < maxAttempts) {
+        continue;
+      }
+      currentGenerationSource = "fallback";
+      currentGenerationError = `FALLBACK_GENERATION_AFTER_VALIDATION_FAILURE: ${messages.join("; ")}`;
+      currentTestPayload = fallbackTest(
+        subject.title,
+        params.payload.topic,
+        params.payload.questionCount,
+      );
+      currentValidation = validateGeneratedTestArtifact({
+        artifact: currentTestPayload,
+        requestedQuestionCount: params.payload.questionCount,
+        topic: params.payload.topic,
+        subjectTitle: subject.title,
+        source: "fallback",
+      });
+    }
+
+    if (currentGenerationSource !== "fallback" && currentValidation.valid) {
+      currentJudge = await judgeGeneratedTestArtifact({
+        subjectTitle: subject.title,
+        topic: params.payload.topic,
+        sectionSnapshot: section.sectionSnapshot,
+        artifact: currentTestPayload,
+      });
+      if (currentJudge.status === "failed") {
+        const messages = currentJudge.issues.length
+          ? currentJudge.issues
+          : ["Semantic judge rejected the generated answer key."];
+        finalTestPayload = currentTestPayload;
+        finalRawLlmOutput = currentRawLlmOutput;
+        finalGenerationSource = currentGenerationSource;
+        finalGenerationError = `JUDGE_REJECTED: ${messages.join("; ")}`;
+        finalValidation = currentValidation;
+        finalLlmJsonDiagnostics = currentLlmJsonDiagnostics;
+        finalJudge = currentJudge;
+        generationFeedback = messages;
+        if (attempts < maxAttempts) {
+          continue;
+        }
+        currentGenerationSource = "fallback";
+        currentGenerationError = `FALLBACK_GENERATION_AFTER_JUDGE_REJECTION: ${messages.join("; ")}`;
+        currentTestPayload = fallbackTest(
+          subject.title,
+          params.payload.topic,
+          params.payload.questionCount,
+        );
+        currentValidation = validateGeneratedTestArtifact({
+          artifact: currentTestPayload,
+          requestedQuestionCount: params.payload.questionCount,
+          topic: params.payload.topic,
+          subjectTitle: subject.title,
+          source: "fallback",
+        });
+      }
+    }
+
+    const currentNormalizedQuestions = currentTestPayload.questions;
 
     let taggedQuestions: Awaited<ReturnType<typeof tagQuestionsWithLLM>> | null =
       null;
@@ -977,6 +1124,9 @@ export async function generateTestForUser(
     finalRawLlmOutput = currentRawLlmOutput;
     finalGenerationSource = currentGenerationSource;
     finalGenerationError = currentGenerationError;
+    finalValidation = currentValidation;
+    finalLlmJsonDiagnostics = currentLlmJsonDiagnostics;
+    finalJudge = currentJudge;
     finalNormalizedQuestions = currentNormalizedQuestions;
     finalTaggingWarnings = taggingWarnings;
     finalTaggingFallbackCount = taggingFallbackCount;
@@ -996,7 +1146,8 @@ export async function generateTestForUser(
     break;
   }
 
-  const generationIsLlm = finalGenerationSource === "llm";
+  const generationIsLlm =
+    finalGenerationSource === "llm" || finalGenerationSource === "llm_repaired";
   const hasInvalidTagWarnings = finalTaggingWarnings.some(
     (warning) =>
       warning.includes(":llm_invalid_tags:") || warning.includes(":invalid_"),
@@ -1050,6 +1201,17 @@ export async function generateTestForUser(
           fallback: finalGenerationSource === "fallback",
           generationSource: finalGenerationSource,
           generationError: finalGenerationError,
+          generationFinalSource: finalGenerationSource,
+          llmJsonDiagnostics: finalLlmJsonDiagnostics,
+          validation: finalValidation,
+          validationIssues: finalValidation.errors,
+          validationWarnings: finalValidation.warnings,
+          judgeStatus:
+            finalJudge?.status ??
+            (finalGenerationSource === "fallback" ? "not_run_fallback" : "not_run"),
+          judgeIssues: finalJudge?.issues ?? [],
+          judgeResult: finalJudge?.result ?? null,
+          judgeDiagnostics: finalJudge?.diagnostics ?? null,
           taggingSource: finalTaggingSource,
           taggingFallback: finalTaggingFallbackCount > 0,
           taggingFallbackCount: finalTaggingFallbackCount,

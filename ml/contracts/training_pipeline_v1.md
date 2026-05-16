@@ -67,6 +67,8 @@ New signed target schema `outcome_targets.v2_signed_gain` preserves negative lea
 
 New model comparisons should report both signed gain metrics and old/clamped gain metrics. Negative gain must not be silently removed in v2 training or evaluation.
 
+`outcome_targets.v2_signed_gain` is the default target schema for trainer/evaluator CLI and library calls. `outcome_targets.v1_clamped_gain` is legacy compatibility only.
+
 Rows without available outcome are skipped for training and counted in evaluation reports.
 
 ## Split Strategies

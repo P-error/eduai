@@ -14,6 +14,7 @@ type CliOptions = {
   dryRun: boolean;
   smokeOnly: boolean;
   datasetOriginPrefix: string | null;
+  strictEpisodeOutcomeLinking: boolean;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -25,6 +26,7 @@ function parseArgs(argv: string[]): CliOptions {
     dryRun: false,
     smokeOnly: false,
     datasetOriginPrefix: null,
+    strictEpisodeOutcomeLinking: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -48,6 +50,8 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === "--dataset-origin-prefix") {
       options.datasetOriginPrefix = argv[index + 1] ?? null;
       index += 1;
+    } else if (arg === "--strict-episode-outcome-linking") {
+      options.strictEpisodeOutcomeLinking = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -81,6 +85,7 @@ async function main() {
           includeOutcomeMissing: options.includeOutcomeMissing,
           smokeOnly: options.smokeOnly,
           datasetOriginPrefix: options.datasetOriginPrefix,
+          strictEpisodeOutcomeLinking: options.strictEpisodeOutcomeLinking,
         });
       } finally {
         await prisma.$disconnect();
@@ -95,6 +100,7 @@ async function main() {
         dryRun: options.dryRun,
         smokeOnly: options.smokeOnly,
         datasetOriginPrefix: options.datasetOriginPrefix,
+        strictEpisodeOutcomeLinking: options.strictEpisodeOutcomeLinking,
         ...result.summary,
       },
       null,

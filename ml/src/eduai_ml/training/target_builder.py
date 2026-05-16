@@ -9,7 +9,7 @@ class TargetUnavailableError(ValueError):
 
 TARGET_SCHEMA_V1 = "outcome_targets.v1_clamped_gain"
 TARGET_SCHEMA_V2 = "outcome_targets.v2_signed_gain"
-DEFAULT_TARGET_SCHEMA_VERSION = TARGET_SCHEMA_V1
+DEFAULT_TARGET_SCHEMA_VERSION = TARGET_SCHEMA_V2
 
 
 def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
@@ -38,11 +38,11 @@ def build_targets(
     target_schema_version: str = DEFAULT_TARGET_SCHEMA_VERSION,
 ) -> dict[str, float]:
     gain_raw, success = _read_supervised_outcome(observation)
-    gain = _clamp(gain_raw)
-    combined = _clamp(0.75 * gain + 0.25 * success)
+    legacy_clamped_gain = _clamp(gain_raw)
     if target_schema_version == TARGET_SCHEMA_V1:
+        combined = _clamp(0.75 * legacy_clamped_gain + 0.25 * success)
         return {
-            "expected_learning_gain_proxy": gain,
+            "expected_learning_gain_proxy": legacy_clamped_gain,
             "expected_next_step_success": success,
             "combined_outcome_score": combined,
         }
@@ -51,7 +51,7 @@ def build_targets(
         signed_gain_for_combined = (signed_gain + 1.0) / 2.0
         signed_aware_combined = _clamp(0.75 * signed_gain_for_combined + 0.25 * success)
         return {
-            "expected_learning_gain_proxy": gain,
+            "expected_learning_gain_proxy": legacy_clamped_gain,
             "expected_learning_gain_signed": signed_gain,
             "expected_next_step_success": success,
             "combined_outcome_score": signed_aware_combined,

@@ -90,6 +90,12 @@ export default function MlPersonalizationCard({
         ? "применено к ответу"
         : "только shadow-наблюдение",
     ],
+    ["Fallback", metadata.fallbackUsed ? "использован" : "нет"],
+    ["Backend", metadata.backendKind ?? "не указан"],
+    [
+      "Кандидатов",
+      metadata.candidateCount == null ? "не указано" : String(metadata.candidateCount),
+    ],
   ];
 
   return (

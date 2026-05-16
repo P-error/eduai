@@ -327,7 +327,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
 - Behavior:
   - applies baseline, self-report, or predicted runtime path before rendering the chat response
   - validates `context.subjectId` ownership when it is provided
-  - under `EDUAI_SIX_FACTOR_SHADOW=1` + `EDUAI_SIX_FACTOR_APPLY=1`, the prompt receives learner-state aggregates and six-factor instructions; default flag-off behavior does not apply those instructions
+  - by default, the prompt receives learner-state aggregates and six-factor instructions; `EDUAI_SIX_FACTOR_APPLY=0` or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` disables learner-facing application
   - rate limiting: external route-class limiter (`chat_turn`) with per-user and per-IP minute windows
   - optional create/reuse of an evaluation episode
   - registers the chat session as a secondary-support evaluation episode item when evaluation is requested
@@ -335,7 +335,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - marks chat telemetry as `secondary_chat_support`
   - updates UX stats with weak reward proxy
 - Response: `{ reply, meta: { policyMode, policyId, uxPreset, pedagogicalDecision, evaluationSignal, sixFactorPersonalization?, signalsStored } }`
-  - `sixFactorPersonalization` is a safe learner-facing summary when six-factor metadata exists. It includes `selected_config`, `decisionSource`, `fallbackUsed`, `artifactVersion`, `appliedToLearnerFacingOutput`, `appliedPromptInstructionCount`, and `appliedPath`; it does not expose raw feature snapshots, warnings, or debug JSON.
+  - `sixFactorPersonalization` is a safe learner-facing summary when six-factor metadata exists. It includes `selected_config`, `decisionSource`, `fallbackUsed`, `artifactVersion`, `backendKind`, `candidateCount`, `appliedToLearnerFacingOutput`, `appliedPromptInstructionCount`, and `appliedPath`; it does not expose raw feature snapshots, warnings, or debug JSON.
 - Errors: `AUTH_REQUIRED`, `INVALID_INPUT`, `INVALID_EVALUATION_ASSIGNMENT`, `INVALID_EVALUATION_EPISODE`, `LLM_BAD_RESPONSE`, `INTERNAL_ERROR`
 
 ### Episode step semantics

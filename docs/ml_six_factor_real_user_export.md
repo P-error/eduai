@@ -36,6 +36,15 @@ bash scripts/export-real-user-training-observations.sh \
   --dataset-origin-prefix ml_e2e_smoke_
 ```
 
+For final-research export, enable strict episode/outcome linkage:
+
+```bash
+bash scripts/export-real-user-training-observations.sh \
+  --out exports/real_user_training_observations.strict.jsonl \
+  --limit 1000 \
+  --strict-episode-outcome-linking
+```
+
 ## Validation
 
 Validate exported JSONL with the ML validator:
@@ -54,7 +63,9 @@ The exporter scans evaluation episodes and joins stored content metadata:
 - `ChatMessage.signalsJson.sixFactorDeliveredConfig`
 - `EvaluationEpisodeItem.outcomeJson`
 
-For learning content, the outcome target is the next generated test outcome in the episode. The previous generated test outcome, when present, is used as `pre_score`.
+Default diagnostic export keeps the existing broad linkage: for a content item, the outcome target is the next generated test outcome in the episode, and the previous generated test outcome, when present, is used as `pre_score`.
+
+Strict mode uses only unambiguous `precheck -> learning_content -> postcheck` episode pairs. It skips non-learning-content rows, missing precheck, missing postcheck, and ambiguous episodes with explicit summary counters.
 
 ## Nullable Fields
 

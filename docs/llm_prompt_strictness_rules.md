@@ -1,6 +1,6 @@
 # LLM Prompt Strictness Rules
 
-Updated: 2026-05-12
+Updated: 2026-05-16
 
 ## Required Section Order
 
@@ -75,12 +75,20 @@ For test generation:
 - `response_format=mcq` remains the technical output contract.
 - Personalization may affect difficulty, explanation wording, examples, terminology, and hints.
 - Personalization must not change JSON schema, required keys, option count, correct-answer representation, or validation parser expectations.
+- New generated tests must pass strict `TestSchema` plus post-parse validation before save: exact requested question count, `answerIndex < options.length`, unique normalized options, no duplicate prompts, non-empty explanations, and no placeholder fallback wording in LLM output.
+- Invalid JSON or schema output is repaired once through the shared LLM JSON helper. If deterministic or optional semantic validation still fails after regeneration attempts, the saved fallback is marked `generationSource="fallback"`, `learningEligible=false`, and `learningExcludedReason="FALLBACK_GENERATION"`.
+
+For learning content:
+
+- `learning_content_card` is strict JSON with no extra keys, title/summary/reflectionPrompt non-empty, and 2-4 non-empty sections.
+- Runtime validation checks topic anchoring and six-factor markers. `examples_level=single` must not produce multiple example markers; `support_level=guided` requires a visible guided marker.
 
 ## Flags
 
-- `EDUAI_SIX_FACTOR_SHADOW=1`: creates six-factor metadata.
-- `EDUAI_SIX_FACTOR_APPLY=1`: applies six-factor instructions to learner-facing prompts only when shadow is also enabled.
-- `EDUAI_SIX_FACTOR_ML_POLICY=1`: allows artifact-backed six-factor decision selection; otherwise fallback/bridge decisions are used.
+- `EDUAI_SIX_FACTOR_SHADOW=0`: disables six-factor metadata; default is enabled.
+- `EDUAI_SIX_FACTOR_APPLY=0`: disables learner-facing six-factor prompt application; default is enabled when shadow is enabled.
+- `EDUAI_SIX_FACTOR_ML_POLICY=0`: disables artifact-backed six-factor decision selection; default is enabled.
+- `EDUAI_LLM_TEST_JUDGE=1`: enables optional LLM semantic judge for generated tests after deterministic validation.
 - `EDUAI_SYNTHETIC_DISABLE_LLM=1`: disables live LLM generation in supported generation paths.
 
-Default behavior keeps six-factor prompt application disabled.
+Default runtime behavior keeps six-factor ML/apply enabled unless explicitly opted out.

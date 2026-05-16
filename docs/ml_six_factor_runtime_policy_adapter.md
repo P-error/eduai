@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This adapter lets the app resolve an app-facing six-factor decision without changing learner-facing output by default.
+This adapter lets the app resolve an app-facing six-factor decision and apply it to learner-facing prompts by default.
 
 App-facing flow:
 
@@ -20,14 +20,13 @@ The app contract stays `features -> six-factor decision`. Candidate scoring is a
 
 ## Runtime Flags
 
-- `EDUAI_SIX_FACTOR_SHADOW=1`: allows six-factor metadata construction.
-- `EDUAI_SIX_FACTOR_ML_POLICY=1`: allows the metadata path to load an artifact and select a candidate through the scorer.
-- `EDUAI_SIX_FACTOR_APPLY=1`: explicitly applies six-factor render instructions to the learner-facing learning content prompt.
-- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional JSON artifact path. For the productized THU scorer use `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`. If omitted, the adapter uses `ml/examples/candidate_scorer_artifact.example.json` only when that file exists.
+- ML policy is enabled by default. `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off` disables it and uses the legacy heuristic/static fallback.
+- Six-factor metadata construction is enabled by default. `EDUAI_SIX_FACTOR_SHADOW=0|false|off` disables metadata construction.
+- Learner-facing apply is enabled by default. `EDUAI_SIX_FACTOR_APPLY=0|false|off` disables prompt application.
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1|true|on` scores/logs the candidate but does not apply it to learner-facing prompts.
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional JSON artifact path. If omitted, the adapter first uses `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`, then the legacy example artifact if present.
 
-With `EDUAI_SIX_FACTOR_SHADOW` off, no `sixFactorShadow` metadata is emitted.
-With `EDUAI_SIX_FACTOR_ML_POLICY` off, the adapter returns the existing heuristic/static six-factor bridge.
-Apply mode requires `EDUAI_SIX_FACTOR_SHADOW=1`; `EDUAI_SIX_FACTOR_APPLY` does not enable ML policy by itself.
+If the artifact is missing, invalid, or runtime-incompatible, the app falls back safely and records the fallback reason in warnings.
 
 ## Artifact Adapter
 
@@ -80,25 +79,26 @@ The decision keeps all six factors, sets `fallbackUsed=true`, and records warnin
 
 ## Learner-Facing Behavior
 
-By default this path is metadata-only.
-
-The adapter does not apply six-factor prompt instructions, does not change chat/content/test prompts, and does not change technical test `response_format=mcq`.
-`appliedToLearnerFacingOutput` remains `false`.
+By default this path applies six-factor prompt instructions to eligible chat, learning content, dialogue, and test generation prompts. It does not change technical test `response_format=mcq`.
+`appliedToLearnerFacingOutput` is `true` unless apply is explicitly disabled or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`.
 
 ## Apply Mode
 
-`src/lib/ml-six-factor-apply.ts` gates real prompt application behind:
+`src/lib/ml-six-factor-apply.ts` applies by default and supports rollback with:
 
 ```bash
-EDUAI_SIX_FACTOR_SHADOW=1
-EDUAI_SIX_FACTOR_APPLY=1
+EDUAI_SIX_FACTOR_APPLY=0
+EDUAI_SIX_FACTOR_SHADOW_ONLY=1
 ```
 
-The first applied path is intentionally narrow:
+Applied paths:
 
+- `src/app/api/chat/route.ts`
+- `src/lib/learning-dialogue.ts`
 - `src/lib/learning-content-generation.ts`
+- `src/lib/test-generation.ts`
 
-When apply mode is enabled on this path, the app:
+When apply mode is active, the app:
 
 ```text
 app context -> six-factor decision -> render mapping -> prompt instruction block -> LLM content generation

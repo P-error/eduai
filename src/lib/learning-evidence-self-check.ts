@@ -60,6 +60,21 @@ async function submitTest(token: string, testId: string) {
   return payload;
 }
 
+async function submitCorruptTest(token: string, testId: string) {
+  const response = await submitTestRoute(buildSubmitRequest(token, testId), {
+    params: Promise.resolve({ id: testId }),
+  });
+  const payload = await responseJson<{
+    error?: string;
+    message?: string;
+  }>(response);
+
+  return {
+    status: response.status,
+    payload,
+  };
+}
+
 async function cleanupUser(userId: string) {
   const [tests, episodes, subjects] = await Promise.all([
     prisma.generatedTest.findMany({
@@ -247,6 +262,27 @@ export async function runLearningEvidenceSelfCheck() {
       },
     });
 
+    const corruptAnswerIndexTest = await prisma.generatedTest.create({
+      data: {
+        userId: user.id,
+        subjectId: subject.id,
+        topic: "Corrupt stored answer key",
+        questionCount: 1,
+        mode: "practice",
+        questionsJson: [
+          {
+            prompt: "Corrupt practice question",
+            options: ["Correct", "Incorrect"],
+            answerIndex: 9,
+          },
+        ],
+        validationMetaJson: {
+          learningEligible: true,
+          learningExcludedReason: null,
+        },
+      },
+    });
+
     const episodePayload = await submitTest(token, episodeTest.id);
     assert(
       episodePayload.meta?.evidence?.path?.kind === "learn_episode" &&
@@ -335,6 +371,13 @@ export async function runLearningEvidenceSelfCheck() {
       "excluded practice must not increment adaptive testsTaken",
     );
 
+    const corruptPayload = await submitCorruptTest(token, corruptAnswerIndexTest.id);
+    assert(
+      corruptPayload.status === 500 &&
+        corruptPayload.payload.error === "TEST_DATA_CORRUPT",
+      "old corrupt stored test must return TEST_DATA_CORRUPT for impossible answerIndex",
+    );
+
     return {
       ok: true,
       checks: [
@@ -342,6 +385,7 @@ export async function runLearningEvidenceSelfCheck() {
         "episode summary persists learning eligibility and adaptive impact",
         "eligible custom practice -> secondary path + adaptive update",
         "excluded custom practice -> recorded only + explicit exclusion reason",
+        "corrupt stored answerIndex -> TEST_DATA_CORRUPT",
       ],
     };
   } finally {

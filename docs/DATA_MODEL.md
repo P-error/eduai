@@ -66,8 +66,17 @@ Expected keys in current pipeline:
 - `attempts: number`
 - `hadRetry: boolean`
 - `fallback: boolean`
-- `generationSource: "llm" | "fallback"`
+- `generationSource: "llm" | "llm_repaired" | "fallback"`
 - `generationError: string | null`
+- `generationFinalSource: "llm" | "llm_repaired" | "fallback"`
+- `llmJsonDiagnostics: { rawOutput, parseError, schemaError, providerError, retryCount, finalSource, attempts[] } | null`
+- `validation: { valid, errors[], warnings[] }`
+- `validationIssues: object[]`
+- `validationWarnings: object[]`
+- `judgeStatus: "disabled" | "unavailable" | "passed" | "failed" | "error" | "not_run" | "not_run_fallback"`
+- `judgeIssues: string[]`
+- `judgeResult: object | null`
+- `judgeDiagnostics: object | null`
 - `taggingSource: "llm" | "rule_fallback" | "mixed"`
 - `taggingFallback: boolean`
 - `taggingFallbackCount: number`
@@ -88,6 +97,10 @@ Expected keys in current pipeline:
 - `pedagogicalDecision: { difficulty, depth }`
 - `renderingDecision: { tone, explanation_style, response_format }`
 - `decisionBackend: { runtimePolicyId, backendKind, backendId, backendStatus, schemaVersion } | null`
+
+Fallback-generated tests are recordable but not learning-eligible:
+`generationSource="fallback"`, `learningEligible=false`, and
+`learningExcludedReason="FALLBACK_GENERATION"`.
 - `rulesLayer: { id, basis }`
 - optional `generationPackage` when test generation is tied to an evaluation episode
 - `evaluation: { episodeId, protocolKey, touchpointType, sequenceRole, itemRole, itemVariant, linkageKind, linkedContentId, policyArm, signalQuality, assessmentChannel, holdoutStrategy, conceptKey, skillKey, familyKey, delayedMinutes, pedagogicalDecision, decisionRuntime, assignment, ... }`

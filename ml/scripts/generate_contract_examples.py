@@ -65,6 +65,7 @@ def training_observation_example() -> dict[str, Any]:
             "max_score": 1,
             "next_step_success": True,
             "normalized_learning_gain": 0.5,
+            "normalized_learning_gain_clamped": 0.5,
             "outcome_available": True,
         },
         "leakage_guard": {

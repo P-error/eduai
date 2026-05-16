@@ -1,6 +1,9 @@
-import type { TestPayload } from "./test-schema";
-
-export type StoredQuestion = TestPayload["questions"][number];
+export type StoredQuestion = {
+  prompt: string;
+  options: string[];
+  answerIndex: number;
+  explanation?: string;
+};
 export type PublicQuestion = Omit<StoredQuestion, "answerIndex">;
 
 export function sanitizeQuestionForClient(question: StoredQuestion): PublicQuestion {

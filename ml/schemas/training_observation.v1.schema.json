@@ -136,6 +136,7 @@
         "max_score": { "type": ["number", "null"], "exclusiveMinimum": 0 },
         "next_step_success": { "type": ["boolean", "null"] },
         "normalized_learning_gain": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
+        "normalized_learning_gain_clamped": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "outcome_available": { "type": "boolean" }
       }
     },

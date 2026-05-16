@@ -23,6 +23,12 @@ type PromptSnapshot = {
   response_format: { type: "json_object" } | null;
   messages: LlmPromptMessage[];
   flags: Record<string, string>;
+  mlRuntimeStatus: "ML_RUNTIME_NOT_REQUESTED" | "ML_RUNTIME_OK" | "ML_RUNTIME_FALLBACK";
+  appliedToLearnerFacingOutput: boolean;
+  decisionSource: string | null;
+  candidateCount: number | null;
+  fallbackUsed: boolean | null;
+  judgeStatus: string | null;
   notes: string[];
 };
 
@@ -37,6 +43,14 @@ const applyEnv = {
   EDUAI_SIX_FACTOR_SHADOW: "1",
   EDUAI_SIX_FACTOR_APPLY: "1",
   EDUAI_SIX_FACTOR_ML_POLICY: "0",
+};
+const realMlApplyEnv = {
+  EDUAI_SIX_FACTOR_SHADOW: "1",
+  EDUAI_SIX_FACTOR_APPLY: "1",
+  EDUAI_SIX_FACTOR_ML_POLICY: "1",
+  ...(process.env.EDUAI_SIX_FACTOR_ARTIFACT_PATH
+    ? { EDUAI_SIX_FACTOR_ARTIFACT_PATH: process.env.EDUAI_SIX_FACTOR_ARTIFACT_PATH }
+    : {}),
 };
 const offEnv = {
   EDUAI_SIX_FACTOR_SHADOW: "0",
@@ -65,6 +79,10 @@ const factorLabels = [
   "examples_level:",
   "terminology_level:",
 ];
+
+const realMlRuntimeRequested =
+  process.argv.includes("--real-ml-policy") || process.argv.includes("--ml-runtime");
+const activeApplyEnv = realMlRuntimeRequested ? realMlApplyEnv : applyEnv;
 
 const profile = {
   userRef: "audit_learner_1",
@@ -140,19 +158,50 @@ function buildPolicyContext(aggregates: PromptLearnerStateAggregates) {
   };
 }
 
-function appliedBlock(
+function appliedResult(
   path: "chat" | "learning_content" | "test_generation",
   aggregates: PromptLearnerStateAggregates,
 ) {
   const result = buildAppliedSixFactorPromptInstructions({
     context: buildPolicyContext(aggregates),
-    env: applyEnv,
+    env: activeApplyEnv,
     path,
   });
   if (!result.applied || result.promptInstructionBlock == null) {
     throw new Error(`six-factor apply did not produce prompt block for ${path}`);
   }
-  return result.promptInstructionBlock;
+  return result;
+}
+
+function runtimeSnapshotFields(
+  result: ReturnType<typeof appliedResult>,
+): Pick<
+  PromptSnapshot,
+  | "mlRuntimeStatus"
+  | "appliedToLearnerFacingOutput"
+  | "decisionSource"
+  | "candidateCount"
+  | "fallbackUsed"
+  | "judgeStatus"
+> {
+  const metadata = result.metadata;
+  const fallbackUsed = metadata?.fallbackUsed ?? null;
+  const decisionSource = metadata?.decisionSource ?? null;
+  const mlRuntimeStatus = !realMlRuntimeRequested
+    ? "ML_RUNTIME_NOT_REQUESTED"
+    : decisionSource === "ml_policy" && fallbackUsed === false
+      ? "ML_RUNTIME_OK"
+      : "ML_RUNTIME_FALLBACK";
+
+  return {
+    mlRuntimeStatus,
+    appliedToLearnerFacingOutput: metadata?.appliedToLearnerFacingOutput === true,
+    decisionSource,
+    candidateCount: metadata?.candidateCount ?? null,
+    fallbackUsed,
+    judgeStatus:
+      process.env.EDUAI_LLM_TEST_JUDGE === "1" ? "enabled_by_env" : "disabled",
+  };
 }
 
 function buildTestPackage(): TestGenerationPackage {
@@ -285,13 +334,17 @@ function buildLearningContentPackage(
 }
 
 function snapshots() {
+  const chatFirstApply = appliedResult("chat", firstAggregates);
+  const testApply = appliedResult("test_generation", firstAggregates);
+  const learningSecondApply = appliedResult("learning_content", secondAggregates);
+  const chatSecondApply = appliedResult("chat", secondAggregates);
   const chatFirstSystem = buildChatSystemPrompt({
     baseInstruction:
       "You are an educational assistant. Declared preferences and effective preferences are supplied below.",
     profile,
     subjectTopic,
     learnerStateAggregates: firstAggregates,
-    sixFactorPromptInstructionBlock: appliedBlock("chat", firstAggregates),
+    sixFactorPromptInstructionBlock: chatFirstApply.promptInstructionBlock,
     tone: "formal",
     explanationStyle: "stepwise",
     responseFormat: "mcq",
@@ -300,11 +353,11 @@ function snapshots() {
   });
   const testUserPrompt = appendPromptBlocks(
     buildTestGenerationPrompt(buildTestPackage()),
-    [appliedBlock("test_generation", firstAggregates)],
+    [testApply.promptInstructionBlock],
   );
   const learningSecondPrompt = appendPromptBlocks(
     buildLearningContentPrompt(buildLearningContentPackage(secondAggregates)),
-    [appliedBlock("learning_content", secondAggregates)],
+    [learningSecondApply.promptInstructionBlock],
   );
   const chatSecondSystem = buildChatSystemPrompt({
     baseInstruction:
@@ -312,7 +365,7 @@ function snapshots() {
     profile,
     subjectTopic,
     learnerStateAggregates: secondAggregates,
-    sixFactorPromptInstructionBlock: appliedBlock("chat", secondAggregates),
+    sixFactorPromptInstructionBlock: chatSecondApply.promptInstructionBlock,
     tone: "formal",
     explanationStyle: "stepwise",
     responseFormat: "mcq",
@@ -332,7 +385,8 @@ function snapshots() {
           content: "Please help me solve one-variable linear equations.",
         },
       ],
-      flags: applyEnv,
+      flags: activeApplyEnv,
+      ...runtimeSnapshotFields(chatFirstApply),
       notes: ["first chat/content prompt before test"],
     } satisfies PromptSnapshot,
     testGeneration: {
@@ -350,7 +404,8 @@ function snapshots() {
         },
         { role: "user", content: testUserPrompt },
       ],
-      flags: applyEnv,
+      flags: activeApplyEnv,
+      ...runtimeSnapshotFields(testApply),
       notes: ["test generation prompt; no external LLM call"],
     } satisfies PromptSnapshot,
     learningContentSecond: {
@@ -368,7 +423,8 @@ function snapshots() {
         },
         { role: "user", content: learningSecondPrompt },
       ],
-      flags: applyEnv,
+      flags: activeApplyEnv,
+      ...runtimeSnapshotFields(learningSecondApply),
       notes: ["learning content prompt after one submitted test"],
     } satisfies PromptSnapshot,
     chatSecond: {
@@ -382,7 +438,8 @@ function snapshots() {
           content: "Can you explain the mistake after my check?",
         },
       ],
-      flags: applyEnv,
+      flags: activeApplyEnv,
+      ...runtimeSnapshotFields(chatSecondApply),
       notes: ["second chat/content prompt after test submit"],
     } satisfies PromptSnapshot,
   };
@@ -465,9 +522,45 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     );
     assertPrompt(
       assertions,
+      `${snapshot.path}: no raw ML candidate/features payload leaked into prompt`,
+      !content.includes("candidateConfig") &&
+        !content.includes("candidate_config") &&
+        !content.includes("featuresSnapshot") &&
+        !content.includes("features_snapshot"),
+    );
+    assertPrompt(
+      assertions,
       `${snapshot.path}: no known contradictory instruction pair`,
       !hasContradiction(content),
     );
+    if (realMlRuntimeRequested) {
+      assertPrompt(
+        assertions,
+        `${snapshot.path}: real ML policy selected`,
+        snapshot.decisionSource === "ml_policy",
+        `decisionSource=${snapshot.decisionSource ?? "null"}`,
+      );
+      assertPrompt(
+        assertions,
+        `${snapshot.path}: real ML candidates available`,
+        typeof snapshot.candidateCount === "number" && snapshot.candidateCount > 1,
+        `candidateCount=${snapshot.candidateCount ?? "null"}`,
+      );
+      assertPrompt(
+        assertions,
+        `${snapshot.path}: ML applied to learner-facing output`,
+        snapshot.appliedToLearnerFacingOutput === true,
+      );
+      assertPrompt(
+        assertions,
+        `${snapshot.path}: ML runtime did not fallback`,
+        snapshot.fallbackUsed === false &&
+          snapshot.mlRuntimeStatus !== "ML_RUNTIME_FALLBACK",
+        `mlRuntimeStatus=${snapshot.mlRuntimeStatus}; fallbackUsed=${String(
+          snapshot.fallbackUsed,
+        )}`,
+      );
+    }
   }
 
   const offApply = buildAppliedSixFactorPromptInstructions({
@@ -506,6 +599,13 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     testContent.includes("TestSchema") &&
       testContent.includes("answerIndex") &&
       testContent.includes("response_format=mcq"),
+  );
+  assertPrompt(
+    assertions,
+    "test generation: strict schema requirements visible",
+    testMessageContent.includes('"explanation": string') &&
+      testMessageContent.includes("answerIndex") &&
+      testMessageContent.includes("options"),
   );
   assertPrompt(
     assertions,
@@ -578,6 +678,14 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
   );
 
   const learningContentSecond = serialize(all.learningContentSecond);
+  const chatFirstContent = serialize(all.chatFirst);
+  assertPrompt(
+    assertions,
+    "chat prompt: does not require JSON response",
+    all.chatFirst.response_format === null &&
+      chatFirstContent.includes("Return educational conversational text") &&
+      !chatFirstContent.includes("Return JSON only"),
+  );
   assertPrompt(
     assertions,
     "learning content second prompt: guided support marker allowed in schema fields",
@@ -600,6 +708,13 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     learningContentSecond.includes("sections array must contain 2-4 items") &&
       learningContentSecond.includes("return 2-4 sections"),
   );
+  assertPrompt(
+    assertions,
+    "learning content second prompt: learning_content_card contract preserved",
+    learningContentSecond.includes("learning_content_card") &&
+      learningContentSecond.includes("reflectionPrompt") &&
+      all.learningContentSecond.response_format?.type === "json_object",
+  );
 
   return assertions;
 }
@@ -613,11 +728,33 @@ function main() {
   const all = snapshots();
   const assertions = runAssertions(all);
   const failed = assertions.filter((assertion) => !assertion.passed);
+  const promptList = [
+    all.chatFirst,
+    all.testGeneration,
+    all.learningContentSecond,
+    all.chatSecond,
+  ];
+  const mlRuntimeStatus = promptList.some(
+    (snapshot) => snapshot.mlRuntimeStatus === "ML_RUNTIME_FALLBACK",
+  )
+    ? "ML_RUNTIME_FALLBACK"
+    : promptList.some((snapshot) => snapshot.mlRuntimeStatus === "ML_RUNTIME_OK")
+      ? "ML_RUNTIME_OK"
+      : "ML_RUNTIME_NOT_REQUESTED";
   const summary = {
     ok: failed.length === 0,
     status: failed.length === 0 ? "PROMPT_AUDIT_PASS" : "PROMPT_AUDIT_FAIL",
     generatedAtIso: new Date().toISOString(),
     externalLlmCalled: false,
+    realMlRuntimeRequested,
+    mlRuntimeStatus,
+    appliedToLearnerFacingOutput: promptList.every(
+      (snapshot) => snapshot.appliedToLearnerFacingOutput,
+    ),
+    decisionSource: all.testGeneration.decisionSource,
+    candidateCount: all.testGeneration.candidateCount,
+    fallbackUsed: all.testGeneration.fallbackUsed,
+    judgeStatus: all.testGeneration.judgeStatus,
     snapshots: [
       "chat_first_prompt.json",
       "test_generation_prompt.json",

@@ -1,6 +1,8 @@
-import { z } from "zod";
 import { getActivePromptTemplate, renderPrompt } from "@/lib/prompts";
-import { llmChatJsonWithRaw } from "@/lib/llm/provider";
+import {
+  llmChatJsonWithRepair,
+  type LlmJsonCallDiagnostics,
+} from "@/lib/llm/provider";
 import { createChatSessionWithMessages, type ChatSessionMeta } from "@/lib/chat";
 import { prisma } from "@/lib/prisma";
 import {
@@ -22,6 +24,12 @@ import {
   type LearningContentCard,
   type LearningContentGenerationPackage,
 } from "@/lib/episode-generation";
+import {
+  attachLearningContentSchemaVersion,
+  LearningContentCardSchema,
+  validateLearningContentCard,
+  type LearningContentValidationResult,
+} from "@/lib/learning-content-schema";
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
 import {
   buildOptionalSixFactorDeliveredConfigMetadata,
@@ -35,21 +43,6 @@ import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-fact
 import { sanitizePreferenceMap } from "@/lib/tags";
 import { type GenerateTestUser } from "@/lib/test-generation";
 import { type TrainingDatasetCollectionMeta } from "@/lib/training-dataset-contract";
-
-const LearningContentCardSchema = z.object({
-  title: z.string().min(1).max(160),
-  summary: z.string().min(1).max(500),
-  sections: z
-    .array(
-      z.object({
-        heading: z.string().min(1).max(80),
-        body: z.string().min(1).max(600),
-      }),
-    )
-    .min(2)
-    .max(4),
-  reflectionPrompt: z.string().min(1).max(220),
-});
 
 export type GenerateLearningContentPlan = {
   personalizationMode: "on" | "off";
@@ -96,7 +89,7 @@ export type GeneratedLearningContentArtifact = {
   sessionId: string;
   evaluationEpisodeId: string;
   evaluation: EvaluationItemMeta;
-  generationSource: "llm" | "fallback";
+  generationSource: "llm" | "llm_repaired" | "fallback";
   generationPackage: LearningContentGenerationPackage;
   card: LearningContentCard;
   renderedContent: string;
@@ -130,12 +123,18 @@ function buildFallbackCard(params: {
         body: `Connect the explanation to the next assessment step. The latest precheck accuracy in this episode was ${priorAccuracy}.`,
       },
       {
-        heading: "What to remember",
-        body: "Retain one clear rule, one example pattern, and one mistake to avoid before moving to the next test step.",
+        heading: "Check:",
+        body: `Check: name one rule from ${params.topic} that you would verify before the next assessment step.`,
       },
     ],
     reflectionPrompt: `What is the key idea you would use to solve the next task on ${params.topic}?`,
   } satisfies LearningContentCard;
+}
+
+function validationMessages(result: LearningContentValidationResult) {
+  return [...result.errors, ...result.warnings].map((issue) =>
+    `${issue.path ? `${issue.path}:` : ""}${issue.code}: ${issue.message}`,
+  );
 }
 
 function buildLearningContentPackage(params: {
@@ -323,21 +322,38 @@ export async function generateLearningContentForEpisode(
     sixFactorApply.promptInstructionBlock,
   ]);
 
-  let generationSource: "llm" | "fallback" = "llm";
-  let card: LearningContentCard;
-  try {
-    const syntheticLlmDisabled = (() => {
-      const raw = process.env.EDUAI_SYNTHETIC_DISABLE_LLM?.trim().toLowerCase();
-      return raw === "1" || raw === "true" || raw === "yes";
-    })();
-    const llmGenerationAvailable =
-      !syntheticLlmDisabled &&
-      typeof process.env.OPENAI_API_KEY === "string" &&
-      process.env.OPENAI_API_KEY.trim().length > 0;
+  let generationSource: "llm" | "llm_repaired" | "fallback" = "llm";
+  let card: LearningContentCard | null = null;
+  let generationValidation: LearningContentValidationResult | null = null;
+  let llmJsonDiagnostics: LlmJsonCallDiagnostics | null = null;
+  let generationError: string | null = null;
+  const syntheticLlmDisabled = (() => {
+    const raw = process.env.EDUAI_SYNTHETIC_DISABLE_LLM?.trim().toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  })();
+  const llmGenerationAvailable =
+    !syntheticLlmDisabled &&
+    typeof process.env.OPENAI_API_KEY === "string" &&
+    process.env.OPENAI_API_KEY.trim().length > 0;
+  const maxGenerationAttempts = 2;
+  let validationFeedback: string[] = [];
+
+  for (let attempt = 1; attempt <= maxGenerationAttempts; attempt += 1) {
     if (!llmGenerationAvailable) {
-      throw new Error("LLM_GENERATION_DISABLED");
+      generationError = "LLM_GENERATION_DISABLED";
+      break;
     }
-    const response = await llmChatJsonWithRaw(
+
+    const attemptPrompt = appendPromptBlocks(learningContentPrompt, [
+      validationFeedback.length > 0
+        ? [
+            "Regenerate the learning_content_card. The previous card failed validation:",
+            ...validationFeedback,
+            "Return a corrected full JSON card only.",
+          ].join("\n")
+        : null,
+    ]);
+    const response = await llmChatJsonWithRepair(
       {
         model: "gpt-4o-mini",
         temperature: 0.5,
@@ -346,17 +362,52 @@ export async function generateLearningContentForEpisode(
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: learningContentPrompt,
+            content: attemptPrompt,
           },
         ],
       },
       LearningContentCardSchema,
+      {
+        contractName: "learning_content_card",
+        repairAttempts: 1,
+      },
     );
-    card = {
-      schemaVersion: LEARNING_CONTENT_CARD_SCHEMA_VERSION,
-      ...response.data,
-    };
-  } catch {
+    llmJsonDiagnostics = response.diagnostics;
+    if (response.data == null) {
+      generationError =
+        response.diagnostics.providerError ??
+        response.diagnostics.schemaError ??
+        response.diagnostics.parseError ??
+        "LLM_JSON_INVALID";
+      validationFeedback = [generationError];
+      continue;
+    }
+
+    const candidateCard = attachLearningContentSchemaVersion(response.data);
+    const validation = validateLearningContentCard({
+      card: candidateCard,
+      topic: params.topic,
+      subjectTitle: params.subject.title,
+      sectionSnapshot: params.sectionSnapshot ?? null,
+      sixFactorConfig: sixFactorApply.metadata?.deliveredConfig ?? null,
+    });
+    generationValidation = validation;
+    if (!validation.valid) {
+      generationError = validationMessages(validation).join("; ");
+      validationFeedback = validationMessages(validation);
+      continue;
+    }
+
+    card = candidateCard;
+    generationSource =
+      response.diagnostics.finalSource === "llm_repaired"
+        ? "llm_repaired"
+        : "llm";
+    generationError = null;
+    break;
+  }
+
+  if (!card) {
     generationSource = "fallback";
     card = buildFallbackCard({
       topic: params.topic,
@@ -366,7 +417,20 @@ export async function generateLearningContentForEpisode(
       explanationStyle: params.plan.renderingDecision.explanation_style,
       priorTestOutcome: params.priorTestOutcome ?? null,
     });
+    generationValidation = validateLearningContentCard({
+      card,
+      topic: params.topic,
+      subjectTitle: params.subject.title,
+      sectionSnapshot: params.sectionSnapshot ?? null,
+      sixFactorConfig: sixFactorApply.metadata?.deliveredConfig ?? null,
+    });
+    if (!generationError) {
+      generationError = "FALLBACK_GENERATION";
+    }
   }
+
+  const learningEligible = generationSource !== "fallback";
+  const learningExcludedReason = learningEligible ? null : "FALLBACK_GENERATION";
 
   const renderedContent = renderLearningContentCard(card);
   const skipOptionalShadowAfterApplyFailure =
@@ -429,6 +493,11 @@ export async function generateLearningContentForEpisode(
             pedagogicalDecision: params.plan.pedagogicalDecision,
             rulesLayer: params.plan.renderingRules,
             generationSource,
+            generationError,
+            generationValidation,
+            llmJsonDiagnostics,
+            learningEligible,
+            learningExcludedReason,
             generationPackage,
             learningContentCard: card,
             evaluationSignal: {
@@ -446,7 +515,8 @@ export async function generateLearningContentForEpisode(
             },
             learning: {
               uxUpdated: false,
-              skipReason: "EPISODE_CONTENT_STEP",
+              skipReason:
+                learningExcludedReason ?? "EPISODE_CONTENT_STEP",
               uxRewardChat: null,
             },
           },

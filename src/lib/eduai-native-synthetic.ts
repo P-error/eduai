@@ -116,7 +116,7 @@ type ReadTestDecisionResult = {
     difficulty: DifficultyValue;
     depth: DepthValue;
   };
-  generationSource: "llm" | "fallback";
+  generationSource: "llm" | "llm_repaired" | "fallback";
   questions: Array<{
     answerIndex: number;
     options: string[];
@@ -560,7 +560,11 @@ async function readTestDecision(testId: string): Promise<ReadTestDecisionResult>
 
   return {
     decision,
-    generationSource: validation.generationSource === "llm" ? "llm" : "fallback",
+    generationSource:
+      validation.generationSource === "llm" ||
+      validation.generationSource === "llm_repaired"
+        ? validation.generationSource
+        : "fallback",
     questions:
       Array.isArray(test.questionsJson) &&
       test.questionsJson.every((item) => item && typeof item === "object")
@@ -718,11 +722,11 @@ async function runOneEpisode(params: {
   delayedRecheckTestId: string;
   learningContentSessionId: string;
   generationSources: {
-    precheck: "llm" | "fallback";
-    learningContent: "llm" | "fallback";
-    postcheck: "llm" | "fallback";
-    holdout: "llm" | "fallback";
-    delayedRecheck: "llm" | "fallback";
+    precheck: "llm" | "llm_repaired" | "fallback";
+    learningContent: "llm" | "llm_repaired" | "fallback";
+    postcheck: "llm" | "llm_repaired" | "fallback";
+    holdout: "llm" | "llm_repaired" | "fallback";
+    delayedRecheck: "llm" | "llm_repaired" | "fallback";
   };
 }> {
   const runtimeUser = await loadRuntimeUser(params.learner.userId);
@@ -1072,11 +1076,11 @@ export async function runEduAiNativeSyntheticPipeline(
       delayedRecheckTestId: string;
       learningContentSessionId: string;
       generationSources: {
-        precheck: "llm" | "fallback";
-        learningContent: "llm" | "fallback";
-        postcheck: "llm" | "fallback";
-        holdout: "llm" | "fallback";
-        delayedRecheck: "llm" | "fallback";
+        precheck: "llm" | "llm_repaired" | "fallback";
+        learningContent: "llm" | "llm_repaired" | "fallback";
+        postcheck: "llm" | "llm_repaired" | "fallback";
+        holdout: "llm" | "llm_repaired" | "fallback";
+        delayedRecheck: "llm" | "llm_repaired" | "fallback";
       };
     }
   > = [];

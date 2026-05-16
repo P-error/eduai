@@ -23,6 +23,7 @@ export type RealUserTrainingObservationExportOptions = {
   includeOutcomeMissing?: boolean;
   smokeOnly?: boolean;
   datasetOriginPrefix?: string | null;
+  strictEpisodeOutcomeLinking?: boolean;
 };
 
 export type RealUserTrainingObservationExportSummary = {
@@ -34,6 +35,9 @@ export type RealUserTrainingObservationExportSummary = {
   skipReasons: Record<string, number>;
   sourcePaths: string[];
   leakageViolationsCount: number;
+  skippedAmbiguous: number;
+  skippedMissingPrecheck: number;
+  skippedMissingPostcheck: number;
 };
 
 export type RealUserTrainingObservationExportResult = {
@@ -241,6 +245,39 @@ function readOutcomeFromItem(item: LoadedItem) {
   };
 }
 
+function isStrictLearningContentItem(item: LoadedItem) {
+  return item.sequenceRole === "learning_content";
+}
+
+function strictOutcomeSkipReason(params: {
+  items: LoadedItem[];
+  item: LoadedItem;
+  previousOutcome: LoadedItem | undefined;
+  targetOutcome: LoadedItem | undefined;
+}) {
+  if (!isStrictLearningContentItem(params.item)) return "strict_non_learning_content";
+  if (params.previousOutcome?.sequenceRole !== "precheck") {
+    return "strict_missing_precheck";
+  }
+  if (params.targetOutcome?.sequenceRole !== "postcheck") {
+    return "strict_missing_postcheck";
+  }
+
+  const unrelatedGeneratedTestsBetween = params.items.filter(
+    (candidate) =>
+      candidate.sequenceIndex > params.previousOutcome!.sequenceIndex &&
+      candidate.sequenceIndex < params.targetOutcome!.sequenceIndex &&
+      candidate.contentKind === "generated_test" &&
+      candidate.id !== params.previousOutcome!.id &&
+      candidate.id !== params.targetOutcome!.id,
+  );
+  if (unrelatedGeneratedTestsBetween.length > 0) {
+    return "strict_ambiguous_episode";
+  }
+
+  return null;
+}
+
 function findPreviousOutcome(items: LoadedItem[], item: LoadedItem) {
   return [...items]
     .reverse()
@@ -269,16 +306,53 @@ function buildOutcomeLinkForItem(params: {
   episode: LoadedEpisode;
   item: LoadedItem;
   metadata: SixFactorDeliveredConfigMetadataV1;
+  strictEpisodeOutcomeLinking?: boolean;
 }) {
   const previousOutcome = findPreviousOutcome(params.episode.items, params.item);
   const targetOutcome = findTargetOutcome(params.episode.items, params.item);
+  const strictSkipReason =
+    params.strictEpisodeOutcomeLinking === true
+      ? strictOutcomeSkipReason({
+          items: params.episode.items,
+          item: params.item,
+          previousOutcome,
+          targetOutcome,
+        })
+      : null;
   const previous = previousOutcome ? readOutcomeFromItem(previousOutcome) : null;
   const target = targetOutcome ? readOutcomeFromItem(targetOutcome) : null;
 
+  if (strictSkipReason) {
+    return { outcomeLink: null, skipReason: strictSkipReason } as const;
+  }
+
   if (!target || target.accuracy == null) {
-    return buildSixFactorOutcomeLink({
+    return {
+      outcomeLink: buildSixFactorOutcomeLink({
+        contentEventRef: params.item.contentId,
+        testEventRef: targetOutcome?.contentId ?? null,
+        userRef: params.episode.userId,
+        subjectRef: params.item.subjectId ?? params.episode.subjectId,
+        topicRef:
+          params.item.conceptKey ??
+          params.episode.conceptKey ??
+          params.item.skillKey ??
+          params.episode.skillKey ??
+          params.item.topic ??
+          params.episode.topic,
+        sessionRef: params.episode.id,
+        decisionCreatedAt: params.metadata.decisionCreatedAt,
+        outcomeObservedAt: null,
+        outcome: buildMissingSixFactorOutcome(),
+      }),
+      skipReason: null,
+    } as const;
+  }
+
+  return {
+    outcomeLink: buildSixFactorOutcomeLink({
       contentEventRef: params.item.contentId,
-      testEventRef: targetOutcome?.contentId ?? null,
+      testEventRef: target.testEventRef,
       userRef: params.episode.userId,
       subjectRef: params.item.subjectId ?? params.episode.subjectId,
       topicRef:
@@ -290,34 +364,17 @@ function buildOutcomeLinkForItem(params: {
         params.episode.topic,
       sessionRef: params.episode.id,
       decisionCreatedAt: params.metadata.decisionCreatedAt,
-      outcomeObservedAt: null,
-      outcome: buildMissingSixFactorOutcome(),
-    });
-  }
-
-  return buildSixFactorOutcomeLink({
-    contentEventRef: params.item.contentId,
-    testEventRef: target.testEventRef,
-    userRef: params.episode.userId,
-    subjectRef: params.item.subjectId ?? params.episode.subjectId,
-    topicRef:
-      params.item.conceptKey ??
-      params.episode.conceptKey ??
-      params.item.skillKey ??
-      params.episode.skillKey ??
-      params.item.topic ??
-      params.episode.topic,
-    sessionRef: params.episode.id,
-    decisionCreatedAt: params.metadata.decisionCreatedAt,
-    outcomeObservedAt: target.submittedAtIso,
-    outcome: buildSixFactorOutcome({
-      preScore: previous?.accuracy ?? null,
-      postScore: target.accuracy,
-      maxScore: 1,
-      nextStepSuccess: target.accuracy >= 0.7,
-      outcomeAvailable: true,
+      outcomeObservedAt: target.submittedAtIso,
+      outcome: buildSixFactorOutcome({
+        preScore: previous?.accuracy ?? null,
+        postScore: target.accuracy,
+        maxScore: 1,
+        nextStepSuccess: target.accuracy >= 0.7,
+        outcomeAvailable: true,
+      }),
     }),
-  });
+    skipReason: null,
+  } as const;
 }
 
 function buildObservationFromItem(params: {
@@ -366,6 +423,9 @@ export function summarizeRealUserTrainingObservations(
     leakageViolationsCount: observations.filter(
       (row) => row.leakage_guard.uses_only_pre_decision_data !== true,
     ).length,
+    skippedAmbiguous: params.skipReasons.strict_ambiguous_episode ?? 0,
+    skippedMissingPrecheck: params.skipReasons.strict_missing_precheck ?? 0,
+    skippedMissingPostcheck: params.skipReasons.strict_missing_postcheck ?? 0,
   };
 }
 
@@ -410,7 +470,17 @@ export async function exportRealUserTrainingObservations(
         continue;
       }
 
-      const outcomeLink = buildOutcomeLinkForItem({ episode, item, metadata });
+      const outcomeLinkResult = buildOutcomeLinkForItem({
+        episode,
+        item,
+        metadata,
+        strictEpisodeOutcomeLinking: options.strictEpisodeOutcomeLinking,
+      });
+      if (!outcomeLinkResult.outcomeLink) {
+        increment(skipReasons, outcomeLinkResult.skipReason);
+        continue;
+      }
+      const outcomeLink = outcomeLinkResult.outcomeLink;
       if (!outcomeLink.outcome.outcome_available && !includeOutcomeMissing) {
         increment(skipReasons, "missing_outcome");
         continue;

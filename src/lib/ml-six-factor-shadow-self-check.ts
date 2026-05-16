@@ -32,6 +32,7 @@ import {
 import {
   buildAppliedSixFactorPromptInstructions,
   isSixFactorApplyEnabled,
+  isSixFactorShadowOnlyEnabled,
   shouldApplySixFactorRenderPolicy,
   type SixFactorApplyPathV1,
 } from "@/lib/ml-six-factor-apply";
@@ -53,7 +54,10 @@ import {
   buildMockRealUserTrainingObservationExport,
   summarizeRealUserTrainingObservations,
 } from "@/lib/ml-six-factor-real-user-export";
-import { SIX_FACTOR_ARTIFACT_PATH_ENV } from "@/lib/ml-six-factor-artifact-loader";
+import {
+  loadSixFactorPolicyArtifact,
+  SIX_FACTOR_ARTIFACT_PATH_ENV,
+} from "@/lib/ml-six-factor-artifact-loader";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -348,35 +352,32 @@ function runContentPathRegressionChecks() {
   const envShadowOnly = {
     EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "0",
+    EDUAI_SIX_FACTOR_SHADOW_ONLY: "1",
   };
   const envMlValid = {
     EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
+    EDUAI_SIX_FACTOR_SHADOW_ONLY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "ml/examples/candidate_scorer_artifact.example.json",
   };
   const envMlInvalid = {
     EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
+    EDUAI_SIX_FACTOR_SHADOW_ONLY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "/tmp/eduai-missing-six-factor-artifact.json",
   };
   const envApplyFallback = {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "0",
-    EDUAI_SIX_FACTOR_APPLY: "1",
   };
   const envApplyMlValid = {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
-    EDUAI_SIX_FACTOR_APPLY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "ml/examples/candidate_scorer_artifact.example.json",
   };
   const envApplyMlInvalid = {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
-    EDUAI_SIX_FACTOR_APPLY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "/tmp/eduai-missing-six-factor-artifact.json",
   };
@@ -638,33 +639,37 @@ export function runMlSixFactorShadowSelfCheck() {
   );
 
   assert(
-    !isSixFactorShadowEnabled({}),
-    "six-factor shadow adapter must be disabled by default",
+    isSixFactorShadowEnabled({}),
+    "six-factor shadow adapter must be enabled by default",
   );
   assert(
     !isSixFactorShadowEnabled({ EDUAI_SIX_FACTOR_SHADOW: "0" }),
     "six-factor shadow adapter must stay disabled when flag is 0",
   );
   assert(
-    !isSixFactorApplyEnabled({}),
-    "six-factor apply mode must be disabled by default",
+    isSixFactorApplyEnabled({}),
+    "six-factor apply mode must be enabled by default",
   );
   assert(
     !shouldApplySixFactorRenderPolicy({
-      env: { EDUAI_SIX_FACTOR_APPLY: "1" },
+      env: { EDUAI_SIX_FACTOR_SHADOW: "0" },
       path: "learning_content",
     }),
-    "six-factor apply mode must require shadow mode",
+    "explicitly disabled shadow mode must disable six-factor apply",
   );
   assert(
     shouldApplySixFactorRenderPolicy({
-      env: {
-        EDUAI_SIX_FACTOR_SHADOW: "1",
-        EDUAI_SIX_FACTOR_APPLY: "1",
-      },
+      env: {},
       path: "learning_content",
     }),
-    "six-factor apply mode must enable only with shadow and apply flags",
+    "six-factor apply mode must be active by default",
+  );
+  assert(
+    !shouldApplySixFactorRenderPolicy({
+      env: { EDUAI_SIX_FACTOR_SHADOW_ONLY: "1" },
+      path: "learning_content",
+    }) && isSixFactorShadowOnlyEnabled({ EDUAI_SIX_FACTOR_SHADOW_ONLY: "1" }),
+    "shadow-only flag must keep ML logging while disabling learner-facing apply",
   );
   assert(
     shouldApplySixFactorRenderPolicy({
@@ -692,12 +697,14 @@ export function runMlSixFactorShadowSelfCheck() {
     previousDepth: "standard",
     recentCorrectRate: 0.6,
   };
-  const flagOffMissing = buildOptionalSixFactorShadowMetadata(shadowContext, {});
+  const flagOffMissing = buildOptionalSixFactorShadowMetadata(shadowContext, {
+    EDUAI_SIX_FACTOR_SHADOW: "0",
+  });
   const flagOffZero = buildOptionalSixFactorShadowMetadata(shadowContext, {
     EDUAI_SIX_FACTOR_SHADOW: "0",
     EDUAI_SIX_FACTOR_ML_POLICY: "0",
   });
-  assert(flagOffMissing === null, "flag-off missing env must return null metadata");
+  assert(flagOffMissing === null, "explicit shadow opt-out must return null metadata");
   assert(flagOffZero === null, "flag-off zero env must return null metadata");
 
   const flagOffPayload = buildLoggedPayload({
@@ -722,6 +729,28 @@ export function runMlSixFactorShadowSelfCheck() {
     "flag-off prompt instructions must not be applied",
   );
 
+  const defaultApply = buildAppliedSixFactorPromptInstructions({
+    context: shadowContext,
+    env: {},
+    path: "learning_content",
+  });
+  assert(
+    defaultApply.applied === true &&
+      defaultApply.metadata.decisionSource === "ml_policy" &&
+      defaultApply.metadata.appliedToLearnerFacingOutput === true,
+    "missing env flags must keep ML/apply active by default",
+  );
+  const shadowOnlyApply = buildAppliedSixFactorPromptInstructions({
+    context: shadowContext,
+    env: { EDUAI_SIX_FACTOR_SHADOW_ONLY: "1" },
+    path: "learning_content",
+  });
+  assert(
+    shadowOnlyApply.applied === false &&
+      shadowOnlyApply.warnings.some((warning) => warning.includes("logging only")),
+    "shadow-only flag must log without applying prompt instructions",
+  );
+
   assert(
     isSixFactorShadowEnabled({ EDUAI_SIX_FACTOR_SHADOW: "1" }),
     "six-factor shadow adapter must be enabled when flag is 1",
@@ -732,7 +761,6 @@ export function runMlSixFactorShadowSelfCheck() {
   );
 
   const shadow = buildShadowSixFactorDecision(shadowContext, {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "0",
   });
   assert(shadow.shadowMode === true, "shadow result must be marked shadow");
@@ -741,7 +769,6 @@ export function runMlSixFactorShadowSelfCheck() {
     "shadow result must not claim learner-facing application",
   );
   const flagOnMetadata = buildOptionalSixFactorShadowMetadata(shadowContext, {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "0",
   });
   assert(flagOnMetadata != null, "flag-on must return six-factor metadata");
@@ -874,7 +901,6 @@ export function runMlSixFactorShadowSelfCheck() {
   );
 
   const mlFlagEnv = {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "ml/examples/candidate_scorer_artifact.example.json",
@@ -946,7 +972,6 @@ export function runMlSixFactorShadowSelfCheck() {
   );
 
   const invalidArtifactEnv = {
-    EDUAI_SIX_FACTOR_SHADOW: "1",
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
       "/tmp/eduai-missing-six-factor-artifact.json",
@@ -980,6 +1005,15 @@ export function runMlSixFactorShadowSelfCheck() {
     invalidArtifactMetadata.appliedToLearnerFacingOutput === false,
     "invalid artifact fallback metadata must remain unapplied",
   );
+  const treeArtifactLoad = loadSixFactorPolicyArtifact({
+    [SIX_FACTOR_ARTIFACT_PATH_ENV]:
+      "ml/src/eduai_ml/training/THU/artifacts/tree_candidate_scorer_v1_user_split_seed42.json",
+  });
+  assert(
+    treeArtifactLoad.ok === false &&
+      treeArtifactLoad.errorKind === "artifact_unsupported_model_family",
+    "tree artifact must be reported as runtime-incompatible",
+  );
 
   const metadata = buildSixFactorDecisionMetadata(heuristic, features);
   assertSixMlFactors(metadata.candidateConfig);
@@ -1007,14 +1041,23 @@ export function runMlSixFactorShadowSelfCheck() {
     "canonical delivered_config metadata must preserve leakage guard",
   );
 
-  const clampedGain = computeNormalizedLearningGain({
+  const signedGain = computeNormalizedLearningGain({
     preScore: 0.9,
-    postScore: 1.4,
+    postScore: 0.7,
     maxScore: 1,
   });
   assert(
-    clampedGain === 1,
-    "normalized_learning_gain must be clamped to 0..1",
+    signedGain === -1,
+    "normalized_learning_gain must preserve negative signed gain",
+  );
+  const maxedGain = computeNormalizedLearningGain({
+    preScore: 1,
+    postScore: 1,
+    maxScore: 1,
+  });
+  assert(
+    maxedGain === null,
+    "normalized_learning_gain must be null when pre_score equals max_score",
   );
   const missingOutcome = buildMissingSixFactorOutcome();
   assert(
@@ -1103,14 +1146,16 @@ export function runMlSixFactorShadowSelfCheck() {
       "topicRef priority",
       "render mapping coverage",
       "test response_format unchanged",
-      "shadow disabled by default",
-      "apply disabled by default",
-      "apply requires shadow mode",
-      "apply enables only with shadow and apply flags",
-      "flag-off missing env returns null metadata",
+      "shadow enabled by default",
+      "apply enabled by default",
+      "explicit shadow opt-out disables apply",
+      "shadow-only flag disables learner-facing apply",
+      "explicit shadow opt-out returns null metadata",
       "flag-off zero env returns null metadata",
       "flag-off payload omits sixFactorShadow",
       "flag-off prompt/output unchanged",
+      "missing env flags keep ML/apply active",
+      "shadow-only flag logs without prompt application",
       "flag-on metadata added only",
       "flag-on candidate/delivered config has six factors",
       "flag-on prompt/output unchanged",
@@ -1131,6 +1176,7 @@ export function runMlSixFactorShadowSelfCheck() {
       "flag-on ML-on metadata remains unapplied",
       "metadata feature snapshot excludes outcome fields",
       "flag-on ML-on invalid artifact falls back with warning",
+      "tree artifact reports runtime incompatibility",
       "metadata candidate/delivered config",
       "content paths omit sixFactorShadow when shadow flag is off",
       "content paths add fallback metadata only when shadow is on and ML is off",
@@ -1144,7 +1190,8 @@ export function runMlSixFactorShadowSelfCheck() {
       "apply mode falls back on invalid artifact",
       "canonical delivered_config metadata has six factors",
       "canonical delivered_config metadata preserves applied flag",
-      "outcome linking computes clamped normalized_learning_gain",
+      "outcome linking computes signed normalized_learning_gain",
+      "outcome linking returns null when pre_score equals max_score",
       "missing outcome marks outcome_available=false",
       "real_user training observation excludes outcome fields from features",
       "real_user training observation preserves policy_context",

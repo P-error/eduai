@@ -3,7 +3,7 @@
 ## Purpose
 
 Apply mode is the first explicit gate that lets a six-factor decision affect learner-facing generation.
-It is off by default.
+It is on by default for the ML/apply runtime path.
 
 The app-facing contract remains:
 
@@ -19,13 +19,13 @@ pre-decision features + candidate_config -> predicted outcome
 
 ## Flags
 
-- `EDUAI_SIX_FACTOR_SHADOW=1`: allows six-factor metadata and decision construction.
-- `EDUAI_SIX_FACTOR_ML_POLICY=1`: allows artifact-backed candidate scoring.
-- `EDUAI_SIX_FACTOR_APPLY=1`: allows render instructions to be added to eligible learner-facing LLM prompts.
+- `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off`: disables artifact-backed candidate scoring and uses legacy fallback.
+- `EDUAI_SIX_FACTOR_APPLY=0|false|off`: disables learner-facing prompt application.
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1|true|on`: keeps ML scoring/logging but does not apply the prompt block.
+- `EDUAI_SIX_FACTOR_SHADOW=0|false|off`: disables six-factor metadata construction.
 - `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional artifact path for ML policy mode.
 
-`EDUAI_SIX_FACTOR_APPLY` requires shadow mode.
-It does not enable ML policy by itself.
+Absence of these flags keeps ML policy, six-factor decision, and apply active.
 
 The THU scorer runtime copy prepared for local/demo/production shadow or apply is:
 
@@ -73,7 +73,7 @@ When apply mode is active, `sixFactorShadow` metadata records:
 - `appliedPromptInstructionCount=6`
 - `appliedPath=chat | learning_content | test_generation`
 
-If the artifact is missing or invalid, the adapter falls back to the explicit heuristic/static six-factor bridge and records warnings.
+If the artifact is missing, invalid, or runtime-incompatible, the adapter falls back to the explicit heuristic/static six-factor bridge and records warnings.
 If the scorer produces a non-finite score, the adapter also falls back and records a `scoring_error` warning.
 
 ## Learner-facing UI
@@ -82,7 +82,7 @@ When `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`, `/learn` shows a compact
 `ML-персонализация` card for learning-content and assistant dialogue outputs
 that have canonical six-factor delivered metadata. The card uses a safe summary
 only: selected six-factor config, decision source, fallback flag, artifact
-version, and whether the decision was applied to the learner-facing output.
+version, backend kind, candidate count, and whether the decision was applied to the learner-facing output.
 It does not show raw feature snapshots, warnings, prompt text, or debug JSON.
 
 ## Honesty Note
@@ -101,8 +101,8 @@ scripts/ml-six-factor-shadow-self-check.sh
 
 The self-check verifies:
 
-- no instructions when apply is off;
-- chat, test-generation, and learning-content instructions when apply is on;
+- no instructions when apply is explicitly off or shadow-only;
+- chat, test-generation, and learning-content instructions by default;
 - all six factors appear in the applied prompt block;
 - metadata marks the applied path;
 - invalid artifact mode falls back without crashing;

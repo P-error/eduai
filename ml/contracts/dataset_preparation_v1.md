@@ -33,7 +33,7 @@ Synthetic v1 deliberately includes:
 
 This gives the future scorer varied `candidate_config -> outcome` relationships. It still does not prove real educational effect.
 
-`normalized_learning_gain` is clamped to `0..1` in synthetic v1 to keep the first trainer target simple.
+`normalized_learning_gain` is a signed value in `[-1, 1]` for the current trainer target. Legacy non-negative gain, when needed, must be stored separately as `normalized_learning_gain_clamped` and must not replace the signed target.
 
 ## Open Dataset Adapter
 

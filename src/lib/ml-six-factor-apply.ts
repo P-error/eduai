@@ -9,6 +9,7 @@ import {
 } from "@/lib/ml-six-factor-shadow";
 
 export const SIX_FACTOR_APPLY_ENV = "EDUAI_SIX_FACTOR_APPLY" as const;
+export const SIX_FACTOR_SHADOW_ONLY_ENV = "EDUAI_SIX_FACTOR_SHADOW_ONLY" as const;
 
 export type SixFactorApplyPathV1 =
   | "chat"
@@ -42,10 +43,23 @@ function enabledValue(value: unknown) {
   );
 }
 
+function disabledValue(value: unknown) {
+  return (
+    typeof value === "string" &&
+    ["0", "false", "no", "off"].includes(value.trim().toLowerCase())
+  );
+}
+
 export function isSixFactorApplyEnabled(
   env: Record<string, string | undefined> = process.env,
 ) {
-  return enabledValue(env[SIX_FACTOR_APPLY_ENV]);
+  return !disabledValue(env[SIX_FACTOR_APPLY_ENV]);
+}
+
+export function isSixFactorShadowOnlyEnabled(
+  env: Record<string, string | undefined> = process.env,
+) {
+  return enabledValue(env[SIX_FACTOR_SHADOW_ONLY_ENV]);
 }
 
 export function shouldApplySixFactorRenderPolicy(params: {
@@ -53,7 +67,11 @@ export function shouldApplySixFactorRenderPolicy(params: {
   path?: SixFactorApplyPathV1;
 } = {}) {
   const env = params.env ?? process.env;
-  return isSixFactorShadowEnabled(env) && isSixFactorApplyEnabled(env);
+  return (
+    isSixFactorShadowEnabled(env) &&
+    isSixFactorApplyEnabled(env) &&
+    !isSixFactorShadowOnlyEnabled(env)
+  );
 }
 
 function formatInstructionLines(
@@ -119,7 +137,11 @@ export function buildAppliedSixFactorPromptInstructions(params: {
       metadata: null,
       promptInstructions: [],
       promptInstructionBlock: null,
-      warnings: isSixFactorApplyEnabled(env)
+      warnings: isSixFactorShadowOnlyEnabled(env)
+        ? [
+            "ML metadata mode selects a candidate for logging only; learner-facing output is unchanged.",
+          ]
+        : isSixFactorApplyEnabled(env)
         ? [
             "Six-factor apply flag is enabled, but shadow mode is disabled; keeping learner-facing output unchanged.",
           ]

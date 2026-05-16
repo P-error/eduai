@@ -161,7 +161,7 @@ export type MaterializedEpisodeStep =
         }>;
         reflectionPrompt: string;
         renderedContent: string;
-        generationSource: "llm" | "fallback";
+        generationSource: "llm" | "llm_repaired" | "fallback";
         dialogueThread: Array<{
           id: string;
           role: "user" | "assistant";
@@ -973,7 +973,11 @@ async function hydrateLearningContentStep(
   const assistantSignals = asObject(assistantMessage?.signalsJson);
   const card = asObject(assistantSignals?.learningContentCard);
   const generationSource =
-    assistantSignals?.generationSource === "fallback" ? "fallback" : "llm";
+    assistantSignals?.generationSource === "fallback"
+      ? "fallback"
+      : assistantSignals?.generationSource === "llm_repaired"
+        ? "llm_repaired"
+        : "llm";
   const dialogueThread = session.messages
     .map((message) => {
       const signals = asObject(message.signalsJson);

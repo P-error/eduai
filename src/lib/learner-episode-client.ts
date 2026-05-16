@@ -41,7 +41,7 @@ export type LearnerEpisodeLearningContent = {
   }>;
   reflectionPrompt: string;
   renderedContent: string;
-  generationSource: "llm" | "fallback";
+  generationSource: "llm" | "llm_repaired" | "fallback";
   dialogueThread: Array<{
     id: string;
     role: "user" | "assistant";

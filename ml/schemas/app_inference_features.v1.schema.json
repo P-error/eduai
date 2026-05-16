@@ -76,6 +76,7 @@
           { "required": ["max_score"] },
           { "required": ["next_step_success"] },
           { "required": ["normalized_learning_gain"] },
+          { "required": ["normalized_learning_gain_clamped"] },
           { "required": ["outcome_available"] },
           { "required": ["outcome"] }
         ]

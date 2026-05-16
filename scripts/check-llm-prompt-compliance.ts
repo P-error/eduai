@@ -1,12 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { z } from "zod";
 import { llmChatText, type LLMMessage } from "@/lib/llm/provider";
 import { TestSchema } from "@/lib/test-schema";
+import { LearningContentCardSchema } from "@/lib/learning-content-schema";
 import { loadLocalServerLlmEnv } from "./local-server-env";
 
 type ProviderMode = "mock-provider" | "live-provider";
+type ParsedArgs = {
+  providerMode: ProviderMode;
+  mlRuntime: boolean;
+};
 
 type PromptSnapshot = {
   path: "chat" | "test_generation" | "learning_content";
@@ -14,6 +18,12 @@ type PromptSnapshot = {
   response_format: { type: "json_object" } | null;
   messages: LLMMessage[];
   flags: Record<string, string>;
+  mlRuntimeStatus?: "ML_RUNTIME_NOT_REQUESTED" | "ML_RUNTIME_OK" | "ML_RUNTIME_FALLBACK";
+  appliedToLearnerFacingOutput?: boolean;
+  decisionSource?: string | null;
+  candidateCount?: number | null;
+  fallbackUsed?: boolean | null;
+  judgeStatus?: string | null;
   notes: string[];
 };
 
@@ -32,6 +42,12 @@ type PromptCheckResult = {
   sixFactorCompliance: CheckBlock;
   leakageValidation: CheckBlock;
   strictRulesValidation: CheckBlock;
+  mlRuntimeStatus: PromptSnapshot["mlRuntimeStatus"] | "UNKNOWN";
+  appliedToLearnerFacingOutput: boolean | null;
+  decisionSource: string | null;
+  candidateCount: number | null;
+  fallbackUsed: boolean | null;
+  judgeStatus: string | null;
   responsePreview: string | null;
   violations: string[];
   recommendations: string[];
@@ -53,29 +69,17 @@ type ComplianceResults = {
     | "LIVE_PROVIDER_UNAVAILABLE"
     | "LIVE_PROVIDER_ERROR";
   externalLlmCalled: boolean;
+  mlRuntimeStatus: PromptSnapshot["mlRuntimeStatus"] | "UNKNOWN";
+  appliedToLearnerFacingOutput: boolean | null;
+  decisionSource: string | null;
+  candidateCount: number | null;
+  fallbackUsed: boolean | null;
+  judgeStatus: string | null;
   promptsChecked: string[];
   results: PromptCheckResult[];
   violations: string[];
   recommendations: string[];
 };
-
-const LearningContentCardSchema = z
-  .object({
-    title: z.string().min(1),
-    summary: z.string().min(1),
-    sections: z
-      .array(
-        z
-          .object({
-            heading: z.string().min(1),
-            body: z.string().min(1),
-          })
-          .strict(),
-      )
-      .min(2),
-    reflectionPrompt: z.string().min(1),
-  })
-  .strict();
 
 const SNAPSHOT_FILES = [
   "chat_first_prompt.json",
@@ -140,29 +144,40 @@ function redactSecrets(value: unknown) {
   return String(value).replace(/sk-[A-Za-z0-9_*.-]+/g, "[REDACTED_OPENAI_API_KEY]");
 }
 
-function parseMode(argv: string[]): ProviderMode {
+function parseArgs(argv: string[]): ParsedArgs {
   const hasMock = argv.includes("--mock-provider");
   const hasLive = argv.includes("--live-provider");
+  const mlRuntime = argv.includes("--real-ml-policy") || argv.includes("--ml-runtime");
   if (argv.includes("--help") || argv.includes("-h")) {
-    console.log("Usage: scripts/check-llm-prompt-compliance.sh [--mock-provider|--live-provider]");
+    console.log("Usage: scripts/check-llm-prompt-compliance.sh [--mock-provider|--live-provider] [--ml-runtime|--real-ml-policy]");
     process.exit(0);
   }
   if (hasMock && hasLive) {
     throw new Error("Use only one provider mode.");
   }
-  return hasLive ? "live-provider" : "mock-provider";
+  return {
+    providerMode: hasLive ? "live-provider" : "mock-provider",
+    mlRuntime,
+  };
 }
 
-function ensureSnapshots() {
+function ensureSnapshots(mlRuntime: boolean) {
   const missing = SNAPSHOT_FILES.filter((fileName) => {
     return !existsSync(join(exportDir, fileName));
   });
-  if (missing.length === 0) return;
 
-  execFileSync("bash", ["scripts/audit-llm-prompts.sh"], {
+  execFileSync(
+    "bash",
+    [
+      "scripts/audit-llm-prompts.sh",
+      ...(mlRuntime ? ["--ml-runtime"] : []),
+      ...(missing.length > 0 ? [] : []),
+    ],
+    {
     cwd: process.cwd(),
     stdio: "inherit",
-  });
+    },
+  );
 }
 
 function readSnapshot(fileName: (typeof SNAPSHOT_FILES)[number]): PromptSnapshot {
@@ -287,6 +302,34 @@ function validateSnapshot(snapshot: PromptSnapshot) {
   const leakedFields = includesAny(content, forbiddenFields);
   if (leakedFields.length > 0) {
     addViolation(check, `forbidden_prompt_fields:${leakedFields.join(",")}`);
+  }
+  const rawMlPayloadKeys = includesAny(content, [
+    "candidateConfig",
+    "candidate_config",
+    "featuresSnapshot",
+    "features_snapshot",
+  ]);
+  if (rawMlPayloadKeys.length > 0) {
+    addViolation(check, `raw_ml_payload_leaked_in_prompt:${rawMlPayloadKeys.join(",")}`);
+  }
+  if (snapshot.path === "chat" && snapshot.response_format !== null) {
+    addViolation(check, "chat_prompt_must_not_request_json_response_format");
+  }
+  if (
+    snapshot.path === "test_generation" &&
+    (!content.includes("TestSchema") || !content.includes("response_format=mcq"))
+  ) {
+    addViolation(check, "test_prompt_contract_missing_mcq_testschema");
+  }
+  if (
+    snapshot.path === "learning_content" &&
+    (!content.includes("learning_content_card") ||
+      !content.includes("reflectionPrompt"))
+  ) {
+    addViolation(check, "learning_content_prompt_contract_missing");
+  }
+  if (snapshot.mlRuntimeStatus === "ML_RUNTIME_FALLBACK") {
+    addViolation(check, "runtime_ml_fallback");
   }
 
   check.notes.push("snapshot structure checked locally; no provider call in this validator");
@@ -686,6 +729,19 @@ async function checkOne(
     sixFactorCompliance,
     leakageValidation,
     strictRulesValidation,
+    mlRuntimeStatus: (snapshot.mlRuntimeStatus ?? "UNKNOWN") as PromptCheckResult["mlRuntimeStatus"],
+    appliedToLearnerFacingOutput:
+      typeof snapshot.appliedToLearnerFacingOutput === "boolean"
+        ? snapshot.appliedToLearnerFacingOutput
+        : null,
+    decisionSource:
+      typeof snapshot.decisionSource === "string" ? snapshot.decisionSource : null,
+    candidateCount:
+      typeof snapshot.candidateCount === "number" ? snapshot.candidateCount : null,
+    fallbackUsed:
+      typeof snapshot.fallbackUsed === "boolean" ? snapshot.fallbackUsed : null,
+    judgeStatus:
+      typeof snapshot.judgeStatus === "string" ? snapshot.judgeStatus : null,
     responsePreview:
       provider.response == null ? null : provider.response.slice(0, 700),
     violations,
@@ -695,17 +751,17 @@ async function checkOne(
 }
 
 async function main() {
-  const mode = parseMode(process.argv.slice(2));
-  if (mode === "live-provider") {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.providerMode === "live-provider") {
     loadLocalServerLlmEnv();
   }
-  ensureSnapshots();
+  ensureSnapshots(args.mlRuntime);
   mkdirSync(join(process.cwd(), "exports"), { recursive: true });
 
   const checked: PromptCheckResult[] = [];
   let externalLlmCalled = false;
   for (const fileName of SNAPSHOT_FILES) {
-    const result = await checkOne(fileName, mode);
+    const result = await checkOne(fileName, args.providerMode);
     externalLlmCalled = externalLlmCalled || result.externalLlmCalled;
     checked.push({
       snapshotFile: result.snapshotFile,
@@ -718,6 +774,12 @@ async function main() {
       sixFactorCompliance: result.sixFactorCompliance,
       leakageValidation: result.leakageValidation,
       strictRulesValidation: result.strictRulesValidation,
+      mlRuntimeStatus: result.mlRuntimeStatus,
+      appliedToLearnerFacingOutput: result.appliedToLearnerFacingOutput,
+      decisionSource: result.decisionSource,
+      candidateCount: result.candidateCount,
+      fallbackUsed: result.fallbackUsed,
+      judgeStatus: result.judgeStatus,
       responsePreview: result.responsePreview,
       violations: result.violations,
       recommendations: result.recommendations,
@@ -747,13 +809,33 @@ async function main() {
           "Live provider was unavailable; rerun with OPENAI_API_KEY and optional OPENAI_BASE_URL to check external LLM compliance.",
         ]
       : [...new Set(checked.flatMap((result) => result.recommendations))];
+  const mlRuntimeStatus = checked.some(
+    (result) => result.mlRuntimeStatus === "ML_RUNTIME_FALLBACK",
+  )
+    ? "ML_RUNTIME_FALLBACK"
+    : checked.some((result) => result.mlRuntimeStatus === "ML_RUNTIME_OK")
+      ? "ML_RUNTIME_OK"
+      : checked.some((result) => result.mlRuntimeStatus === "ML_RUNTIME_NOT_REQUESTED")
+        ? "ML_RUNTIME_NOT_REQUESTED"
+        : "UNKNOWN";
+  const testGenerationResult =
+    checked.find((result) => result.path === "test_generation") ?? null;
 
   const payload: ComplianceResults = {
     status,
     generatedAtIso: new Date().toISOString(),
-    providerMode: mode,
+    providerMode: args.providerMode,
     providerStatus,
     externalLlmCalled,
+    mlRuntimeStatus,
+    appliedToLearnerFacingOutput:
+      checked.length > 0
+        ? checked.every((result) => result.appliedToLearnerFacingOutput === true)
+        : null,
+    decisionSource: testGenerationResult?.decisionSource ?? null,
+    candidateCount: testGenerationResult?.candidateCount ?? null,
+    fallbackUsed: testGenerationResult?.fallbackUsed ?? null,
+    judgeStatus: testGenerationResult?.judgeStatus ?? null,
     promptsChecked: [...SNAPSHOT_FILES],
     results: checked,
     violations,
@@ -780,6 +862,12 @@ main().catch((error) => {
       ? "LIVE_PROVIDER_ERROR"
       : "MOCK_PROVIDER",
     externalLlmCalled: false,
+    mlRuntimeStatus: "UNKNOWN",
+    appliedToLearnerFacingOutput: null,
+    decisionSource: null,
+    candidateCount: null,
+    fallbackUsed: null,
+    judgeStatus: null,
     promptsChecked: [],
     results: [],
     violations: [`script_error:${message}`],

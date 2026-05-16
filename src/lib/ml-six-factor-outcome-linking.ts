@@ -4,6 +4,7 @@ export type SixFactorOutcomeV1 = {
   max_score: number | null;
   next_step_success: boolean | null;
   normalized_learning_gain: number | null;
+  normalized_learning_gain_clamped: number | null;
   outcome_available: boolean;
 };
 
@@ -19,8 +20,8 @@ export type SixFactorOutcomeLinkV1 = {
   outcome: SixFactorOutcomeV1;
 };
 
-function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
+function clamp(value: number, lower: number, upper: number) {
+  return Math.max(lower, Math.min(upper, value));
 }
 
 function readFiniteNumber(value: unknown) {
@@ -48,7 +49,16 @@ export function computeNormalizedLearningGain(params: {
     return null;
   }
 
-  return clamp01((postScore - preScore) / (maxScore - preScore));
+  return clamp((postScore - preScore) / (maxScore - preScore), -1, 1);
+}
+
+export function computeLegacyClampedNormalizedLearningGain(params: {
+  preScore: number | null | undefined;
+  postScore: number | null | undefined;
+  maxScore: number | null | undefined;
+}) {
+  const signedGain = computeNormalizedLearningGain(params);
+  return signedGain == null ? null : clamp(signedGain, 0, 1);
 }
 
 export function buildSixFactorOutcome(params: {
@@ -90,6 +100,11 @@ export function buildSixFactorOutcome(params: {
       postScore,
       maxScore,
     }),
+    normalized_learning_gain_clamped: computeLegacyClampedNormalizedLearningGain({
+      preScore,
+      postScore,
+      maxScore,
+    }),
     outcome_available: outcomeAvailable,
   };
 }
@@ -101,6 +116,7 @@ export function buildMissingSixFactorOutcome(): SixFactorOutcomeV1 {
     max_score: null,
     next_step_success: null,
     normalized_learning_gain: null,
+    normalized_learning_gain_clamped: null,
     outcome_available: false,
   };
 }

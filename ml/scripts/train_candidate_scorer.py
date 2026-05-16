@@ -11,7 +11,7 @@ sys.path.insert(0, str(ML_ROOT / "src"))
 
 from eduai_ml.data.dataset_validation import load_jsonl_dataset, validate_observation_record  # noqa: E402
 from eduai_ml.training.artifact_writer import write_model_artifact  # noqa: E402
-from eduai_ml.training.target_builder import TARGET_SCHEMA_V1, TARGET_SCHEMA_V2  # noqa: E402
+from eduai_ml.training.target_builder import DEFAULT_TARGET_SCHEMA_VERSION, TARGET_SCHEMA_V1, TARGET_SCHEMA_V2  # noqa: E402
 from eduai_ml.training.trainer import train_candidate_scorer  # noqa: E402
 
 
@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-variant", default="")
     parser.add_argument(
         "--target-schema-version",
-        default=TARGET_SCHEMA_V1,
+        default=DEFAULT_TARGET_SCHEMA_VERSION,
         choices=[TARGET_SCHEMA_V1, TARGET_SCHEMA_V2],
     )
     parser.add_argument(

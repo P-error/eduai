@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "eduai-clean", "artifacts"]
+  "exclude": ["node_modules", "eduai-clean", "artifacts", "exports"]
 }

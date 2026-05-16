@@ -242,6 +242,7 @@ export function isTrainingObservationV1Shape(
     "max_score",
     "next_step_success",
     "normalized_learning_gain",
+    "normalized_learning_gain_clamped",
     "outcome_available",
     "outcome",
   ];

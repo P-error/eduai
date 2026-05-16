@@ -17,6 +17,7 @@ import { buildSixFactorLearnerStateSafetyProfile } from "@/lib/ml-six-factor-gua
 export type SixFactorCandidateScoreV1 = {
   candidate: SixFactorCandidateConfigV1;
   predictedLearningGain: number | null;
+  predictedLearningGainSigned: number | null;
   predictedNextStepSuccess: number | null;
   predictedCombinedScore: number;
   warnings: string[];
@@ -253,6 +254,13 @@ export function scoreSixFactorCandidate(
     width,
   );
   validateWeights("combined_outcome_score", weights.combined_outcome_score, width);
+  if (weights.expected_learning_gain_signed) {
+    validateWeights(
+      "expected_learning_gain_signed",
+      weights.expected_learning_gain_signed,
+      width,
+    );
+  }
 
   const expectedLearningGainRaw = requireFiniteScore(
     "expected_learning_gain_proxy",
@@ -266,10 +274,20 @@ export function scoreSixFactorCandidate(
     "combined_outcome_score",
     dot(weights.combined_outcome_score, vector),
   );
+  const expectedLearningGainSignedRaw = weights.expected_learning_gain_signed
+    ? requireFiniteScore(
+        "expected_learning_gain_signed",
+        dot(weights.expected_learning_gain_signed, vector),
+      )
+    : null;
 
   return {
     candidate,
     predictedLearningGain: clamp(expectedLearningGainRaw),
+    predictedLearningGainSigned:
+      expectedLearningGainSignedRaw == null
+        ? null
+        : clamp(expectedLearningGainSignedRaw, -1, 1),
     predictedNextStepSuccess: clamp(
       sigmoid(expectedNextStepSuccessLogit),
     ),

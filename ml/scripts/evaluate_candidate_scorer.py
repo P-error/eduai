@@ -12,7 +12,7 @@ sys.path.insert(0, str(ML_ROOT / "src"))
 from eduai_ml.data.dataset_validation import load_jsonl_dataset, validate_observation_record  # noqa: E402
 from eduai_ml.training.artifact_loader import load_candidate_scorer_artifact  # noqa: E402
 from eduai_ml.training.evaluator import evaluate_candidate_scorer  # noqa: E402
-from eduai_ml.training.target_builder import TARGET_SCHEMA_V1  # noqa: E402
+from eduai_ml.training.target_builder import DEFAULT_TARGET_SCHEMA_VERSION  # noqa: E402
 
 
 def main() -> int:
@@ -36,7 +36,7 @@ def main() -> int:
     _artifact, scorer = load_candidate_scorer_artifact(args.artifact)
     target_schema_version = (
         _artifact.get("target_definition", {}).get("target_schema_version")
-        or TARGET_SCHEMA_V1
+        or DEFAULT_TARGET_SCHEMA_VERSION
     )
     report = evaluate_candidate_scorer(
         records,

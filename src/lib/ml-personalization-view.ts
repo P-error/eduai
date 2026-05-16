@@ -10,6 +10,8 @@ export type MlPersonalizationView = {
   decisionSource: SixFactorDeliveredConfigMetadataV1["decisionSource"];
   fallbackUsed: boolean;
   artifactVersion: string | null;
+  backendKind: string | null;
+  candidateCount: number | null;
   appliedToLearnerFacingOutput: boolean;
   appliedPromptInstructionCount: number | null;
   appliedPath: string | null;
@@ -27,6 +29,8 @@ export function buildMlPersonalizationView(
     decisionSource: metadata.decisionSource,
     fallbackUsed: metadata.fallbackUsed,
     artifactVersion: metadata.modelVersion,
+    backendKind: metadata.backendKind,
+    candidateCount: metadata.candidateCount,
     appliedToLearnerFacingOutput: metadata.appliedToLearnerFacingOutput,
     appliedPromptInstructionCount: metadata.appliedPromptInstructionCount,
     appliedPath: metadata.appliedPath,
