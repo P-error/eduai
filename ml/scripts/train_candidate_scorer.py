@@ -11,6 +11,7 @@ sys.path.insert(0, str(ML_ROOT / "src"))
 
 from eduai_ml.data.dataset_validation import load_jsonl_dataset, validate_observation_record  # noqa: E402
 from eduai_ml.training.artifact_writer import write_model_artifact  # noqa: E402
+from eduai_ml.training.target_builder import TARGET_SCHEMA_V1, TARGET_SCHEMA_V2  # noqa: E402
 from eduai_ml.training.trainer import train_candidate_scorer  # noqa: E402
 
 
@@ -24,6 +25,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--validation-ratio", type=float, default=0.15)
     parser.add_argument("--test-ratio", type=float, default=0.15)
     parser.add_argument("--model-family", default="linear_candidate_scorer_v1")
+    parser.add_argument("--model-variant", default="")
+    parser.add_argument(
+        "--target-schema-version",
+        default=TARGET_SCHEMA_V1,
+        choices=[TARGET_SCHEMA_V1, TARGET_SCHEMA_V2],
+    )
     parser.add_argument(
         "--split-strategy",
         default="observation_id_hash",
@@ -45,7 +52,9 @@ def main() -> int:
         validation_ratio=args.validation_ratio,
         test_ratio=args.test_ratio,
         model_family=args.model_family,
+        model_variant=args.model_variant or None,
         split_strategy=args.split_strategy,
+        target_schema_version=args.target_schema_version,
     )
     write_model_artifact(args.artifact_out, result.artifact)
 
@@ -67,6 +76,8 @@ def main() -> int:
             {
                 "gain_mae": test_metrics["expected_learning_gain_proxy"]["mae"],
                 "gain_rmse": test_metrics["expected_learning_gain_proxy"]["rmse"],
+                "signed_gain_mae": test_metrics["expected_learning_gain_signed"]["mae"],
+                "signed_gain_rmse": test_metrics["expected_learning_gain_signed"]["rmse"],
                 "success_accuracy": test_metrics["expected_next_step_success"]["accuracy"],
                 "success_balanced_accuracy": test_metrics["expected_next_step_success"]["balanced_accuracy"],
                 "success_positive_rate": test_balance["positive_rate"],

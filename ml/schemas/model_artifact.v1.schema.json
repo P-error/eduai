@@ -55,14 +55,25 @@
         }
       }
     },
+    "training_data_summary": {
+      "type": "object"
+    },
     "target_definition": {
       "type": "object",
       "additionalProperties": false,
       "required": ["primary_target", "secondary_targets", "formula_description"],
       "properties": {
+        "target_schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
         "primary_target": {
           "type": "string",
-          "enum": ["expected_learning_gain_proxy", "expected_next_step_success"]
+          "enum": [
+            "expected_learning_gain_proxy",
+            "expected_learning_gain_signed",
+            "expected_next_step_success"
+          ]
         },
         "secondary_targets": {
           "type": "array",
@@ -70,6 +81,7 @@
             "type": "string",
             "enum": [
               "expected_learning_gain_proxy",
+              "expected_learning_gain_signed",
               "expected_next_step_success",
               "combined_outcome_score",
               "confidence",
@@ -105,7 +117,9 @@
       "properties": {
         "split_strategy": { "type": "string", "minLength": 1 },
         "metrics": { "type": "object" },
-        "baseline_comparison": { "type": "object" }
+        "baseline_comparison": { "type": "object" },
+        "model_comparison": { "type": "object" },
+        "policy_selection_risk_diagnostics": { "type": "object" }
       }
     },
     "compatibility": {
@@ -114,8 +128,13 @@
       "required": ["app_min_version", "contract_version"],
       "properties": {
         "app_min_version": { "type": ["string", "null"], "minLength": 1 },
-        "contract_version": { "const": "pedagogy_policy_contract_v1" }
+        "contract_version": { "const": "pedagogy_policy_contract_v1" },
+        "runtime_compatible": { "type": "boolean" }
       }
+    },
+    "honesty_notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
     },
     "limitations": {
       "type": "array",

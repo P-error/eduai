@@ -1,0 +1,677 @@
+{
+  "baseline_comparison": {
+    "heuristic_like_baseline": {
+      "average_combined_outcome_score": 0.712257,
+      "average_learning_gain_proxy": 0.36602,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 5,
+      "next_step_success_rate": 0.8
+    },
+    "limitations": [
+      "Baseline comparison uses only rows whose delivered candidate matches the baseline candidate.",
+      "No counterfactual outcomes are available for unserved candidates in this dataset."
+    ],
+    "oracle_upper_bound_for_synthetic": {
+      "available": false,
+      "reason": "oracle not available in current synthetic export because hidden effective_config is not emitted"
+    },
+    "random_candidate_baseline": {
+      "average_combined_outcome_score": null,
+      "average_learning_gain_proxy": null,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 0,
+      "next_step_success_rate": null
+    },
+    "static_baseline": {
+      "average_combined_outcome_score": 0.74353,
+      "average_learning_gain_proxy": 0.399413,
+      "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+      "matching_rows": 8,
+      "next_step_success_rate": 0.875
+    }
+  },
+  "class_balance": {
+    "all": {
+      "majority_class": "positive",
+      "majority_class_accuracy": 0.832461,
+      "negative_count": 256,
+      "positive_count": 1272,
+      "positive_rate": 0.832461,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "test": {
+      "majority_class": "positive",
+      "majority_class_accuracy": 0.842105,
+      "negative_count": 33,
+      "positive_count": 176,
+      "positive_rate": 0.842105,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "train": {
+      "majority_class": "positive",
+      "majority_class_accuracy": 0.844765,
+      "negative_count": 172,
+      "positive_count": 936,
+      "positive_rate": 0.844765,
+      "unavailable_count": 0,
+      "warnings": []
+    },
+    "validation": {
+      "majority_class": "positive",
+      "majority_class_accuracy": 0.758294,
+      "negative_count": 51,
+      "positive_count": 160,
+      "positive_rate": 0.758294,
+      "unavailable_count": 0,
+      "warnings": []
+    }
+  },
+  "dataset_summary": {
+    "factor_distribution": {
+      "depth": {
+        "brief": 423,
+        "detailed": 370,
+        "standard": 735
+      },
+      "difficulty": {
+        "easy": 176,
+        "hard": 670,
+        "medium": 682
+      },
+      "examples_level": {
+        "multiple": 222,
+        "none": 328,
+        "single": 978
+      },
+      "presentation_format": {
+        "paragraph": 396,
+        "qa": 344,
+        "step_by_step": 280,
+        "structured_list": 508
+      },
+      "support_level": {
+        "guided": 917,
+        "minimal": 433,
+        "scaffolded": 178
+      },
+      "terminology_level": {
+        "balanced": 701,
+        "simple": 239,
+        "technical": 588
+      }
+    },
+    "leakage_guard_violations_count": 0,
+    "outcome_available_count": 1528,
+    "outcome_stats": {
+      "average_normalized_learning_gain": 0.1108,
+      "average_post_score": 0.7586,
+      "average_pre_score": 0.7089,
+      "next_step_success_rate": 0.8325
+    },
+    "source_kind_counts": {
+      "synthetic": 1528
+    },
+    "supervised_unusable_count": 0,
+    "supervised_unusable_reasons": {},
+    "supervised_usable_count": 1528,
+    "total_observations": 1528
+  },
+  "diagnostic_examples": [
+    {
+      "base_candidate_config": {
+        "depth": "brief",
+        "difficulty": "hard",
+        "examples_level": "none",
+        "presentation_format": "paragraph",
+        "support_level": "minimal",
+        "terminology_level": "technical"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn015_obs_001",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6256309625296875,
+            "expected_learning_gain_proxy": 0.1795437545859375,
+            "expected_learning_gain_signed": 0.1921876393265625,
+            "expected_next_step_success": 0.5566759501046875
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.547616988415625,
+            "expected_learning_gain_proxy": 0.1424649311734375,
+            "expected_learning_gain_signed": 0.1617044991546875,
+            "expected_next_step_success": 0.402756918425
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5207365854671875,
+            "expected_learning_gain_proxy": 0.117530727303125,
+            "expected_learning_gain_signed": 0.1007138814265625,
+            "expected_next_step_success": 0.36818841299375
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "standard",
+        "difficulty": "medium",
+        "examples_level": "single",
+        "presentation_format": "structured_list",
+        "support_level": "guided",
+        "terminology_level": "balanced"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn015_obs_002",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.68770292124375,
+            "expected_learning_gain_proxy": 0.2520771111203125,
+            "expected_learning_gain_signed": 0.2571127885046875,
+            "expected_next_step_success": 0.6089749623171875
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "easy",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.680490511534375,
+            "expected_learning_gain_proxy": 0.23938417963125,
+            "expected_learning_gain_signed": 0.2462199301390625,
+            "expected_next_step_success": 0.5763721918203125
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "multiple",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6700386788265625,
+            "expected_learning_gain_proxy": 0.2536546596234375,
+            "expected_learning_gain_signed": 0.261349241478125,
+            "expected_next_step_success": 0.50033672555
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "standard",
+        "difficulty": "medium",
+        "examples_level": "single",
+        "presentation_format": "qa",
+        "support_level": "guided",
+        "terminology_level": "balanced"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn015_obs_003",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "qa",
+            "support_level": "guided",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.7418804315171875,
+            "expected_learning_gain_proxy": 0.264612189471875,
+            "expected_learning_gain_signed": 0.279627977259375,
+            "expected_next_step_success": 0.9736735920328125
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "qa",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.7411111779875,
+            "expected_learning_gain_proxy": 0.276713474228125,
+            "expected_learning_gain_signed": 0.288539215996875,
+            "expected_next_step_success": 0.9520590086984375
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "qa",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.7343349474203125,
+            "expected_learning_gain_proxy": 0.260963815415625,
+            "expected_learning_gain_signed": 0.2709628385625,
+            "expected_next_step_success": 0.9638578869046875
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "brief",
+        "difficulty": "hard",
+        "examples_level": "none",
+        "presentation_format": "paragraph",
+        "support_level": "minimal",
+        "terminology_level": "technical"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn015_obs_004",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.709098619521875,
+            "expected_learning_gain_proxy": 0.249755379284375,
+            "expected_learning_gain_signed": 0.2533986823109375,
+            "expected_next_step_success": 0.9700749303453124
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "minimal",
+            "terminology_level": "simple"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.6002574889421876,
+            "expected_learning_gain_proxy": 0.0615751463703125,
+            "expected_learning_gain_signed": -0.0833196486171875,
+            "expected_next_step_success": 0.9189030343046874
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.5899838225171875,
+            "expected_learning_gain_proxy": 0.046056237753125,
+            "expected_learning_gain_signed": -0.1742833654765625,
+            "expected_next_step_success": 0.83882619288125
+          }
+        }
+      ]
+    },
+    {
+      "base_candidate_config": {
+        "depth": "brief",
+        "difficulty": "hard",
+        "examples_level": "none",
+        "presentation_format": "paragraph",
+        "support_level": "minimal",
+        "terminology_level": "technical"
+      },
+      "diagnostic_only": true,
+      "observation_id": "syn015_obs_005",
+      "top_candidates": [
+        {
+          "candidate_config": {
+            "depth": "brief",
+            "difficulty": "hard",
+            "examples_level": "single",
+            "presentation_format": "paragraph",
+            "support_level": "minimal",
+            "terminology_level": "technical"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.72814270725,
+            "expected_learning_gain_proxy": 0.3160581668015625,
+            "expected_learning_gain_signed": 0.140094153028125,
+            "expected_next_step_success": 0.586841617634375
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "detailed",
+            "difficulty": "medium",
+            "examples_level": "multiple",
+            "presentation_format": "qa",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.7084091418015624,
+            "expected_learning_gain_proxy": 0.2270380273484375,
+            "expected_learning_gain_signed": 0.1987744004109375,
+            "expected_next_step_success": 0.828487918328125
+          }
+        },
+        {
+          "candidate_config": {
+            "depth": "standard",
+            "difficulty": "medium",
+            "examples_level": "single",
+            "presentation_format": "structured_list",
+            "support_level": "guided",
+            "terminology_level": "balanced"
+          },
+          "prediction": {
+            "combined_outcome_score": 0.697037582159375,
+            "expected_learning_gain_proxy": 0.2218926411234375,
+            "expected_learning_gain_signed": 0.1942141510125,
+            "expected_next_step_success": 0.9149093237546875
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Model quality depends on user-provided outcome-linked observations.",
+    "Candidate ranking diagnostics do not prove real-world educational superiority.",
+    "No counterfactual labels are available for all candidates."
+  ],
+  "model_metrics": {
+    "test": {
+      "combined_outcome_score": {
+        "mae": 0.06776,
+        "rmse": 0.092325
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.091731,
+        "rmse": 0.138699,
+        "target_note": "legacy clamped gain target in 0..1"
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.124576,
+        "rmse": 0.171498,
+        "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.952153,
+        "balanced_accuracy": 0.873106,
+        "log_loss": 0.163839,
+        "majority_class_accuracy": 0.842105,
+        "positive_rate": 0.842105,
+        "warnings": []
+      },
+      "row_count": 209,
+      "skipped_count": 0,
+      "usable_count": 209
+    },
+    "train": {
+      "combined_outcome_score": {
+        "mae": 0.048965,
+        "rmse": 0.067763
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.060094,
+        "rmse": 0.089521,
+        "target_note": "legacy clamped gain target in 0..1"
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.090671,
+        "rmse": 0.134366,
+        "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.958484,
+        "balanced_accuracy": 0.897125,
+        "log_loss": 0.129939,
+        "majority_class_accuracy": 0.844765,
+        "positive_rate": 0.844765,
+        "warnings": []
+      },
+      "row_count": 1108,
+      "skipped_count": 0,
+      "usable_count": 1108
+    },
+    "validation": {
+      "combined_outcome_score": {
+        "mae": 0.097853,
+        "rmse": 0.132811
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.094528,
+        "rmse": 0.130973,
+        "target_note": "legacy clamped gain target in 0..1"
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.157856,
+        "rmse": 0.226414,
+        "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.805687,
+        "balanced_accuracy": 0.644792,
+        "log_loss": 0.437476,
+        "majority_class_accuracy": 0.758294,
+        "positive_rate": 0.758294,
+        "warnings": []
+      },
+      "row_count": 211,
+      "skipped_count": 0,
+      "usable_count": 211
+    }
+  },
+  "policy_selection_risk_diagnostics": {
+    "candidate_pool": {
+      "guardrail_fallback_count": 0,
+      "total_candidate_count": 2508,
+      "unsafe_candidate_count": 911,
+      "unsafe_candidate_share": 0.363238
+    },
+    "counterfactual_metrics": {
+      "available": false,
+      "note": "Use evaluate_candidate_ranker.py with counterfactual candidate sets when available.",
+      "rank_correlation": null,
+      "top1_regret": null,
+      "top3_contains_best": null
+    },
+    "evaluated_states": 209,
+    "guarded_top1": {
+      "factor_distribution": {
+        "depth": {
+          "brief": 4,
+          "detailed": 69,
+          "standard": 136
+        },
+        "difficulty": {
+          "easy": 14,
+          "hard": 39,
+          "medium": 156
+        },
+        "examples_level": {
+          "multiple": 24,
+          "none": 0,
+          "single": 185
+        },
+        "presentation_format": {
+          "paragraph": 20,
+          "qa": 53,
+          "step_by_step": 28,
+          "structured_list": 108
+        },
+        "support_level": {
+          "guided": 203,
+          "minimal": 6,
+          "scaffolded": 0
+        },
+        "terminology_level": {
+          "balanced": 124,
+          "simple": 78,
+          "technical": 7
+        }
+      },
+      "high_risk_factor_frequency": {
+        "brief": 4,
+        "hard": 39,
+        "hard_brief_minimal": 0,
+        "hard_brief_minimal_none_technical": 0,
+        "minimal": 6,
+        "none": 0,
+        "technical": 7
+      },
+      "risky_config_share": 0.033493
+    },
+    "raw_top1": {
+      "factor_distribution": {
+        "depth": {
+          "brief": 9,
+          "detailed": 75,
+          "standard": 125
+        },
+        "difficulty": {
+          "easy": 14,
+          "hard": 53,
+          "medium": 142
+        },
+        "examples_level": {
+          "multiple": 21,
+          "none": 2,
+          "single": 186
+        },
+        "presentation_format": {
+          "paragraph": 26,
+          "qa": 50,
+          "step_by_step": 28,
+          "structured_list": 105
+        },
+        "support_level": {
+          "guided": 197,
+          "minimal": 10,
+          "scaffolded": 2
+        },
+        "terminology_level": {
+          "balanced": 94,
+          "simple": 79,
+          "technical": 36
+        }
+      },
+      "high_risk_factor_frequency": {
+        "brief": 9,
+        "hard": 53,
+        "hard_brief_minimal": 2,
+        "hard_brief_minimal_none_technical": 0,
+        "minimal": 10,
+        "none": 2,
+        "technical": 36
+      },
+      "risky_config_share": 0.172249
+    },
+    "top_candidate_score_diagnostics": {
+      "average_top1_combined_score": 0.754509,
+      "average_top1_top2_margin": 0.045215,
+      "low_margin_count_lt_0_01": 70
+    }
+  },
+  "skipped_rows": {
+    "supervised_unusable_count": 0
+  },
+  "split_diagnostics": {
+    "empty_split_warnings": [],
+    "row_count_by_split": {
+      "test": 209,
+      "train": 1108,
+      "validation": 211
+    },
+    "split_sizes": {
+      "test": 209,
+      "train": 1108,
+      "validation": 211
+    },
+    "split_strategy": "user_id_hash",
+    "topics_overlap_counts": {
+      "train_test": 0,
+      "train_validation": 0,
+      "validation_test": 0
+    },
+    "topics_per_split": {
+      "test": 57,
+      "train": 252,
+      "validation": 45
+    },
+    "users_overlap_counts": {
+      "train_test": 0,
+      "train_validation": 0,
+      "validation_test": 0
+    },
+    "users_per_split": {
+      "test": 7,
+      "train": 36,
+      "validation": 7
+    },
+    "warnings": []
+  },
+  "split_sizes": {
+    "test": 209,
+    "train": 1108,
+    "validation": 211
+  },
+  "split_strategy": "user_id_hash",
+  "target_schema_version": "outcome_targets.v2_signed_gain"
+}

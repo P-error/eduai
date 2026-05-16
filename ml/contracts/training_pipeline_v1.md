@@ -8,7 +8,7 @@ pre_decision_features + candidate_config -> predicted_outcome
 
 It is not runtime integration and not proof of real educational effectiveness.
 
-## Model Family
+## Model Families
 
 `linear_candidate_scorer_v1` is a small deterministic model implemented with the Python standard library:
 
@@ -17,6 +17,16 @@ It is not runtime integration and not proof of real educational effectiveness.
 - linear regression trained by batch gradient descent for `combined_outcome_score`.
 
 No pickle or binary artifact is written. Weights are stored as JSON so the artifact remains auditable, portable, and reviewable.
+
+`tree_candidate_scorer_v1` is an offline training/evaluation family backed by scikit-learn tree ensembles:
+
+- random forest;
+- extra trees;
+- gradient boosting when the optional training dependency is installed.
+
+Tree artifacts are exported as JSON tree structures for reproducibility. They are not automatically enabled in the learner-facing TypeScript runtime. Runtime still serves the existing linear-compatible path unless a dedicated TS tree scorer and production policy switch are added deliberately.
+
+`dummy_candidate_scorer_v1` is a sanity baseline. It is not ML personalization and exists only to expose mean/majority-class comparisons.
 
 ## Inputs
 
@@ -42,11 +52,20 @@ It does not use:
 
 Rows are supervised only when `outcome.outcome_available = true`.
 
-Targets:
+Legacy target schema `outcome_targets.v1_clamped_gain` remains available for compatibility:
 
 - `expected_learning_gain_proxy = normalized_learning_gain`, clamped to `0..1`;
 - `expected_next_step_success = next_step_success`, normalized to `0/1`;
 - `combined_outcome_score = 0.75 * expected_learning_gain_proxy + 0.25 * expected_next_step_success`, clamped to `0..1`.
+
+New signed target schema `outcome_targets.v2_signed_gain` preserves negative learning gain:
+
+- `expected_learning_gain_signed = normalized_learning_gain`, clamped to `-1..1`;
+- `expected_learning_gain_proxy` remains the old `0..1` clamped target for compatibility diagnostics;
+- `expected_next_step_success = next_step_success`, normalized to `0/1`;
+- `combined_outcome_score = 0.75 * ((expected_learning_gain_signed + 1) / 2) + 0.25 * expected_next_step_success`, clamped to `0..1`.
+
+New model comparisons should report both signed gain metrics and old/clamped gain metrics. Negative gain must not be silently removed in v2 training or evaluation.
 
 Rows without available outcome are skipped for training and counted in evaluation reports.
 
@@ -133,6 +152,25 @@ python ml/scripts/compare_candidate_scorer_metrics.py \
   --out ml/src/eduai_ml/training/THU/artifacts/candidate_scorer_linear_user_split_seed42_comparison.json \
   --seed 42 \
   --split-strategy user_id_hash
+```
+
+Diagnose a THU-style training observation dataset:
+
+```bash
+python ml/scripts/diagnose_training_observations.py \
+  --input ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl \
+  --out-json ml/src/eduai_ml/training/THU/artifacts/reports/thu_training_observation_diagnostics.json \
+  --out-md ml/src/eduai_ml/training/THU/artifacts/reports/thu_training_observation_diagnostics.md
+```
+
+Train and compare linear, dummy, and tree candidates with signed targets:
+
+```bash
+python ml/scripts/train_and_compare_candidate_scorers.py \
+  --input ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl \
+  --artifacts-dir ml/src/eduai_ml/training/THU/artifacts \
+  --reports-dir ml/src/eduai_ml/training/THU/artifacts/reports \
+  --seed 42
 ```
 
 Score candidates for one observation:

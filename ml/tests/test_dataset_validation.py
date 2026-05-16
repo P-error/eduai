@@ -51,3 +51,11 @@ def test_validate_observation_record_reports_delivered_config_contract_error() -
 
     with pytest.raises(ValueError, match="delivered_config must contain all six valid factors"):
         validate_observation_record(record)
+
+
+def test_validate_observation_record_rejects_outcome_leakage() -> None:
+    record = generate_synthetic_observations(1, 1, 1, seed=27)[0]
+    record["pre_decision_features"]["normalized_learning_gain"] = 0.9
+
+    with pytest.raises(ValueError, match="pre_decision_features contains post-generation outcome fields"):
+        validate_observation_record(record)

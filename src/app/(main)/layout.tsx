@@ -8,6 +8,7 @@ import AppShellNav from "../AppShellNav";
 import StatusPanel from "../StatusPanel";
 import { UiLocaleProvider } from "@/components/i18n/UiLocaleProvider";
 import { UiPreferencesProvider } from "@/components/settings/UiPreferencesProvider";
+import { UiVersionProvider } from "@/components/settings/UiVersionProvider";
 import { UI_LOCALE_COOKIE_NAME, normalizeUiLocale } from "@/lib/ui-locale";
 import {
   normalizeUiPreferences,
@@ -15,6 +16,7 @@ import {
   UI_FONT_SCALE_COOKIE_NAME,
   UI_THEME_COOKIE_NAME,
 } from "@/lib/ui-preferences";
+import { normalizeUiVersion, UI_VERSION_COOKIE_NAME } from "@/lib/ui-version";
 
 export const metadata: Metadata = {
   title: "EduAI Workspace",
@@ -35,35 +37,41 @@ export default async function MainLayout({
     fontScale: cookieStore.get(UI_FONT_SCALE_COOKIE_NAME)?.value,
     contrast: cookieStore.get(UI_CONTRAST_COOKIE_NAME)?.value,
   });
+  const initialUiVersion = normalizeUiVersion(
+    cookieStore.get(UI_VERSION_COOKIE_NAME)?.value,
+  );
 
   return (
     <html
       lang={initialLocale}
+      data-ui-version={initialUiVersion}
       data-ui-theme={initialPreferences.theme}
       data-ui-font-scale={initialPreferences.fontScale}
       data-ui-contrast={initialPreferences.contrast}
     >
       <body className="eduai-main-ui min-h-screen antialiased">
         <UiPreferencesProvider initialPreferences={initialPreferences}>
-          <UiLocaleProvider initialLocale={initialLocale}>
-            <div className="mx-auto flex min-h-screen w-full max-w-[1340px] flex-col gap-5 px-4 py-5 sm:px-5 md:px-6 md:py-6">
-              <Suspense
-                fallback={<div className="ui-panel h-[118px]" />}
-              >
-                <AppShellNav />
-              </Suspense>
-              <main className="grid flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_292px]">
-                <section className="min-w-0">
-                  <AuthGate>{children}</AuthGate>
-                </section>
-                <div className="order-first min-w-0 xl:order-none">
-                  <Suspense fallback={null}>
-                    <StatusPanel />
-                  </Suspense>
-                </div>
-              </main>
-            </div>
-          </UiLocaleProvider>
+          <UiVersionProvider initialVersion={initialUiVersion}>
+            <UiLocaleProvider initialLocale={initialLocale}>
+              <div className="eduai-shell mx-auto flex min-h-screen w-full max-w-[1340px] flex-col gap-5 px-4 py-5 sm:px-5 md:px-6 md:py-6">
+                <Suspense
+                  fallback={<div className="ui-panel h-[118px]" />}
+                >
+                  <AppShellNav />
+                </Suspense>
+                <main className="grid flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_292px]">
+                  <section className="min-w-0">
+                    <AuthGate>{children}</AuthGate>
+                  </section>
+                  <div className="eduai-status-slot order-first min-w-0 xl:order-none">
+                    <Suspense fallback={null}>
+                      <StatusPanel />
+                    </Suspense>
+                  </div>
+                </main>
+              </div>
+            </UiLocaleProvider>
+          </UiVersionProvider>
         </UiPreferencesProvider>
       </body>
     </html>

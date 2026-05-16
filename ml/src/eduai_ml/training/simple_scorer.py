@@ -8,6 +8,7 @@ from .feature_extraction import extract_features, get_feature_names
 
 TARGET_NAMES = (
     "expected_learning_gain_proxy",
+    "expected_learning_gain_signed",
     "expected_next_step_success",
     "combined_outcome_score",
 )
@@ -41,17 +42,25 @@ class SimpleCandidateScorer:
     success_logit_weights: list[float]
     combined_score_weights: list[float]
     parameters: dict[str, Any]
+    learning_gain_signed_weights: list[float] | None = None
 
     def predict_from_features(self, features: Mapping[str, float]) -> dict[str, float]:
         vector = features_to_vector(features, self.feature_names)
         learning_gain = _clamp(_dot(self.learning_gain_weights, vector))
         success_probability = _clamp(_sigmoid(_dot(self.success_logit_weights, vector)))
         combined = _clamp(_dot(self.combined_score_weights, vector))
-        return {
+        prediction = {
             "expected_learning_gain_proxy": learning_gain,
             "expected_next_step_success": success_probability,
             "combined_outcome_score": combined,
         }
+        if self.learning_gain_signed_weights is not None:
+            prediction["expected_learning_gain_signed"] = _clamp(
+                _dot(self.learning_gain_signed_weights, vector),
+                -1.0,
+                1.0,
+            )
+        return prediction
 
     def score_observation(self, observation: Mapping[str, Any]) -> dict[str, float]:
         return self.predict_from_features(extract_features(observation))
@@ -60,11 +69,20 @@ class SimpleCandidateScorer:
         return {
             "payload_schema_version": "linear_candidate_scorer_payload.v1",
             "feature_names": self.feature_names,
-            "target_names": list(TARGET_NAMES),
+            "target_names": [
+                name
+                for name in TARGET_NAMES
+                if name != "expected_learning_gain_signed" or self.learning_gain_signed_weights is not None
+            ],
             "weights": {
                 "expected_learning_gain_proxy": self.learning_gain_weights,
                 "expected_next_step_success_logit": self.success_logit_weights,
                 "combined_outcome_score": self.combined_score_weights,
+                **(
+                    {"expected_learning_gain_signed": self.learning_gain_signed_weights}
+                    if self.learning_gain_signed_weights is not None
+                    else {}
+                ),
             },
             "parameters": self.parameters,
         }
@@ -78,6 +96,11 @@ class SimpleCandidateScorer:
             success_logit_weights=[float(value) for value in weights["expected_next_step_success_logit"]],
             combined_score_weights=[float(value) for value in weights["combined_outcome_score"]],
             parameters=dict(payload.get("parameters") or {}),
+            learning_gain_signed_weights=(
+                [float(value) for value in weights["expected_learning_gain_signed"]]
+                if "expected_learning_gain_signed" in weights
+                else None
+            ),
         )
 
 
@@ -97,12 +120,18 @@ def train_simple_candidate_scorer(
     feature_names = get_feature_names()
     vectors = [features_to_vector(features, feature_names) for features in feature_rows]
     target_gain = [float(target["expected_learning_gain_proxy"]) for target in target_rows]
+    target_signed_gain = [
+        float(target["expected_learning_gain_signed"])
+        for target in target_rows
+        if "expected_learning_gain_signed" in target
+    ]
     target_success = [float(target["expected_next_step_success"]) for target in target_rows]
     target_combined = [float(target["combined_outcome_score"]) for target in target_rows]
     width = len(vectors[0])
     n_rows = len(vectors)
 
     gain_weights = [0.0] * width
+    signed_gain_weights = [0.0] * width if len(target_signed_gain) == len(target_rows) else None
     success_weights = [0.0] * width
     combined_weights = [0.0] * width
 
@@ -128,6 +157,8 @@ def train_simple_candidate_scorer(
 
     for _ in range(epochs):
         update_linear(gain_weights, target_gain)
+        if signed_gain_weights is not None:
+            update_linear(signed_gain_weights, target_signed_gain)
         update_logistic(success_weights, target_success)
         update_linear(combined_weights, target_combined)
 
@@ -144,4 +175,9 @@ def train_simple_candidate_scorer(
         success_logit_weights=[round(value, 10) for value in success_weights],
         combined_score_weights=[round(value, 10) for value in combined_weights],
         parameters=parameters,
+        learning_gain_signed_weights=(
+            [round(value, 10) for value in signed_gain_weights]
+            if signed_gain_weights is not None
+            else None
+        ),
     )
