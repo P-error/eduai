@@ -12,6 +12,7 @@ sys.path.insert(0, str(ML_ROOT / "src"))
 from eduai_ml.data.dataset_validation import load_jsonl_dataset, validate_observation_record  # noqa: E402
 from eduai_ml.training.artifact_loader import load_candidate_scorer_artifact  # noqa: E402
 from eduai_ml.training.evaluator import evaluate_candidate_scorer  # noqa: E402
+from eduai_ml.training.target_builder import TARGET_SCHEMA_V1  # noqa: E402
 
 
 def main() -> int:
@@ -33,6 +34,10 @@ def main() -> int:
     for record in records:
         validate_observation_record(record)
     _artifact, scorer = load_candidate_scorer_artifact(args.artifact)
+    target_schema_version = (
+        _artifact.get("target_definition", {}).get("target_schema_version")
+        or TARGET_SCHEMA_V1
+    )
     report = evaluate_candidate_scorer(
         records,
         scorer,
@@ -40,6 +45,7 @@ def main() -> int:
         train_ratio=args.train_ratio,
         validation_ratio=args.validation_ratio,
         split_strategy=args.split_strategy,
+        target_schema_version=str(target_schema_version),
     )
     output_path = Path(args.eval_out)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +58,8 @@ def main() -> int:
             {
                 "test_gain_mae": test_metrics["expected_learning_gain_proxy"]["mae"],
                 "test_gain_rmse": test_metrics["expected_learning_gain_proxy"]["rmse"],
+                "test_signed_gain_mae": test_metrics["expected_learning_gain_signed"]["mae"],
+                "test_signed_gain_rmse": test_metrics["expected_learning_gain_signed"]["rmse"],
                 "test_success_accuracy": test_metrics["expected_next_step_success"]["accuracy"],
                 "split_strategy": report["split_strategy"],
             },

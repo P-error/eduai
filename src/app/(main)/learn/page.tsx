@@ -1,5 +1,5 @@
-import LearnerEpisodeWorkspace from "@/components/learner/LearnerEpisodeWorkspace";
+import LearnPageClient from "./LearnPageClient";
 
 export default function LearnPage() {
-  return <LearnerEpisodeWorkspace />;
+  return <LearnPageClient />;
 }

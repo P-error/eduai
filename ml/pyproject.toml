@@ -15,6 +15,9 @@ dependencies = [
 test = [
   "pytest>=8.0.0"
 ]
+train = [
+  "scikit-learn>=1.4.0"
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

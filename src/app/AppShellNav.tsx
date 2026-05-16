@@ -5,6 +5,9 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchCurrentUser } from "@/lib/client-auth";
 import { useUiLocale } from "@/components/i18n/UiLocaleProvider";
+import { useUiVersion } from "@/components/settings/UiVersionProvider";
+import UiVersionToggle from "@/components/settings/UiVersionToggle";
+import V2ShellNav from "@/components/v2/V2ShellNav";
 import {
   DEFAULT_DEMO_SCENE_ID,
   DEMO_NAV_TARGETS,
@@ -42,6 +45,7 @@ function localeButtonClass(active: boolean) {
 
 export default function AppShellNav() {
   const { locale, messages, setLocale } = useUiLocale();
+  const { uiVersion } = useUiVersion();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isDemo = isDemoPath(pathname);
@@ -81,6 +85,20 @@ export default function AppShellNav() {
       active = false;
     };
   }, [isDemo, isPublicPath]);
+
+  if (uiVersion === "v2" && !isDemo) {
+    return (
+      <V2ShellNav
+        canSeeAdmin={canSeeAdmin}
+        isAdmin={isAdmin}
+        isPublicPath={isPublicPath}
+        locale={locale}
+        messages={messages}
+        pathname={pathname}
+        setLocale={setLocale}
+      />
+    );
+  }
 
   return (
     <header className="ui-panel ui-panel-body overflow-hidden">
@@ -127,6 +145,7 @@ export default function AppShellNav() {
               })}
             </div>
           ) : null}
+          {!isDemo ? <UiVersionToggle compact /> : null}
           <AuthActions />
         </div>
       </div>

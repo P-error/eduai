@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { authFetch, fetchCurrentUser } from "@/lib/client-auth";
 import { useUiLocale } from "@/components/i18n/UiLocaleProvider";
+import { useUiVersion } from "@/components/settings/UiVersionProvider";
+import V2StatusPanel from "@/components/v2/V2StatusPanel";
 import { DEFAULT_LEARNER_ENTRY_HREF } from "@/lib/learner-flow-contract";
 import {
   DEFAULT_DEMO_SCENE_ID,
@@ -36,6 +38,7 @@ type PredictionsPayload = {
 
 export default function StatusPanel() {
   const { messages } = useUiLocale();
+  const { uiVersion } = useUiVersion();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isDemo = isDemoPath(pathname);
@@ -82,6 +85,18 @@ export default function StatusPanel() {
   );
 
   if (isDemo) {
+    if (uiVersion === "v2") {
+      return (
+        <V2StatusPanel
+          isDemo
+          attemptsRecorded={demoSceneIndex + 1}
+          attemptsLearningEligible={hasEvidence ? demoSceneIndex - 2 : 0}
+          expectedAccuracy={hasAnalytics ? 0.83 : hasAdaptedPractice ? 0.58 : null}
+          personalizationReady={hasAdaptedPractice}
+        />
+      );
+    }
+
     return (
       <aside className="ui-panel ui-panel-tight ui-panel-soft text-sm xl:sticky xl:top-6">
         <p className="ui-eyebrow">Status</p>
@@ -129,6 +144,17 @@ export default function StatusPanel() {
 
   if (isPublicPath || !me?.id) {
     return null;
+  }
+
+  if (uiVersion === "v2") {
+    return (
+      <V2StatusPanel
+        attemptsRecorded={me?.learnerSummary?.attemptsRecorded ?? null}
+        attemptsLearningEligible={me?.learnerSummary?.attemptsLearningEligible ?? null}
+        expectedAccuracy={expectedAccuracy}
+        personalizationReady={me?.personalizationReady ?? false}
+      />
+    );
   }
 
   return (

@@ -1,0 +1,71 @@
+{
+  "candidate_equals_delivered_count": 1528,
+  "factor_distribution": {
+    "depth": {
+      "brief": 423,
+      "detailed": 370,
+      "standard": 735
+    },
+    "difficulty": {
+      "easy": 176,
+      "hard": 670,
+      "medium": 682
+    },
+    "examples_level": {
+      "multiple": 222,
+      "none": 328,
+      "single": 978
+    },
+    "presentation_format": {
+      "paragraph": 396,
+      "qa": 344,
+      "step_by_step": 280,
+      "structured_list": 508
+    },
+    "support_level": {
+      "guided": 917,
+      "minimal": 433,
+      "scaffolded": 178
+    },
+    "terminology_level": {
+      "balanced": 701,
+      "simple": 239,
+      "technical": 588
+    }
+  },
+  "input": "ml/src/eduai_ml/training/THU/merged/synthetic_users_001_050_training_observations_v1.jsonl",
+  "leakage_violations_count": 0,
+  "leakage_violations_sample": [],
+  "next_step_success_balance": {
+    "negative": 256,
+    "positive": 1272
+  },
+  "normalized_learning_gain": {
+    "avg": 0.11078128272251309,
+    "max": 0.8866,
+    "min": -1.0,
+    "sign_counts": {
+      "eq_0": 103,
+      "gt_0": 1004,
+      "lt_0": 421
+    }
+  },
+  "outcome_available_count": 1528,
+  "row_count": 1528,
+  "schema_checks": {
+    "error_count": 0,
+    "error_sample": [],
+    "missing_candidate_factors": {},
+    "missing_outcome_targets": {},
+    "missing_required_blocks": {},
+    "status": "passed"
+  },
+  "schema_version": "training_observation_diagnostics.v1",
+  "source_kind_distribution": {
+    "synthetic": 1528
+  },
+  "supervised_usable_count": 1528,
+  "topic_count": 354,
+  "unique_candidate_config_count": 97,
+  "user_count": 50
+}

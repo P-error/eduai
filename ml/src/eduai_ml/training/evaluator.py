@@ -28,8 +28,7 @@ from .baseline_policies import (
 )
 from .class_balance import class_balance_diagnostics, metric_balance_warnings
 from .feature_extraction import extract_features
-from .simple_scorer import SimpleCandidateScorer
-from .target_builder import TargetUnavailableError, build_targets
+from .target_builder import DEFAULT_TARGET_SCHEMA_VERSION, TargetUnavailableError, build_targets
 
 
 def _rmse(errors: list[float]) -> float | None:
@@ -67,9 +66,12 @@ def _balanced_accuracy(y_true: list[float], y_pred: list[int]) -> float | None:
 
 def compute_metrics(
     records: list[Mapping[str, Any]],
-    scorer: SimpleCandidateScorer,
+    scorer: Any,
+    *,
+    target_schema_version: str = DEFAULT_TARGET_SCHEMA_VERSION,
 ) -> dict[str, Any]:
     gain_errors: list[float] = []
+    signed_gain_errors: list[float] = []
     combined_errors: list[float] = []
     success_truth: list[float] = []
     success_probabilities: list[float] = []
@@ -78,13 +80,17 @@ def compute_metrics(
 
     for record in records:
         try:
-            target = build_targets(record)
+            target = build_targets(record, target_schema_version=target_schema_version)
             prediction = scorer.score_observation(record)
         except TargetUnavailableError:
             skipped += 1
             continue
 
         gain_errors.append(prediction["expected_learning_gain_proxy"] - target["expected_learning_gain_proxy"])
+        if "expected_learning_gain_signed" in target and "expected_learning_gain_signed" in prediction:
+            signed_gain_errors.append(
+                prediction["expected_learning_gain_signed"] - target["expected_learning_gain_signed"]
+            )
         combined_errors.append(prediction["combined_outcome_score"] - target["combined_outcome_score"])
         success_truth.append(target["expected_next_step_success"])
         probability = prediction["expected_next_step_success"]
@@ -117,6 +123,12 @@ def compute_metrics(
         "expected_learning_gain_proxy": {
             "mae": _mae(gain_errors),
             "rmse": _rmse(gain_errors),
+            "target_note": "legacy clamped gain target in 0..1",
+        },
+        "expected_learning_gain_signed": {
+            "mae": _mae(signed_gain_errors),
+            "rmse": _rmse(signed_gain_errors),
+            "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target",
         },
         "expected_next_step_success": {
             "accuracy": accuracy,
@@ -142,6 +154,8 @@ def compute_metrics(
 def _matching_observed_outcome(
     records: list[Mapping[str, Any]],
     policy: Callable[[Mapping[str, Any]], dict[str, str]],
+    *,
+    target_schema_version: str = DEFAULT_TARGET_SCHEMA_VERSION,
 ) -> dict[str, Any]:
     values: list[float] = []
     gain_values: list[float] = []
@@ -149,7 +163,7 @@ def _matching_observed_outcome(
     for record in records:
         try:
             candidate = policy(record)
-            target = build_targets(record)
+            target = build_targets(record, target_schema_version=target_schema_version)
         except Exception:
             continue
         if candidate_key(candidate) != candidate_key(record.get("candidate_config", {})):
@@ -170,14 +184,24 @@ def build_baseline_comparison(
     records: list[Mapping[str, Any]],
     *,
     seed: int,
+    target_schema_version: str = DEFAULT_TARGET_SCHEMA_VERSION,
 ) -> dict[str, Any]:
     return {
-        "static_baseline": _matching_observed_outcome(records, lambda _record: static_baseline_candidate()),
+        "static_baseline": _matching_observed_outcome(
+            records,
+            lambda _record: static_baseline_candidate(),
+            target_schema_version=target_schema_version,
+        ),
         "random_candidate_baseline": _matching_observed_outcome(
             records,
             lambda record: random_candidate_baseline(seed, record),
+            target_schema_version=target_schema_version,
         ),
-        "heuristic_like_baseline": _matching_observed_outcome(records, heuristic_like_baseline),
+        "heuristic_like_baseline": _matching_observed_outcome(
+            records,
+            heuristic_like_baseline,
+            target_schema_version=target_schema_version,
+        ),
         "oracle_upper_bound_for_synthetic": oracle_upper_bound_for_synthetic(records),
         "limitations": [
             "Baseline comparison uses only rows whose delivered candidate matches the baseline candidate.",
@@ -188,7 +212,7 @@ def build_baseline_comparison(
 
 def build_candidate_ranking_diagnostics(
     records: list[Mapping[str, Any]],
-    scorer: SimpleCandidateScorer,
+    scorer: Any,
     *,
     limit: int = 5,
     max_candidates: int = 12,
@@ -263,7 +287,7 @@ def _risky_combo_counts(candidates: list[Mapping[str, Any]]) -> dict[str, int]:
 
 def build_policy_selection_risk_diagnostics(
     records: list[Mapping[str, Any]],
-    scorer: SimpleCandidateScorer,
+    scorer: Any,
     *,
     max_candidates: int = 12,
 ) -> dict[str, Any]:
@@ -382,12 +406,14 @@ def build_policy_selection_risk_diagnostics(
 
 def evaluate_candidate_scorer(
     records: list[Mapping[str, Any]],
-    scorer: SimpleCandidateScorer,
+    scorer: Any,
     *,
     seed: int = 42,
     train_ratio: float = 0.7,
     validation_ratio: float = 0.15,
     split_strategy: str = DEFAULT_SPLIT_STRATEGY,
+    target_schema_version: str = DEFAULT_TARGET_SCHEMA_VERSION,
+    include_policy_diagnostics: bool = True,
 ) -> dict[str, Any]:
     normalized_split_strategy = normalize_split_strategy(split_strategy)
     split_records = split_records_by_strategy(
@@ -400,12 +426,16 @@ def evaluate_candidate_scorer(
     skipped_unusable = 0
     for record in records:
         try:
-            build_targets(record)
+            build_targets(record, target_schema_version=target_schema_version)
         except TargetUnavailableError:
             skipped_unusable += 1
 
     metrics = {
-        split: compute_metrics(list(split_rows), scorer)
+        split: compute_metrics(
+            list(split_rows),
+            scorer,
+            target_schema_version=target_schema_version,
+        )
         for split, split_rows in split_records.items()
     }
     class_balance = {
@@ -416,10 +446,27 @@ def evaluate_candidate_scorer(
         },
     }
     test_records = list(split_records["test"])
+    policy_selection_risk_diagnostics = (
+        build_policy_selection_risk_diagnostics(
+            test_records,
+            scorer,
+        )
+        if include_policy_diagnostics
+        else {
+            "available": False,
+            "reason": "Skipped for fast model comparison; run detailed evaluation for selected model.",
+        }
+    )
+    diagnostic_examples = (
+        build_candidate_ranking_diagnostics(test_records, scorer)
+        if include_policy_diagnostics
+        else []
+    )
 
     return {
         "dataset_summary": summarize_observations(records),
         "split_strategy": normalized_split_strategy,
+        "target_schema_version": target_schema_version,
         "split_sizes": {split: len(split_rows) for split, split_rows in split_records.items()},
         "split_diagnostics": split_overlap_diagnostics(
             split_records,
@@ -428,17 +475,18 @@ def evaluate_candidate_scorer(
         "skipped_rows": {"supervised_unusable_count": skipped_unusable},
         "model_metrics": metrics,
         "class_balance": class_balance,
-        "baseline_comparison": build_baseline_comparison(test_records, seed=seed),
-        "policy_selection_risk_diagnostics": build_policy_selection_risk_diagnostics(
+        "baseline_comparison": build_baseline_comparison(
             test_records,
-            scorer,
+            seed=seed,
+            target_schema_version=target_schema_version,
         ),
+        "policy_selection_risk_diagnostics": policy_selection_risk_diagnostics,
         "limitations": [
             "Model quality depends on user-provided outcome-linked observations.",
             "Candidate ranking diagnostics do not prove real-world educational superiority.",
             "No counterfactual labels are available for all candidates.",
         ],
-        "diagnostic_examples": build_candidate_ranking_diagnostics(test_records, scorer),
+        "diagnostic_examples": diagnostic_examples,
     }
 
 
