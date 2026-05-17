@@ -44,9 +44,9 @@ const terminologyLabels = {
 
 const decisionSourceLabels: Record<string, string> = {
   ml_policy: "ML-модель",
-  heuristic_baseline: "базовая эвристика",
-  static_fallback: "fallback",
-  fallback: "fallback",
+  heuristic_baseline: "эвристическая персонализация",
+  static_fallback: "безопасный fallback",
+  fallback: "безопасный fallback",
   shadow_only: "shadow-наблюдение",
 };
 
@@ -61,6 +61,29 @@ function label<T extends string>(
   return labels[value] ?? value;
 }
 
+function decisionHeadline(metadata: MlPersonalizationView) {
+  if (
+    metadata.decisionSource === "shadow_only" ||
+    !metadata.appliedToLearnerFacingOutput
+  ) {
+    return "Shadow-наблюдение, не применено к ответу";
+  }
+  if (
+    metadata.fallbackUsed ||
+    metadata.decisionSource === "static_fallback" ||
+    metadata.decisionSource === "fallback"
+  ) {
+    return "Использован безопасный fallback";
+  }
+  if (metadata.decisionSource === "heuristic_baseline") {
+    return "Эвристическая персонализация выбрала";
+  }
+  if (metadata.decisionSource === "ml_policy") {
+    return "ML-модель выбрала";
+  }
+  return "Источник персонализации не распознан";
+}
+
 export default function MlPersonalizationCard({
   metadata,
   className = "",
@@ -68,6 +91,7 @@ export default function MlPersonalizationCard({
   if (!isMlPersonalizationVisible() || !metadata) return null;
 
   const selected = metadata.selected_config;
+  const headline = decisionHeadline(metadata);
   const summary = [
     `${label(difficultyLabels, selected.difficulty)} сложность`,
     `${label(depthLabels, selected.depth)} глубина`,
@@ -93,6 +117,10 @@ export default function MlPersonalizationCard({
     ["Fallback", metadata.fallbackUsed ? "использован" : "нет"],
     ["Backend", metadata.backendKind ?? "не указан"],
     [
+      "Artifact/model version",
+      metadata.modelVersion ?? metadata.artifactVersion ?? "не указана",
+    ],
+    [
       "Кандидатов",
       metadata.candidateCount == null ? "не указано" : String(metadata.candidateCount),
     ],
@@ -106,12 +134,12 @@ export default function MlPersonalizationCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-violet-200">
-              ML-персонализация
+              Источник персонализации
             </p>
-            <p className="mt-1 font-medium">Режим подачи для этого шага</p>
+            <p className="mt-1 font-medium">{headline}</p>
           </div>
           <p className="max-w-xl text-left text-xs leading-5 text-violet-100/90">
-            ML выбрала: {summary}
+            {headline}: {summary}
           </p>
         </div>
       </summary>
@@ -119,14 +147,20 @@ export default function MlPersonalizationCard({
       <div className="mt-4 grid gap-4">
         <div>
           <p className="text-sm text-violet-100">
-            ML-персонализация выбрала режим объяснения для этого шага.
+            Текущий режим объяснения: {summary}.
           </p>
           <p className="mt-2 text-xs leading-5 text-violet-100/80">
-            Это не постоянные настройки профиля, а адаптация текущего ответа по
-            учебной истории и контексту. Если модель недоступна, система
-            использует безопасный fallback.
+            Источник: {headline}. Это не постоянные настройки профиля.
+            Источник решения и fallback показаны явно, чтобы эвристика не
+            выглядела как ML.
           </p>
         </div>
+
+        {metadata.warnings.length > 0 ? (
+          <div className="rounded-xl border border-amber-300/40 bg-amber-950/30 px-3 py-2 text-xs leading-5 text-amber-100">
+            {metadata.warnings.slice(0, 2).join(" ")}
+          </div>
+        ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
           {fields.map(([name, value]) => (
@@ -143,9 +177,9 @@ export default function MlPersonalizationCard({
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs text-violet-100/75">
-          {metadata.artifactVersion ? (
+          {(metadata.modelVersion ?? metadata.artifactVersion) ? (
             <span className="rounded-full border border-violet-700/40 px-2 py-1">
-              Артефакт: {metadata.artifactVersion}
+              Версия: {metadata.modelVersion ?? metadata.artifactVersion}
             </span>
           ) : null}
           {metadata.appliedPromptInstructionCount != null ? (

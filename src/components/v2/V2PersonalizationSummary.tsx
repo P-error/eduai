@@ -41,11 +41,11 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
 };
 
 const DECISION_SOURCE_LABELS: Record<string, string> = {
-  ml_policy: "персонализированная настройка",
-  heuristic_baseline: "обычный режим",
-  static_fallback: "стандартный режим",
-  fallback: "стандартный режим",
-  shadow_only: "режим наблюдения",
+  ml_policy: "ML-модель",
+  heuristic_baseline: "эвристическая персонализация",
+  static_fallback: "безопасный fallback",
+  fallback: "безопасный fallback",
+  shadow_only: "shadow-наблюдение",
 };
 
 function humanize(value: string | null | undefined) {
@@ -56,6 +56,29 @@ function humanize(value: string | null | undefined) {
 function label(axis: keyof typeof VALUE_LABELS, value: string | null | undefined) {
   if (!value) return "не задано";
   return VALUE_LABELS[axis]?.[value] ?? humanize(value);
+}
+
+function decisionHeadline(metadata: MlPersonalizationView) {
+  if (
+    metadata.decisionSource === "shadow_only" ||
+    !metadata.appliedToLearnerFacingOutput
+  ) {
+    return "Shadow-наблюдение, не применено к объяснению";
+  }
+  if (
+    metadata.fallbackUsed ||
+    metadata.decisionSource === "static_fallback" ||
+    metadata.decisionSource === "fallback"
+  ) {
+    return "Использован безопасный fallback";
+  }
+  if (metadata.decisionSource === "heuristic_baseline") {
+    return "Эвристическая персонализация выбрала способ подачи";
+  }
+  if (metadata.decisionSource === "ml_policy") {
+    return "ML-модель выбрала способ подачи";
+  }
+  return "Источник персонализации не распознан";
 }
 
 export default function V2PersonalizationSummary({
@@ -86,16 +109,17 @@ export default function V2PersonalizationSummary({
   ] as const;
   const sourceLabel =
     DECISION_SOURCE_LABELS[metadata.decisionSource] ?? "техническая настройка";
+  const headline = decisionHeadline(metadata);
 
   return (
     <V2Card className={className} tone="soft">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="v2-eyebrow">Персонализация</p>
-          <h3 className="v2-title-sm mt-2">EduAI выбрал способ подачи</h3>
+          <h3 className="v2-title-sm mt-2">{headline}</h3>
         </div>
         <p className="v2-chip">
-          {metadata.fallbackUsed ? "Стандартная подача" : sourceLabel}
+          {metadata.fallbackUsed ? "Безопасный fallback" : sourceLabel}
         </p>
       </div>
 
@@ -108,16 +132,29 @@ export default function V2PersonalizationSummary({
         ))}
       </div>
 
+      {metadata.warnings.length > 0 ? (
+        <p className="v2-copy-sm mt-4 rounded-lg border border-amber-200/60 bg-amber-50 px-3 py-2 text-amber-900">
+          {metadata.warnings.slice(0, 2).join(" ")}
+        </p>
+      ) : null}
+
       <details className="v2-details mt-4">
         <summary>Технические детали</summary>
         <div className="mt-3 grid gap-2 text-sm">
           <p>Источник решения: {metadata.decisionSource}</p>
+          <p>Backend: {metadata.backendKind ?? "не указан"}</p>
+          <p>Fallback: {metadata.fallbackUsed ? "использован" : "нет"}</p>
+          <p>
+            Кандидатов:{" "}
+            {metadata.candidateCount == null ? "не указано" : metadata.candidateCount}
+          </p>
           <p>
             Применено к объяснению:{" "}
             {metadata.appliedToLearnerFacingOutput ? "да" : "нет"}
           </p>
           <p>
-            Техническая версия: {metadata.artifactVersion ?? "не указана"}
+            Artifact/model version:{" "}
+            {metadata.modelVersion ?? metadata.artifactVersion ?? "не указана"}
           </p>
           <p>
             Инструкций применено:{" "}

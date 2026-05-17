@@ -1,0 +1,931 @@
+{
+  "artifact_kind": "eduai_native_pedagogy_artifact",
+  "artifact_schema_version": "model_artifact.v1",
+  "candidate_schema": {
+    "factor_space_version": "factor_space.v1",
+    "factor_values": {
+      "depth": [
+        "brief",
+        "standard",
+        "detailed"
+      ],
+      "difficulty": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "examples_level": [
+        "none",
+        "single",
+        "multiple"
+      ],
+      "presentation_format": [
+        "paragraph",
+        "structured_list",
+        "step_by_step",
+        "qa"
+      ],
+      "support_level": [
+        "minimal",
+        "guided",
+        "scaffolded"
+      ],
+      "terminology_level": [
+        "simple",
+        "balanced",
+        "technical"
+      ]
+    },
+    "required_factors": [
+      "difficulty",
+      "depth",
+      "support_level",
+      "presentation_format",
+      "examples_level",
+      "terminology_level"
+    ]
+  },
+  "compatibility": {
+    "app_min_version": null,
+    "contract_version": "pedagogy_policy_contract_v1",
+    "runtime_compatible": true
+  },
+  "created_at": "2026-05-16T19:55:19Z",
+  "evaluation": {
+    "baseline_comparison": {
+      "heuristic_like_baseline": {
+        "average_combined_outcome_score": 0.514294,
+        "average_learning_gain_proxy": 0.17145,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 10,
+        "next_step_success_rate": 0.3
+      },
+      "limitations": [
+        "Baseline comparison uses only rows whose delivered candidate matches the baseline candidate.",
+        "No counterfactual outcomes are available for unserved candidates in this dataset."
+      ],
+      "oracle_upper_bound_for_synthetic": {
+        "available": false,
+        "reason": "oracle not available in current synthetic export because hidden effective_config is not emitted"
+      },
+      "random_candidate_baseline": {
+        "average_combined_outcome_score": 0.893875,
+        "average_learning_gain_proxy": 0.717,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 2,
+        "next_step_success_rate": 1.0
+      },
+      "static_baseline": {
+        "average_combined_outcome_score": 0.530685,
+        "average_learning_gain_proxy": 0.172736,
+        "interpretation": "Observed delivered-row diagnostic only; not causal superiority.",
+        "matching_rows": 11,
+        "next_step_success_rate": 0.363636
+      }
+    },
+    "metrics": {
+      "test": {
+        "combined_outcome_score": {
+          "mae": 0.128428,
+          "rmse": 0.156143
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.168514,
+          "rmse": 0.225978,
+          "target_note": "legacy clamped gain target in 0..1"
+        },
+        "expected_learning_gain_signed": {
+          "mae": 0.203288,
+          "rmse": 0.265737,
+          "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.783658,
+          "balanced_accuracy": 0.785784,
+          "log_loss": 0.430073,
+          "majority_class_accuracy": 0.620241,
+          "positive_rate": 0.620241,
+          "warnings": []
+        },
+        "row_count": 1077,
+        "skipped_count": 0,
+        "usable_count": 1077
+      },
+      "train": {
+        "combined_outcome_score": {
+          "mae": 0.12869,
+          "rmse": 0.156074
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.141569,
+          "rmse": 0.191506,
+          "target_note": "legacy clamped gain target in 0..1"
+        },
+        "expected_learning_gain_signed": {
+          "mae": 0.178085,
+          "rmse": 0.235098,
+          "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.762664,
+          "balanced_accuracy": 0.763977,
+          "log_loss": 0.491549,
+          "majority_class_accuracy": 0.510319,
+          "positive_rate": 0.510319,
+          "warnings": []
+        },
+        "row_count": 5330,
+        "skipped_count": 0,
+        "usable_count": 5330
+      },
+      "validation": {
+        "combined_outcome_score": {
+          "mae": 0.136959,
+          "rmse": 0.160252
+        },
+        "expected_learning_gain_proxy": {
+          "mae": 0.13668,
+          "rmse": 0.181823,
+          "target_note": "legacy clamped gain target in 0..1"
+        },
+        "expected_learning_gain_signed": {
+          "mae": 0.166168,
+          "rmse": 0.218445,
+          "target_note": "signed learning gain target in -1..1; null means scorer did not emit signed target"
+        },
+        "expected_next_step_success": {
+          "accuracy": 0.70863,
+          "balanced_accuracy": 0.67865,
+          "log_loss": 0.564394,
+          "majority_class_accuracy": 0.586698,
+          "positive_rate": 0.413302,
+          "warnings": []
+        },
+        "row_count": 1263,
+        "skipped_count": 0,
+        "usable_count": 1263
+      }
+    },
+    "model_comparison": {
+      "best_offline_model": {
+        "clamped_gain_mae": 0.122902,
+        "clamped_gain_rmse": 0.177373,
+        "combined_outcome_score_mae": 0.099633,
+        "combined_outcome_score_rmse": 0.1324,
+        "combined_rmse_generalization_gap": 0.029443,
+        "majority_class_accuracy": 0.620241,
+        "model_family": "tree_candidate_scorer_v1",
+        "model_variant": "random_forest",
+        "next_step_success_accuracy": 0.81987,
+        "next_step_success_balanced_accuracy": 0.822085,
+        "next_step_success_log_loss": 0.373784,
+        "positive_rate": 0.620241,
+        "signed_gain_mae": 0.143624,
+        "signed_gain_rmse": 0.199023,
+        "skipped_rows": 0,
+        "split_strategy": "user_id_hash",
+        "target_schema_version": "outcome_targets.v2_signed_gain",
+        "test_rows": 1077,
+        "train_combined_rmse": 0.102957,
+        "train_rows": 5330,
+        "validation_rows": 1263,
+        "warnings": []
+      },
+      "best_runtime_compatible_model": {
+        "clamped_gain_mae": 0.168514,
+        "clamped_gain_rmse": 0.225978,
+        "combined_outcome_score_mae": 0.128428,
+        "combined_outcome_score_rmse": 0.156143,
+        "combined_rmse_generalization_gap": 6.9e-05,
+        "majority_class_accuracy": 0.620241,
+        "model_family": "linear_candidate_scorer_v1",
+        "model_variant": null,
+        "next_step_success_accuracy": 0.783658,
+        "next_step_success_balanced_accuracy": 0.785784,
+        "next_step_success_log_loss": 0.430073,
+        "positive_rate": 0.620241,
+        "signed_gain_mae": 0.203288,
+        "signed_gain_rmse": 0.265737,
+        "skipped_rows": 0,
+        "split_strategy": "user_id_hash",
+        "target_schema_version": "outcome_targets.v2_signed_gain",
+        "test_rows": 1077,
+        "train_combined_rmse": 0.156074,
+        "train_rows": 5330,
+        "validation_rows": 1263,
+        "warnings": []
+      },
+      "schema_version": "sun_candidate_scorer_model_comparison.v1",
+      "selection_criterion": [
+        "primary split=user_id_hash",
+        "lower test combined_outcome_score_rmse",
+        "then lower signed_gain_rmse",
+        "then lower next_step_success_log_loss"
+      ]
+    },
+    "policy_selection_risk_diagnostics": {
+      "candidate_pool": {
+        "guardrail_fallback_count": 0,
+        "total_candidate_count": 12924,
+        "unsafe_candidate_count": 3077,
+        "unsafe_candidate_share": 0.238084
+      },
+      "counterfactual_metrics": {
+        "available": false,
+        "note": "Use evaluate_candidate_ranker.py with counterfactual candidate sets when available.",
+        "rank_correlation": null,
+        "top1_regret": null,
+        "top3_contains_best": null
+      },
+      "evaluated_states": 1077,
+      "guarded_top1": {
+        "factor_distribution": {
+          "depth": {
+            "brief": 18,
+            "detailed": 426,
+            "standard": 633
+          },
+          "difficulty": {
+            "easy": 110,
+            "hard": 453,
+            "medium": 514
+          },
+          "examples_level": {
+            "multiple": 463,
+            "none": 2,
+            "single": 612
+          },
+          "presentation_format": {
+            "paragraph": 88,
+            "qa": 176,
+            "step_by_step": 334,
+            "structured_list": 479
+          },
+          "support_level": {
+            "guided": 580,
+            "minimal": 48,
+            "scaffolded": 449
+          },
+          "terminology_level": {
+            "balanced": 509,
+            "simple": 345,
+            "technical": 223
+          }
+        },
+        "high_risk_factor_frequency": {
+          "brief": 18,
+          "hard": 453,
+          "hard_brief_minimal": 0,
+          "hard_brief_minimal_none_technical": 0,
+          "minimal": 48,
+          "none": 2,
+          "technical": 223
+        },
+        "risky_config_share": 0.207985
+      },
+      "raw_top1": {
+        "factor_distribution": {
+          "depth": {
+            "brief": 25,
+            "detailed": 481,
+            "standard": 571
+          },
+          "difficulty": {
+            "easy": 102,
+            "hard": 517,
+            "medium": 458
+          },
+          "examples_level": {
+            "multiple": 533,
+            "none": 3,
+            "single": 541
+          },
+          "presentation_format": {
+            "paragraph": 73,
+            "qa": 100,
+            "step_by_step": 465,
+            "structured_list": 439
+          },
+          "support_level": {
+            "guided": 473,
+            "minimal": 23,
+            "scaffolded": 581
+          },
+          "terminology_level": {
+            "balanced": 341,
+            "simple": 304,
+            "technical": 432
+          }
+        },
+        "high_risk_factor_frequency": {
+          "brief": 25,
+          "hard": 517,
+          "hard_brief_minimal": 0,
+          "hard_brief_minimal_none_technical": 0,
+          "minimal": 23,
+          "none": 3,
+          "technical": 432
+        },
+        "risky_config_share": 0.402043
+      },
+      "top_candidate_score_diagnostics": {
+        "average_top1_combined_score": 0.729325,
+        "average_top1_top2_margin": 0.052993,
+        "low_margin_count_lt_0_01": 203
+      }
+    },
+    "split_strategy": "user_id_hash"
+  },
+  "factor_space_version": "factor_space.v1",
+  "feature_schema": {
+    "encoding": "stable numeric + one-hot + learner-state/candidate interaction features; no post-decision fields",
+    "feature_names": [
+      "prior_attempts_count_scaled",
+      "prior_correct_rate",
+      "recent_correct_rate",
+      "recent_attempts_count_scaled",
+      "topic_seen_count_scaled",
+      "minutes_since_last_activity_missing",
+      "minutes_since_last_activity_scaled",
+      "session_position_scaled",
+      "declared_difficulty_missing",
+      "declared_depth_missing",
+      "declared_format_missing",
+      "declared_candidate_difficulty_match",
+      "declared_candidate_depth_match",
+      "declared_candidate_format_match",
+      "unknown_state",
+      "low_correct_rate",
+      "high_correct_rate",
+      "strong_history",
+      "confident_topic_mastery",
+      "subject_hash_scaled",
+      "topic_hash_scaled",
+      "candidate_difficulty_ordinal",
+      "candidate_difficulty__easy",
+      "candidate_difficulty__medium",
+      "candidate_difficulty__hard",
+      "candidate_depth_ordinal",
+      "candidate_depth__brief",
+      "candidate_depth__standard",
+      "candidate_depth__detailed",
+      "candidate_support_level_ordinal",
+      "candidate_support_level__minimal",
+      "candidate_support_level__guided",
+      "candidate_support_level__scaffolded",
+      "candidate_presentation_format_ordinal",
+      "candidate_presentation_format__paragraph",
+      "candidate_presentation_format__structured_list",
+      "candidate_presentation_format__step_by_step",
+      "candidate_presentation_format__qa",
+      "candidate_examples_level_ordinal",
+      "candidate_examples_level__none",
+      "candidate_examples_level__single",
+      "candidate_examples_level__multiple",
+      "candidate_terminology_level_ordinal",
+      "candidate_terminology_level__simple",
+      "candidate_terminology_level__balanced",
+      "candidate_terminology_level__technical",
+      "declared_difficulty__easy",
+      "declared_difficulty__medium",
+      "declared_difficulty__hard",
+      "declared_depth__brief",
+      "declared_depth__standard",
+      "declared_depth__detailed",
+      "declared_format__paragraph",
+      "declared_format__structured_list",
+      "declared_format__step_by_step",
+      "declared_format__qa",
+      "source_kind__synthetic",
+      "source_kind__open_dataset",
+      "source_kind__real_user",
+      "prior_correct_rate_x_candidate_difficulty_ordinal",
+      "recent_correct_rate_x_candidate_difficulty_ordinal",
+      "prior_correct_rate_x_candidate_support_level_ordinal",
+      "recent_correct_rate_x_candidate_support_level_ordinal",
+      "topic_seen_count_scaled_x_candidate_examples_level_ordinal",
+      "recent_attempts_count_scaled_x_candidate_terminology_level_ordinal",
+      "prior_attempts_count_scaled_x_candidate_depth_ordinal",
+      "unknown_state_x_candidate_difficulty__hard",
+      "unknown_state_x_candidate_examples_level__none",
+      "unknown_state_x_candidate_terminology_level__technical",
+      "low_correct_rate_x_candidate_difficulty__hard",
+      "low_correct_rate_x_candidate_support_level__minimal",
+      "low_correct_rate_x_candidate_examples_level__none",
+      "high_correct_rate_x_candidate_difficulty__hard",
+      "high_correct_rate_x_candidate_terminology_level__technical"
+    ],
+    "forbidden_blocks": [
+      "outcome",
+      "delivered_config"
+    ],
+    "forbidden_fields": [
+      "max_score",
+      "next_step_success",
+      "normalized_learning_gain",
+      "outcome",
+      "outcome_available",
+      "post_score",
+      "pre_score"
+    ],
+    "schema_version": "candidate_scorer_features.v1",
+    "source_blocks": [
+      "pre_decision_features",
+      "candidate_config",
+      "source.source_kind",
+      "ids.subject_ref",
+      "ids.topic_ref"
+    ]
+  },
+  "honesty_notes": [
+    "Training/evaluation here is synthetic/simulation validation unless source_kind includes real_user.",
+    "Learner-facing TypeScript runtime remains on the existing linear scorer unless a compatible runtime scorer is explicitly added and configured."
+  ],
+  "limitations": [
+    "Artifact is trained on synthetic SUN observations; this is simulation validation, not proof on real learners.",
+    "Observed rows do not provide counterfactual outcomes for every possible candidate config.",
+    "tree_candidate_scorer_v1 is offline-only unless a dedicated TypeScript runtime scorer is implemented and tested."
+  ],
+  "model": {
+    "model_family": "linear_candidate_scorer_v1",
+    "parameters": {
+      "epochs": 700,
+      "l2": 0.001,
+      "learning_rate": 0.08,
+      "optimizer": "batch_gradient_descent",
+      "seed": 42,
+      "target_schema_version": "outcome_targets.v2_signed_gain",
+      "uses_external_ml_library": false
+    },
+    "weights_or_serialized_payload": {
+      "feature_names": [
+        "prior_attempts_count_scaled",
+        "prior_correct_rate",
+        "recent_correct_rate",
+        "recent_attempts_count_scaled",
+        "topic_seen_count_scaled",
+        "minutes_since_last_activity_missing",
+        "minutes_since_last_activity_scaled",
+        "session_position_scaled",
+        "declared_difficulty_missing",
+        "declared_depth_missing",
+        "declared_format_missing",
+        "declared_candidate_difficulty_match",
+        "declared_candidate_depth_match",
+        "declared_candidate_format_match",
+        "unknown_state",
+        "low_correct_rate",
+        "high_correct_rate",
+        "strong_history",
+        "confident_topic_mastery",
+        "subject_hash_scaled",
+        "topic_hash_scaled",
+        "candidate_difficulty_ordinal",
+        "candidate_difficulty__easy",
+        "candidate_difficulty__medium",
+        "candidate_difficulty__hard",
+        "candidate_depth_ordinal",
+        "candidate_depth__brief",
+        "candidate_depth__standard",
+        "candidate_depth__detailed",
+        "candidate_support_level_ordinal",
+        "candidate_support_level__minimal",
+        "candidate_support_level__guided",
+        "candidate_support_level__scaffolded",
+        "candidate_presentation_format_ordinal",
+        "candidate_presentation_format__paragraph",
+        "candidate_presentation_format__structured_list",
+        "candidate_presentation_format__step_by_step",
+        "candidate_presentation_format__qa",
+        "candidate_examples_level_ordinal",
+        "candidate_examples_level__none",
+        "candidate_examples_level__single",
+        "candidate_examples_level__multiple",
+        "candidate_terminology_level_ordinal",
+        "candidate_terminology_level__simple",
+        "candidate_terminology_level__balanced",
+        "candidate_terminology_level__technical",
+        "declared_difficulty__easy",
+        "declared_difficulty__medium",
+        "declared_difficulty__hard",
+        "declared_depth__brief",
+        "declared_depth__standard",
+        "declared_depth__detailed",
+        "declared_format__paragraph",
+        "declared_format__structured_list",
+        "declared_format__step_by_step",
+        "declared_format__qa",
+        "source_kind__synthetic",
+        "source_kind__open_dataset",
+        "source_kind__real_user",
+        "prior_correct_rate_x_candidate_difficulty_ordinal",
+        "recent_correct_rate_x_candidate_difficulty_ordinal",
+        "prior_correct_rate_x_candidate_support_level_ordinal",
+        "recent_correct_rate_x_candidate_support_level_ordinal",
+        "topic_seen_count_scaled_x_candidate_examples_level_ordinal",
+        "recent_attempts_count_scaled_x_candidate_terminology_level_ordinal",
+        "prior_attempts_count_scaled_x_candidate_depth_ordinal",
+        "unknown_state_x_candidate_difficulty__hard",
+        "unknown_state_x_candidate_examples_level__none",
+        "unknown_state_x_candidate_terminology_level__technical",
+        "low_correct_rate_x_candidate_difficulty__hard",
+        "low_correct_rate_x_candidate_support_level__minimal",
+        "low_correct_rate_x_candidate_examples_level__none",
+        "high_correct_rate_x_candidate_difficulty__hard",
+        "high_correct_rate_x_candidate_terminology_level__technical"
+      ],
+      "parameters": {
+        "epochs": 700,
+        "l2": 0.001,
+        "learning_rate": 0.08,
+        "optimizer": "batch_gradient_descent",
+        "uses_external_ml_library": false
+      },
+      "payload_schema_version": "linear_candidate_scorer_payload.v1",
+      "target_names": [
+        "expected_learning_gain_proxy",
+        "expected_learning_gain_signed",
+        "expected_next_step_success",
+        "combined_outcome_score"
+      ],
+      "weights": {
+        "combined_outcome_score": [
+          0.0578278328,
+          0.0113706402,
+          0.1300065006,
+          0.1345528935,
+          -0.0368122222,
+          0.0054355664,
+          0.0421760128,
+          -0.0516005592,
+          0.0071627301,
+          0.0,
+          0.0,
+          0.0,
+          0.0167611269,
+          0.0208169646,
+          0.0559604322,
+          0.0421760128,
+          -0.016949956,
+          -0.0306898067,
+          0.0425202895,
+          0.0031392892,
+          -0.0002930855,
+          -0.0164650325,
+          -0.0347972333,
+          0.0731634608,
+          0.0326388535,
+          -0.0511166601,
+          0.0426765576,
+          -0.0051077347,
+          0.0342336625,
+          0.0255597264,
+          0.0394915004,
+          0.0083051795,
+          0.0137779486,
+          0.032602526,
+          0.0186029859,
+          -6.04549e-05,
+          0.0304465752,
+          0.0475362193,
+          -0.0232366854,
+          0.0455916574,
+          -0.005855017,
+          0.0298980275,
+          0.0306426437,
+          0.0017624852,
+          0.0423026342,
+          0.0212410694,
+          -0.0088580495,
+          0.0155282186,
+          0.014253367,
+          0.0249040685,
+          0.005399551,
+          0.0245227081,
+          0.024763395,
+          0.0106942386,
+          0.0004733784,
+          0.0190666242,
+          0.024451413,
+          0.0546856542,
+          0.0,
+          0.0,
+          0.1148160254,
+          0.117246024,
+          -0.006681451,
+          -0.0019708121,
+          0.0165540655,
+          -0.0525994303,
+          -0.0166132097,
+          0.0,
+          0.0,
+          0.0,
+          -0.0805041052,
+          -0.0469461779,
+          -0.0469461779,
+          0.1019721833,
+          0.1523326898
+        ],
+        "expected_learning_gain_proxy": [
+          0.0077432076,
+          0.0109338128,
+          0.0733911148,
+          0.0742443757,
+          -0.0382538945,
+          -0.0522104427,
+          0.0138501547,
+          -0.0344731002,
+          0.0113416561,
+          0.0,
+          0.0,
+          0.0,
+          0.0643614473,
+          0.0342959505,
+          0.0666397505,
+          0.0138501547,
+          0.023436291,
+          -0.0800384539,
+          0.0303620756,
+          0.0121072407,
+          0.0037929435,
+          -0.0173178998,
+          -0.0485810673,
+          0.0503002473,
+          0.0108982203,
+          -0.0540301775,
+          0.0444582839,
+          -0.0498181046,
+          0.0250562215,
+          0.0319301732,
+          0.0284385507,
+          -0.0150579454,
+          -0.0124246304,
+          0.0346508659,
+          0.0287867065,
+          -0.0577295658,
+          0.0253768319,
+          0.0575797843,
+          -0.0180587603,
+          0.0227385222,
+          -0.0163300678,
+          0.0015196714,
+          0.0219786865,
+          -0.0044641999,
+          0.0161712269,
+          -0.0090774738,
+          7.4537e-05,
+          0.0278821107,
+          -0.0157110753,
+          -0.0050027453,
+          -0.0127493375,
+          0.0149465317,
+          0.0049710959,
+          -0.0039156963,
+          -0.0088298513,
+          -0.0135859699,
+          0.0334998076,
+          0.0071682901,
+          0.0,
+          0.0,
+          0.1142878249,
+          0.1134758251,
+          -0.0255785487,
+          -0.0228413587,
+          -0.0334033015,
+          -0.0439752011,
+          -0.0191918416,
+          0.0,
+          0.0,
+          0.0,
+          -0.0317126704,
+          0.0110311688,
+          0.0110311688,
+          0.149030879,
+          0.2012179496
+        ],
+        "expected_learning_gain_signed": [
+          -0.0194808629,
+          0.013304035,
+          0.1175515488,
+          0.1171170096,
+          -0.0427915754,
+          -0.1028644258,
+          0.0206425469,
+          -0.0504031583,
+          0.0174679108,
+          0.0,
+          0.0,
+          0.0,
+          0.0602916133,
+          0.0450034672,
+          0.0894828095,
+          0.0206425469,
+          -0.0033322451,
+          -0.128743498,
+          0.0387359477,
+          -0.0003066655,
+          -0.002918582,
+          -0.0174229074,
+          -0.0978306146,
+          0.0684322037,
+          0.0212757699,
+          -0.1084684996,
+          0.0464040017,
+          -0.081294542,
+          0.0322600288,
+          0.0302739873,
+          0.0561814244,
+          -0.0734973962,
+          -0.0028891082,
+          0.0576259785,
+          0.0023580897,
+          -0.0622541303,
+          0.0327942242,
+          0.0578180959,
+          -0.0471187156,
+          0.0437677513,
+          -0.0716692607,
+          0.0182819669,
+          0.0346267679,
+          -0.042736104,
+          0.0192164193,
+          0.0095183177,
+          -0.0474952629,
+          0.0081512328,
+          -0.0132415473,
+          -0.0136702115,
+          -0.019844035,
+          0.003915562,
+          -0.0028320529,
+          -0.0123435329,
+          -0.0220267626,
+          -0.0083489544,
+          0.023958724,
+          -0.0187605259,
+          0.0,
+          0.0,
+          0.1944281091,
+          0.1931174442,
+          -0.0713461389,
+          -0.0693793255,
+          -0.0411016218,
+          -0.0780930882,
+          -0.0222513076,
+          0.0,
+          0.0,
+          0.0,
+          -0.2007767513,
+          -0.1410649679,
+          -0.1410649679,
+          0.2062502617,
+          0.3283347777
+        ],
+        "expected_next_step_success_logit": [
+          -0.1996010801,
+          -0.0557336939,
+          0.6099698744,
+          0.6360848257,
+          -0.2689610459,
+          0.1315107975,
+          -0.0383410665,
+          -0.5468578535,
+          -0.173116055,
+          0.0,
+          0.0,
+          0.0,
+          -0.0442240177,
+          0.085970039,
+          0.3924751507,
+          -0.0383410665,
+          -0.5933211473,
+          0.8415420211,
+          0.655561051,
+          0.5026299435,
+          -0.0395520319,
+          -0.1690488489,
+          -0.1722843144,
+          0.0373253084,
+          -0.1142948945,
+          -0.1151368671,
+          0.0225669888,
+          -0.1659828473,
+          -0.0973811892,
+          0.0712575834,
+          0.017295712,
+          -0.1590119958,
+          -0.1007803387,
+          0.0676858814,
+          -0.0149368949,
+          -0.2090271112,
+          -0.0594889424,
+          0.214550544,
+          -0.1381409434,
+          0.0929573215,
+          -0.2956004602,
+          0.0210733711,
+          0.0824206359,
+          -0.1309948012,
+          0.0217225979,
+          -0.1656684997,
+          -0.0481605513,
+          -0.2445576104,
+          -0.0911109124,
+          0.1435620696,
+          -0.2902206579,
+          0.0177504712,
+          0.0803637336,
+          -0.0468989317,
+          -0.1368085404,
+          0.0918666023,
+          -0.1002655833,
+          -0.1921064531,
+          0.0,
+          0.0,
+          0.4008468117,
+          0.4164700823,
+          0.3196420184,
+          0.3393995546,
+          0.1533751709,
+          -0.2315858993,
+          -0.0521770571,
+          0.0,
+          0.0,
+          0.0,
+          -0.2176968609,
+          -0.1311085663,
+          -0.1311085663,
+          0.5932324788,
+          0.5595801576
+        ]
+      }
+    }
+  },
+  "model_version": "linear_candidate_scorer_v1_user_id_hash_seed_42",
+  "target_definition": {
+    "formula_description": "expected_learning_gain_signed = normalized_learning_gain clamped to -1..1; expected_learning_gain_proxy remains the legacy 0..1 clamped target; combined_outcome_score = 0.75 * ((expected_learning_gain_signed + 1) / 2) + 0.25 * expected_next_step_success, clamped to 0..1",
+    "primary_target": "expected_learning_gain_signed",
+    "secondary_targets": [
+      "expected_learning_gain_proxy",
+      "expected_next_step_success",
+      "combined_outcome_score"
+    ],
+    "target_schema_version": "outcome_targets.v2_signed_gain"
+  },
+  "training_data": {
+    "observation_count": 7670,
+    "source_kinds": [
+      "synthetic"
+    ],
+    "source_summary": "{\"synthetic\": 7670}"
+  },
+  "training_data_summary": {
+    "factor_distribution": {
+      "depth": {
+        "brief": 1816,
+        "detailed": 2662,
+        "standard": 3192
+      },
+      "difficulty": {
+        "easy": 1229,
+        "hard": 2923,
+        "medium": 3518
+      },
+      "examples_level": {
+        "multiple": 2427,
+        "none": 1294,
+        "single": 3949
+      },
+      "presentation_format": {
+        "paragraph": 2273,
+        "qa": 1355,
+        "step_by_step": 1323,
+        "structured_list": 2719
+      },
+      "support_level": {
+        "guided": 4111,
+        "minimal": 1402,
+        "scaffolded": 2157
+      },
+      "terminology_level": {
+        "balanced": 4021,
+        "simple": 1777,
+        "technical": 1872
+      }
+    },
+    "leakage_guard_violations_count": 0,
+    "outcome_available_count": 7670,
+    "outcome_stats": {
+      "average_normalized_learning_gain": 0.1929,
+      "average_post_score": 0.6869,
+      "average_pre_score": 0.6415,
+      "next_step_success_rate": 0.5098
+    },
+    "source_kind_counts": {
+      "synthetic": 7670
+    },
+    "supervised_unusable_count": 0,
+    "supervised_unusable_reasons": {},
+    "supervised_usable_count": 7670,
+    "total_observations": 7670
+  }
+}

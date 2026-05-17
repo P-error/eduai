@@ -71,7 +71,7 @@ function parseArgs(argv: string[]): CliOptions {
     headed: false,
     out: DEFAULT_OUT,
     exportOut: DEFAULT_EXPORT_OUT,
-    artifact: "ml/examples/candidate_scorer_artifact.example.json",
+    artifact: "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
     keepServer: false,
   };
 

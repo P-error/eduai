@@ -359,7 +359,7 @@ function runContentPathRegressionChecks() {
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
     EDUAI_SIX_FACTOR_SHADOW_ONLY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
-      "ml/examples/candidate_scorer_artifact.example.json",
+      "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
   };
   const envMlInvalid = {
     EDUAI_SIX_FACTOR_SHADOW: "1",
@@ -374,7 +374,7 @@ function runContentPathRegressionChecks() {
   const envApplyMlValid = {
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
-      "ml/examples/candidate_scorer_artifact.example.json",
+      "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
   };
   const envApplyMlInvalid = {
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
@@ -903,7 +903,7 @@ export function runMlSixFactorShadowSelfCheck() {
   const mlFlagEnv = {
     EDUAI_SIX_FACTOR_ML_POLICY: "1",
     [SIX_FACTOR_ARTIFACT_PATH_ENV]:
-      "ml/examples/candidate_scorer_artifact.example.json",
+      "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
   };
   assert(
     isSixFactorMlPolicyEnabled(mlFlagEnv),

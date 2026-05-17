@@ -4,7 +4,11 @@ import { getActivePredictionRuntimeConfig } from "@/lib/active-policy";
 import {
   loadEduAiNativePedagogyArtifactSlotSnapshot,
 } from "@/lib/model-artifact-slot";
-import { loadAccuracyMlArtifactSnapshot } from "@/lib/prediction-ml";
+import {
+  getAccuracyMlArtifactEvidence,
+  getAccuracyMlArtifactMlFirstEligibility,
+  loadAccuracyMlArtifactSnapshot,
+} from "@/lib/prediction-ml";
 import { RATE_LIMIT_BACKEND } from "@/lib/rate-limit";
 import { getTrainingEligibilitySnapshot } from "@/lib/training-eligibility";
 
@@ -48,6 +52,19 @@ export async function getAdminOperationalSummary(prisma: PrismaClient) {
     runtimeConfig.config.backend.kind === "artifact_ml"
       ? loadAccuracyMlArtifactSnapshot(runtimeConfig.config.backend.artifactPath)
       : null;
+  const artifactEligibility =
+    artifactSnapshot?.status === "ready"
+      ? getAccuracyMlArtifactMlFirstEligibility(artifactSnapshot.artifact)
+      : null;
+  const artifactEvidence =
+    artifactSnapshot?.status === "ready"
+      ? getAccuracyMlArtifactEvidence(artifactSnapshot.artifact)
+      : null;
+  const artifactRuntimeReady =
+    runtimeConfig.config.backend.kind === "artifact_ml" &&
+    artifactSnapshot?.status === "ready";
+  const mlFirstProductionEligible =
+    artifactRuntimeReady && artifactEligibility?.ok === true;
 
   const consentStats = users.reduce(
     (acc, user) => {
@@ -87,6 +104,27 @@ export async function getAdminOperationalSummary(prisma: PrismaClient) {
         runtimeConfig.config.backend.kind === "artifact_ml"
           ? runtimeConfig.config.backend.artifactPath ?? null
           : null,
+      artifactStatus: artifactSnapshot?.status ?? "not_applicable",
+      artifactModelVersion: artifactSnapshot?.artifact?.modelVersion ?? null,
+      artifactSchemaVersion:
+        artifactSnapshot?.artifact?.artifactSchemaVersion ?? null,
+      artifactWarning: artifactSnapshot?.warning ?? null,
+      artifactSourceMode: artifactSnapshot?.artifact?.source.mode ?? null,
+      artifactEligibleOnly:
+        artifactSnapshot?.artifact?.source.eligibleOnly ?? null,
+      artifactConsentOnly: artifactSnapshot?.artifact?.source.consentOnly ?? null,
+      artifactTrainSampleCount:
+        artifactSnapshot?.artifact?.training.trainSampleCount ?? null,
+      artifactEvalSampleCount:
+        artifactSnapshot?.artifact?.training.evalSampleCount ?? null,
+      artifactProvenance: artifactEvidence?.artifactProvenance ?? null,
+      artifactRuntimeReady,
+      mlFirstProductionEligible,
+      productionEligible: artifactEvidence?.productionEligible ?? false,
+      researchEvidence: artifactEvidence?.researchEvidence ?? false,
+      productionEligibilityReason: artifactEvidence?.reason ?? null,
+      artifactMlFirstEligibilityReason: artifactEligibility?.reason ?? null,
+      mlFirstReady: mlFirstProductionEligible,
       rateLimiterBackend: RATE_LIMIT_BACKEND,
     },
     artifactSlot: {

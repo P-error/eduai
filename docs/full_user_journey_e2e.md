@@ -28,7 +28,7 @@ Optional:
 ```bash
 bash scripts/full-user-journey-e2e.sh \
   --out exports/full_user_journey_e2e_real_user_training_observations.jsonl \
-  --artifact ml/examples/candidate_scorer_artifact.example.json \
+  --artifact artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json \
   --seed 42 \
   --mock-content
 ```

@@ -145,7 +145,7 @@ export type AccuracyMlArtifact = {
   assumptions: string[];
 };
 
-type AccuracyMlArtifactSnapshot =
+export type AccuracyMlArtifactSnapshot =
   | {
       status: "ready";
       path: string;
@@ -158,6 +158,26 @@ type AccuracyMlArtifactSnapshot =
       warning: string;
       artifact: null;
     };
+
+export type AccuracyMlFirstEligibility = {
+  ok: boolean;
+  reason: string | null;
+  details: {
+    sourceMode: AccuracyMlArtifact["source"]["mode"] | null;
+    eligibleOnly: boolean | null;
+    consentOnly: boolean | null;
+    trainSampleCount: number | null;
+    evalSampleCount: number | null;
+    evalMetricSampleCount: number | null;
+  };
+};
+
+export type AccuracyMlArtifactEvidence = {
+  artifactProvenance: string | null;
+  productionEligible: boolean;
+  researchEvidence: boolean;
+  reason: string | null;
+};
 
 type AccuracyMlTrainOptions = {
   artifactPath?: string | null;
@@ -238,6 +258,21 @@ function parseNumber(value: unknown) {
   return value;
 }
 
+function parseBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function parseNullableString(value: unknown) {
+  if (value === undefined) return undefined;
+  return typeof value === "string" || value === null ? value : undefined;
+}
+
+function parseNullableNumber(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return parseNumber(value) ?? undefined;
+}
+
 function resolveArtifactPath(pathOverride?: string | null) {
   const raw =
     pathOverride?.trim() ||
@@ -266,6 +301,74 @@ function toRecordWithStringValues(value: unknown) {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function hasMetricSummary(value: unknown) {
+  const metric = toRecordWithStringValues(value);
+  if (!metric) return false;
+  const sampleCount = parseNumber(metric.sampleCount);
+  const questionEvidence = parseNumber(metric.questionEvidence);
+  const calibrationBuckets = metric.calibrationBuckets;
+  if (
+    sampleCount == null ||
+    questionEvidence == null ||
+    !Array.isArray(calibrationBuckets)
+  ) {
+    return false;
+  }
+
+  for (const field of ["mae", "rmse", "bias", "logLoss"] as const) {
+    if (parseNullableNumber(metric[field]) === undefined) return false;
+  }
+
+  return true;
+}
+
+function hasArtifactSource(value: unknown) {
+  const source = toRecordWithStringValues(value);
+  if (!source) return false;
+  const mode = source.mode;
+  return (
+    (mode === "db" || mode === "file" || mode === "synthetic") &&
+    parseNullableString(source.datasetVersion) !== undefined &&
+    parseNullableString(source.generatedAtIso) !== undefined &&
+    parseNullableString(source.inputPath) !== undefined &&
+    parseNullableNumber(source.timeRangeDays) !== undefined &&
+    parseNullableNumber(source.maxAttempts) !== undefined &&
+    parseBoolean(source.eligibleOnly) != null &&
+    parseBoolean(source.consentOnly) != null
+  );
+}
+
+function hasArtifactTraining(value: unknown) {
+  const training = toRecordWithStringValues(value);
+  if (!training) return false;
+  return (
+    training.algorithm === "logistic_regression_binomial" &&
+    training.splitStrategy === "chronological_holdout_split" &&
+    parseNumber(training.trainRatio) != null &&
+    parseNumber(training.iterations) != null &&
+    parseNumber(training.learningRate) != null &&
+    parseNumber(training.l2Lambda) != null &&
+    parseNumber(training.trainSampleCount) != null &&
+    parseNumber(training.evalSampleCount) != null &&
+    parseNumber(training.totalSampleCount) != null
+  );
+}
+
+function hasArtifactEvaluation(value: unknown) {
+  const evaluation = toRecordWithStringValues(value);
+  const ml = toRecordWithStringValues(evaluation?.ml);
+  const heuristic = toRecordWithStringValues(evaluation?.heuristicV2Proxy);
+  if (!evaluation || !ml || !heuristic) return false;
+  const mlEval = ml.eval == null ? null : ml.eval;
+  const heuristicEval = heuristic.eval == null ? null : heuristic.eval;
+  return (
+    hasMetricSummary(ml.train) &&
+    (mlEval == null || hasMetricSummary(mlEval)) &&
+    hasMetricSummary(heuristic.train) &&
+    (heuristicEval == null || hasMetricSummary(heuristicEval))
+  );
 }
 
 function parseArtifact(payload: unknown): AccuracyMlArtifactSnapshot {
@@ -313,7 +416,10 @@ function parseArtifact(payload: unknown): AccuracyMlArtifactSnapshot {
     root.featureSchemaVersion !== ACCURACY_ML_FEATURE_SCHEMA_VERSION ||
     !hasSchema ||
     intercept == null ||
-    !hasCoefficients
+    !hasCoefficients ||
+    !hasArtifactSource(root.source) ||
+    !hasArtifactTraining(root.training) ||
+    !hasArtifactEvaluation(root.evaluation)
   ) {
     return {
       status: "invalid",
@@ -328,6 +434,105 @@ function parseArtifact(payload: unknown): AccuracyMlArtifactSnapshot {
     path: "",
     warning: null,
     artifact: root as unknown as AccuracyMlArtifact,
+  };
+}
+
+export function getAccuracyMlArtifactMlFirstEligibility(
+  artifact: AccuracyMlArtifact | null | undefined,
+): AccuracyMlFirstEligibility {
+  const details = {
+    sourceMode: artifact?.source.mode ?? null,
+    eligibleOnly: artifact?.source.eligibleOnly ?? null,
+    consentOnly: artifact?.source.consentOnly ?? null,
+    trainSampleCount: artifact?.training.trainSampleCount ?? null,
+    evalSampleCount: artifact?.training.evalSampleCount ?? null,
+    evalMetricSampleCount: artifact?.evaluation.ml.eval?.sampleCount ?? null,
+  };
+
+  if (!artifact) {
+    return {
+      ok: false,
+      reason: "artifact_not_loaded",
+      details,
+    };
+  }
+
+  if (artifact.source.mode === "synthetic") {
+    return {
+      ok: false,
+      reason: "synthetic_artifact_not_ml_first_eligible",
+      details,
+    };
+  }
+
+  if (artifact.source.eligibleOnly !== true) {
+    return {
+      ok: false,
+      reason: "training_source_not_learning_eligible_only",
+      details,
+    };
+  }
+
+  if (artifact.source.consentOnly !== true) {
+    return {
+      ok: false,
+      reason: "training_source_not_consent_only",
+      details,
+    };
+  }
+
+  if (
+    artifact.training.trainSampleCount < MIN_TRAIN_ROWS ||
+    artifact.training.evalSampleCount < MIN_EVAL_ROWS ||
+    artifact.evaluation.ml.eval == null ||
+    artifact.evaluation.ml.eval.sampleCount < MIN_EVAL_ROWS
+  ) {
+    return {
+      ok: false,
+      reason: "insufficient_train_eval_evidence",
+      details,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    details,
+  };
+}
+
+export function getAccuracyMlArtifactEvidence(
+  artifact: AccuracyMlArtifact | null | undefined,
+): AccuracyMlArtifactEvidence {
+  if (!artifact) {
+    return {
+      artifactProvenance: null,
+      productionEligible: false,
+      researchEvidence: false,
+      reason: "artifact_not_loaded",
+    };
+  }
+
+  const eligibility = getAccuracyMlArtifactMlFirstEligibility(artifact);
+  const artifactProvenance = eligibility.ok
+    ? "production_eligible"
+    : artifact.source.mode === "synthetic"
+      ? "dev_synthetic"
+      : artifact.source.mode === "db" &&
+          (artifact.source.eligibleOnly !== true ||
+            artifact.source.consentOnly !== true)
+        ? "dev_unfiltered_db"
+        : artifact.source.mode === "file" &&
+            (artifact.source.eligibleOnly !== true ||
+              artifact.source.consentOnly !== true)
+          ? "dev_unfiltered_file"
+          : "dev_not_production_eligible";
+
+  return {
+    artifactProvenance,
+    productionEligible: eligibility.ok,
+    researchEvidence: eligibility.ok,
+    reason: eligibility.reason,
   };
 }
 

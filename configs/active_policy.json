@@ -2,7 +2,7 @@
   "version": "prediction_runtime_config_v1_2026_03",
   "policyId": "prediction_runtime_v1_2026_03",
   "backend": {
-    "kind": "heuristic_baseline",
-    "heuristicPolicyId": "v2_accuracy_beta_duration_unified"
+    "kind": "artifact_ml",
+    "artifactPath": "configs/ml_accuracy_logreg_artifact.dev.json"
   }
 }

@@ -1,0 +1,52 @@
+{
+  "artifact_path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/artifacts/models/sun_best_runtime_linear_candidate_scorer_seed42.json",
+  "checks": [
+    {
+      "actual": "linear_candidate_scorer_payload.v1",
+      "name": "payload_schema_version",
+      "passed": true
+    },
+    {
+      "actual_count": 74,
+      "expected_count": 74,
+      "name": "feature_names",
+      "passed": true
+    },
+    {
+      "actual_width": 75,
+      "expected_width": 75,
+      "name": "weights.expected_learning_gain_proxy",
+      "passed": true
+    },
+    {
+      "actual_width": 75,
+      "expected_width": 75,
+      "name": "weights.expected_next_step_success_logit",
+      "passed": true
+    },
+    {
+      "actual_width": 75,
+      "expected_width": 75,
+      "name": "weights.combined_outcome_score",
+      "passed": true
+    },
+    {
+      "actual_width": 75,
+      "expected_width": 75,
+      "name": "weights.expected_learning_gain_signed",
+      "passed": true
+    },
+    {
+      "actual": true,
+      "name": "runtime_compatible_flag",
+      "passed": true
+    },
+    {
+      "error": null,
+      "name": "python_artifact_loader",
+      "passed": true
+    }
+  ],
+  "deployable": true,
+  "schema_version": "sun_runtime_artifact_validation.v1"
+}

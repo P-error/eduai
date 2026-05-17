@@ -37,7 +37,7 @@ The script uses these process-local flags for the dev server:
 EDUAI_SIX_FACTOR_SHADOW=1
 EDUAI_SIX_FACTOR_ML_POLICY=1
 EDUAI_SIX_FACTOR_APPLY=1
-EDUAI_SIX_FACTOR_ARTIFACT_PATH=ml/examples/candidate_scorer_artifact.example.json
+EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
 ```
 
 It does not enable flags globally and does not modify `.env.local`.

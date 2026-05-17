@@ -41,7 +41,7 @@ Optional arguments:
 - `--policies static_default,declared_preferences_only,heuristic_baseline,ml_policy`
 - `--out exports/six_factor_ab_evaluation_results.json`
 - `--jsonl-out exports/six_factor_ab_evaluation_observations.jsonl`
-- `--artifact ml/examples/candidate_scorer_artifact.example.json`
+- `--artifact artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`
 - `--subject "Six-factor A/B Controlled Subject"`
 - `--topic "Six-factor A/B Controlled Topic"`
 

@@ -12,8 +12,13 @@ Optional variables:
 - `OPENAI_BASE_URL` (defaults to OpenAI-compatible `/v1`)
 - `CHAT_STORE_RAW_CONTENT` (privacy control, default redacted storage)
 - `DATASET_EXPORT_SECRET` (recommended for export pseudonymization; falls back to `JWT_SECRET` only outside production)
+- `EDUAI_SIX_FACTOR_SHADOW=1`
+- `EDUAI_SIX_FACTOR_ML_POLICY=1`
+- `EDUAI_SIX_FACTOR_APPLY=1`
 - `EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`
-- ML/apply is default-on; use `EDUAI_SIX_FACTOR_ML_POLICY=0` for legacy fallback, `EDUAI_SIX_FACTOR_APPLY=0` to disable learner-facing apply, or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` for logging-only diagnostics.
+- six-factor ML/apply is explicit-on in env examples; use `EDUAI_SIX_FACTOR_ML_POLICY=0` for legacy fallback, `EDUAI_SIX_FACTOR_APPLY=0` to disable learner-facing apply, or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` for logging-only diagnostics.
+- prediction accuracy ML-first additionally requires `configs/active_policy.json` to use `backend.kind=artifact_ml` and a valid runtime-eligible accuracy artifact. If the artifact is absent, synthetic-only, unfiltered, or insufficiently evaluated, keep the explicit heuristic fallback and let readiness/self-check report the blocker.
+- `configs/ml_accuracy_logreg_artifact.dev.json` is a forced DEV pipeline artifact. Do not use it as a production artifact or research evidence; production readiness must use `npm run prediction-runtime:self-check`, not the DEV self-check.
 
 Production startup now fails fast on invalid critical env:
 - `DATABASE_URL`
@@ -48,6 +53,8 @@ Why:
 1. Push repository to GitHub (without secrets).
 2. Configure env vars in Vercel Project Settings.
    - For the THU ML scorer, add the `EDUAI_SIX_FACTOR_*` values from `.env.production.example`; these repository templates do not configure hosted env automatically.
+   - For prediction accuracy ML-first, deploy a reviewed artifact generated from eligible+consented data. `configs/*.local.json` is ignored by Git, so do not assume the local default artifact path will exist on Vercel.
+   - Do not deploy the forced DEV accuracy artifact as the production ML-first artifact.
 3. Run migrations from CI/job/terminal against production DB:
    - `npx prisma migrate deploy`
 4. Trigger Vercel deploy.
@@ -67,4 +74,5 @@ It verifies:
 - external rate limiter backend reachability
 - prediction runtime interpretability
 - artifact slot/runtime artifact interpretability
+- prediction artifact path/status/schema/model diagnostics when ML-first is configured
 - required LLM config sanity

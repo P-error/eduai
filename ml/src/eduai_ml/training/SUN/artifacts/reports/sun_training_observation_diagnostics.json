@@ -1,0 +1,387 @@
+{
+  "created_at": "2026-05-16T19:46:24Z",
+  "excluded_files": [],
+  "factor_distribution": {
+    "depth": {
+      "brief": 1816,
+      "detailed": 2662,
+      "standard": 3192
+    },
+    "difficulty": {
+      "easy": 1229,
+      "hard": 2923,
+      "medium": 3518
+    },
+    "examples_level": {
+      "multiple": 2427,
+      "none": 1294,
+      "single": 3949
+    },
+    "presentation_format": {
+      "paragraph": 2273,
+      "qa": 1355,
+      "step_by_step": 1323,
+      "structured_list": 2719
+    },
+    "support_level": {
+      "guided": 4111,
+      "minimal": 1402,
+      "scaffolded": 2157
+    },
+    "terminology_level": {
+      "balanced": 4021,
+      "simple": 1777,
+      "technical": 1872
+    }
+  },
+  "included_files": [
+    {
+      "file": "eduai_manual_synthetic_cohort_001_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_001_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 525,
+      "valid_rows_loaded": 525
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_002_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_002_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 794,
+      "valid_rows_loaded": 794
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_003_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_003_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 762,
+      "valid_rows_loaded": 762
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_004_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_004_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 775,
+      "valid_rows_loaded": 775
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_005_anomalous_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_005_anomalous_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 783,
+      "valid_rows_loaded": 783
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_006_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_006_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 791,
+      "valid_rows_loaded": 791
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_007_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_007_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 802,
+      "valid_rows_loaded": 802
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_008_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_008_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 806,
+      "valid_rows_loaded": 806
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_009_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_009_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 782,
+      "valid_rows_loaded": 782
+    },
+    {
+      "file": "eduai_manual_synthetic_cohort_010_training_observations.jsonl",
+      "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_010_training_observations.jsonl",
+      "reason": "training observations JSONL",
+      "rows": 850,
+      "valid_rows_loaded": 850
+    }
+  ],
+  "input": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/merged/sun_training_observations_merged_v1.jsonl",
+  "next_step_success": {
+    "negative": 3760,
+    "positive": 3910
+  },
+  "normalized_learning_gain": {
+    "avg": 0.192853037809648,
+    "max": 1.0,
+    "min": -1.0,
+    "sign_counts": {
+      "near_zero": 0,
+      "negative": 2121,
+      "positive": 5549
+    }
+  },
+  "preflight": {
+    "default_target_schema_version": "outcome_targets.v2_signed_gain",
+    "excluded_files": [],
+    "included_files": [
+      {
+        "file": "eduai_manual_synthetic_cohort_001_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_001_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 525,
+        "valid_rows_loaded": 525
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_002_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_002_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 794,
+        "valid_rows_loaded": 794
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_003_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_003_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 762,
+        "valid_rows_loaded": 762
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_004_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_004_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 775,
+        "valid_rows_loaded": 775
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_005_anomalous_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_005_anomalous_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 783,
+        "valid_rows_loaded": 783
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_006_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_006_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 791,
+        "valid_rows_loaded": 791
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_007_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_007_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 802,
+        "valid_rows_loaded": 802
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_008_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_008_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 806,
+        "valid_rows_loaded": 806
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_009_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_009_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 782,
+        "valid_rows_loaded": 782
+      },
+      {
+        "file": "eduai_manual_synthetic_cohort_010_training_observations.jsonl",
+        "path": "/home/perror/eduai/ml/src/eduai_ml/training/SUN/eduai_manual_synthetic_cohort_010_training_observations.jsonl",
+        "reason": "training observations JSONL",
+        "rows": 850,
+        "valid_rows_loaded": 850
+      }
+    ],
+    "input_dir": "/home/perror/eduai/ml/src/eduai_ml/training/SUN",
+    "input_dir_exists": true,
+    "main_risk": "SUN is synthetic; offline metrics are not real learner effectiveness evidence.",
+    "pipeline_contract": "train_candidate_scorer/evaluator support dummy, linear, and tree scorers with v2 signed gain targets",
+    "runtime_compatible_scorer": "linear_candidate_scorer_v1",
+    "runtime_payload_schema": "linear_candidate_scorer_payload.v1",
+    "target_schema_version": "outcome_targets.v2_signed_gain",
+    "training_observation_jsonl_count": 10
+  },
+  "row_count": 7670,
+  "schema_version": "sun_training_observation_diagnostics.v1",
+  "sequential_consistency": {
+    "checked_user_count": 200,
+    "error_count": 0,
+    "error_sample": [],
+    "status": "passed"
+  },
+  "source_kind_distribution": {
+    "synthetic": 7670
+  },
+  "split_ready_status": {
+    "observation_id_hash": {
+      "diagnostics": {
+        "empty_split_warnings": [],
+        "row_count_by_split": {
+          "test": 1142,
+          "train": 5351,
+          "validation": 1177
+        },
+        "split_sizes": {
+          "test": 1142,
+          "train": 5351,
+          "validation": 1177
+        },
+        "split_strategy": "observation_id_hash",
+        "topics_overlap_counts": {
+          "train_test": 694,
+          "train_validation": 721,
+          "validation_test": 508
+        },
+        "topics_per_split": {
+          "test": 694,
+          "train": 970,
+          "validation": 721
+        },
+        "users_overlap_counts": {
+          "train_test": 199,
+          "train_validation": 198,
+          "validation_test": 198
+        },
+        "users_per_split": {
+          "test": 199,
+          "train": 200,
+          "validation": 198
+        },
+        "warnings": [
+          "users_overlap:train_validation:198",
+          "users_overlap:train_test:199",
+          "users_overlap:validation_test:198",
+          "topics_overlap:train_validation:721",
+          "topics_overlap:train_test:694",
+          "topics_overlap:validation_test:508"
+        ]
+      },
+      "ready": true,
+      "split_sizes": {
+        "test": 1142,
+        "train": 5351,
+        "validation": 1177
+      }
+    },
+    "time_ordered": {
+      "diagnostics": {
+        "empty_split_warnings": [],
+        "row_count_by_split": {
+          "test": 1151,
+          "train": 5369,
+          "validation": 1150
+        },
+        "split_sizes": {
+          "test": 1151,
+          "train": 5369,
+          "validation": 1150
+        },
+        "split_strategy": "time_ordered",
+        "topics_overlap_counts": {
+          "train_test": 0,
+          "train_validation": 22,
+          "validation_test": 26
+        },
+        "topics_per_split": {
+          "test": 158,
+          "train": 691,
+          "validation": 169
+        },
+        "users_overlap_counts": {
+          "train_test": 6,
+          "train_validation": 22,
+          "validation_test": 28
+        },
+        "users_per_split": {
+          "test": 42,
+          "train": 152,
+          "validation": 56
+        },
+        "warnings": [
+          "users_overlap:train_validation:22",
+          "users_overlap:train_test:6",
+          "users_overlap:validation_test:28",
+          "topics_overlap:train_validation:22",
+          "topics_overlap:validation_test:26"
+        ]
+      },
+      "ready": true,
+      "split_sizes": {
+        "test": 1151,
+        "train": 5369,
+        "validation": 1150
+      }
+    },
+    "user_id_hash": {
+      "diagnostics": {
+        "empty_split_warnings": [],
+        "row_count_by_split": {
+          "test": 1077,
+          "train": 5330,
+          "validation": 1263
+        },
+        "split_sizes": {
+          "test": 1077,
+          "train": 5330,
+          "validation": 1263
+        },
+        "split_strategy": "user_id_hash",
+        "topics_overlap_counts": {
+          "train_test": 0,
+          "train_validation": 0,
+          "validation_test": 0
+        },
+        "topics_per_split": {
+          "test": 137,
+          "train": 673,
+          "validation": 160
+        },
+        "users_overlap_counts": {
+          "train_test": 0,
+          "train_validation": 0,
+          "validation_test": 0
+        },
+        "users_per_split": {
+          "test": 27,
+          "train": 141,
+          "validation": 32
+        },
+        "warnings": []
+      },
+      "ready": true,
+      "split_sizes": {
+        "test": 1077,
+        "train": 5330,
+        "validation": 1263
+      }
+    }
+  },
+  "subject_count": 440,
+  "supervised_usable_count": 7670,
+  "topic_count": 970,
+  "unique_candidate_config_count": 392,
+  "user_count": 200,
+  "validation": {
+    "candidate_delivered_mismatch_count": 0,
+    "candidate_delivered_mismatch_sample": [],
+    "contains_negative_signed_gain": true,
+    "default_target_schema_version": "outcome_targets.v2_signed_gain",
+    "duplicate_observation_id_count": 0,
+    "duplicate_observation_id_sample": [],
+    "empty_line_count": 0,
+    "leakage_error_count": 0,
+    "leakage_error_sample": [],
+    "outcome_available_true_count": 7670,
+    "signed_gain_range_supported": true,
+    "status": "passed",
+    "target_error_count": 0,
+    "target_error_sample": [],
+    "target_schema_version": "outcome_targets.v2_signed_gain",
+    "validation_error_count": 0,
+    "validation_error_sample": []
+  }
+}

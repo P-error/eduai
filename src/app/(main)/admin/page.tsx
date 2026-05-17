@@ -25,6 +25,23 @@ type OperationalSummaryPayload = {
     policyId: string;
     backendKind: string;
     artifactPath: string | null;
+    artifactStatus: string;
+    artifactModelVersion: string | null;
+    artifactSchemaVersion: string | null;
+    artifactWarning: string | null;
+    artifactSourceMode: string | null;
+    artifactEligibleOnly: boolean | null;
+    artifactConsentOnly: boolean | null;
+    artifactTrainSampleCount: number | null;
+    artifactEvalSampleCount: number | null;
+    artifactProvenance: string | null;
+    artifactRuntimeReady: boolean;
+    mlFirstProductionEligible: boolean;
+    productionEligible: boolean;
+    researchEvidence: boolean;
+    productionEligibilityReason: string | null;
+    artifactMlFirstEligibilityReason: string | null;
+    mlFirstReady: boolean;
     rateLimiterBackend: string;
   };
   artifactSlot: {
@@ -203,8 +220,76 @@ export default function AdminOverviewPage() {
               <span>{summary.runtime.artifactPath ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
+              <span>Artifact runtime ready</span>
+              <span>{summary.runtime.artifactRuntimeReady ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>ML-first production eligible</span>
+              <span>{summary.runtime.mlFirstProductionEligible ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Production eligible</span>
+              <span>{summary.runtime.productionEligible ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Research evidence</span>
+              <span>{summary.runtime.researchEvidence ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Strict ML-first ready</span>
+              <span>{summary.runtime.mlFirstReady ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Artifact status</span>
+              <span>{summary.runtime.artifactStatus}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Artifact schema</span>
+              <span>{summary.runtime.artifactSchemaVersion ?? messages.adminOverview.notConfigured}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Model version</span>
+              <span>{summary.runtime.artifactModelVersion ?? messages.adminOverview.notConfigured}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Artifact source</span>
+              <span>{summary.runtime.artifactSourceMode ?? messages.adminOverview.notConfigured}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Artifact provenance</span>
+              <span>{summary.runtime.artifactProvenance ?? messages.adminOverview.notConfigured}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Eligible/consent only</span>
+              <span>
+                {summary.runtime.artifactEligibleOnly === true &&
+                summary.runtime.artifactConsentOnly === true
+                  ? messages.common.yes
+                  : messages.common.no}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Train/eval rows</span>
+              <span>
+                {summary.runtime.artifactTrainSampleCount ?? "n/a"}/
+                {summary.runtime.artifactEvalSampleCount ?? "n/a"}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>ML-first eligibility</span>
+              <span>
+                {summary.runtime.productionEligibilityReason ??
+                  summary.runtime.artifactMlFirstEligibilityReason ??
+                  (summary.runtime.mlFirstReady ? "eligible" : "not_applicable")}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
               <span>{messages.adminOverview.runtimeWarning}</span>
-              <span>{summary.runtime.warning ?? messages.common.none}</span>
+              <span>
+                {summary.runtime.warning ??
+                  summary.runtime.artifactWarning ??
+                  messages.common.none}
+              </span>
             </div>
           </div>
         </SectionCard>
@@ -310,6 +395,11 @@ export default function AdminOverviewPage() {
                 <span className="uppercase text-slate-400">{check.status}</span>
               </div>
               <p className="mt-2 text-slate-300">{check.message}</p>
+              {check.details ? (
+                <pre className="mt-3 max-h-48 overflow-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs leading-5 text-slate-400">
+                  {JSON.stringify(check.details, null, 2)}
+                </pre>
+              ) : null}
             </div>
           ))}
         </div>

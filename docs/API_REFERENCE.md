@@ -134,6 +134,10 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
 - No hidden artifact fallback:
   - if configured `artifact_ml` backend has no valid artifact, `expectedAccuracy.status = unavailable` and `expectedAccuracy.value = null`
   - duration prediction still uses the shared heuristic duration path
+- Readiness diagnostics expose `backendKind`, artifact path, artifact status, artifact schema version, and model version without secrets.
+  - if active policy is `artifact_ml` and the artifact is missing or invalid, readiness reports an error rather than a quiet warning
+  - if active policy is an explicit heuristic fallback, readiness marks accuracy ML-first as blocked but does not call the heuristic backend ML
+  - six-factor diagnostics separately expose artifact path/status/schema/model and keep synthetic/bootstrap provenance warnings visible
 - Duration contract:
   - default runtime path uses unified predictor `v3_duration_unified_2026_02`
   - heuristic V1 keeps explicit baseline-only duration for comparison mode

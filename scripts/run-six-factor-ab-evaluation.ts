@@ -137,7 +137,7 @@ const DEFAULT_POLICIES: SixFactorEvaluationPolicyMode[] = [
 ];
 const DEFAULT_RESULTS_OUT = "exports/six_factor_ab_evaluation_results.json";
 const DEFAULT_JSONL_OUT = "exports/six_factor_ab_evaluation_observations.jsonl";
-const DEFAULT_ARTIFACT = "ml/examples/candidate_scorer_artifact.example.json";
+const DEFAULT_ARTIFACT = "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json";
 const SOURCE_NAME = "eduai_ab_controlled_mock";
 const FORBIDDEN_PRE_DECISION_OUTCOME_FIELDS = [
   "pre_score",

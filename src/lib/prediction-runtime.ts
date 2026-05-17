@@ -28,8 +28,10 @@ import {
 } from "@/lib/prediction-duration";
 import { getActivePredictionModelParams } from "@/lib/prediction-params";
 import {
+  getAccuracyMlArtifactEvidence,
   loadAccuracyMlArtifactSnapshot,
   predictExpectedAccuracyFromMlArtifact,
+  type AccuracyMlArtifactSnapshot,
 } from "@/lib/prediction-ml";
 
 const CONFIDENCE_FULL_EVIDENCE_QUESTIONS = 100;
@@ -77,14 +79,7 @@ function resolveBackendId(snapshot: ActivePredictionRuntimeSnapshot) {
 }
 
 function toArtifactDescriptor(
-  snapshot:
-    | {
-        status: "ready" | "missing" | "invalid";
-        path: string;
-        warning: string | null;
-        artifact: { modelVersion: string; artifactSchemaVersion: string } | null;
-      }
-    | null,
+  snapshot: AccuracyMlArtifactSnapshot | null,
 ): PredictionArtifactDescriptor {
   if (!snapshot) {
     return {
@@ -93,8 +88,19 @@ function toArtifactDescriptor(
       warning: null,
       modelVersion: null,
       artifactSchemaVersion: null,
+      sourceMode: null,
+      eligibleOnly: null,
+      consentOnly: null,
+      productionEligible: null,
+      researchEvidence: null,
+      productionEligibilityReason: null,
     };
   }
+
+  const evidence =
+    snapshot.status === "ready"
+      ? getAccuracyMlArtifactEvidence(snapshot.artifact)
+      : null;
 
   return {
     status: snapshot.status,
@@ -102,6 +108,12 @@ function toArtifactDescriptor(
     warning: snapshot.warning,
     modelVersion: snapshot.artifact?.modelVersion ?? null,
     artifactSchemaVersion: snapshot.artifact?.artifactSchemaVersion ?? null,
+    sourceMode: snapshot.artifact?.source.mode ?? null,
+    eligibleOnly: snapshot.artifact?.source.eligibleOnly ?? null,
+    consentOnly: snapshot.artifact?.source.consentOnly ?? null,
+    productionEligible: evidence?.productionEligible ?? false,
+    researchEvidence: evidence?.researchEvidence ?? false,
+    productionEligibilityReason: evidence?.reason ?? null,
   };
 }
 

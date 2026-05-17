@@ -148,6 +148,12 @@ If the artifact is not `ready`, runtime must expose that state rather than silen
 Default local artifact path:
 - `configs/ml_accuracy_logreg_artifact.local.json`
 
+Repository state note:
+- this file is a local/generated artifact path and is ignored by `.gitignore`;
+- if it is absent, `configs/active_policy.json` must remain on an explicit safe fallback instead of pretending that prediction ML-first is ready;
+- `npm run prediction-runtime:self-check` is the production gate for this slot and fails when active policy is not `artifact_ml`, the artifact is missing/invalid, or runtime does not return `sourceType=ml_artifact` for `expectedAccuracy`.
+- the ML-first gate also rejects synthetic artifacts, artifacts trained with `eligibleOnly=false`, artifacts trained with `consentOnly=false`, and artifacts with an insufficient chronological train/eval split.
+
 Current artifact-backed implementation in the repository:
 - offline logistic regression for `expectedAccuracy`;
 - auditable JSON artifact;
@@ -157,6 +163,120 @@ Offline commands:
 - `npm run ml-accuracy:train`
 - `npm run ml-accuracy:eval`
 - `npm run ml-accuracy:self-check`
+- `npm run prediction-runtime:self-check`
+- `npm run prediction-runtime:dev-self-check`
+
+Create a runtime-eligible artifact from the application DB:
+
+```bash
+DATABASE_URL="<runtime db>" DIRECT_URL="<direct db>" npm run ml-accuracy:train
+```
+
+By default this uses:
+- `eligibleOnly=true`;
+- `consentOnly=true`;
+- a chronological split requiring at least 12 train rows and 4 eval rows;
+- output path `configs/ml_accuracy_logreg_artifact.local.json` unless `EDUAI_ML_ARTIFACT_PATH` is set.
+
+If the default training command reports `insufficient_data`, do not switch `configs/active_policy.json` to `artifact_ml`.
+Unfiltered training with `EDUAI_ML_ELIGIBLE_ONLY=false` or `EDUAI_ML_CONSENT_ONLY=false` can be useful only as a local diagnostic and must not be used for the ML-first runtime gate.
+
+Synthetic artifact generation is supported only by `npm run ml-accuracy:self-check` and temporary/dev probes.
+Synthetic artifacts are non-production and are intentionally rejected by `npm run prediction-runtime:self-check`.
+
+### Forced DEV artifact runtime
+
+The repository may use a forced DEV artifact to exercise the full `artifact_ml`
+runtime path without claiming production readiness or research evidence.
+
+Generate the tracked DEV artifact:
+
+```bash
+EDUAI_ML_SOURCE=synthetic \
+EDUAI_ML_ARTIFACT_PATH=configs/ml_accuracy_logreg_artifact.dev.json \
+npm run ml-accuracy:train
+```
+
+Use this active policy only for local/dev pipeline verification:
+
+```json
+{
+  "version": "prediction_runtime_config_v1_2026_03",
+  "policyId": "prediction_runtime_v1_2026_03",
+  "backend": {
+    "kind": "artifact_ml",
+    "artifactPath": "configs/ml_accuracy_logreg_artifact.dev.json"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm run prediction-runtime:dev-self-check
+```
+
+Expected DEV result:
+- active backend is `artifact_ml`;
+- `expectedAccuracy.metadata.sourceType` is `ml_artifact`;
+- artifact status is `ready`;
+- `productionEligible=false`;
+- `researchEvidence=false`.
+
+The strict production gate remains:
+
+```bash
+npm run prediction-runtime:self-check
+```
+
+For the synthetic DEV artifact this strict gate must fail with
+`synthetic_artifact_not_ml_first_eligible`. That failure is intentional.
+Synthetic, unfiltered DB, or otherwise non-eligible artifacts can verify runtime
+wiring, but they are not evidence that the model improves learning outcomes.
+
+After a valid eligible+consent artifact exists, switch the active policy:
+
+```json
+{
+  "version": "prediction_runtime_config_v1_2026_03",
+  "policyId": "prediction_runtime_v1_2026_03",
+  "backend": {
+    "kind": "artifact_ml",
+    "artifactPath": "configs/ml_accuracy_logreg_artifact.local.json"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm run prediction-runtime:self-check
+```
+
+Rollback to the explicit fallback:
+
+```json
+{
+  "version": "prediction_runtime_config_v1_2026_03",
+  "policyId": "prediction_runtime_v1_2026_03",
+  "backend": {
+    "kind": "heuristic_baseline",
+    "heuristicPolicyId": "v2_accuracy_beta_duration_unified"
+  }
+}
+```
+
+Production deployment note:
+- `configs/*.local.json` is ignored and will not be deployed from Git by default;
+- either deploy the generated artifact through a secure build/deploy step, or store a reviewed non-local artifact path in the repository and point `backend.artifactPath` to that tracked file;
+- do not commit raw user data or private dataset exports.
+
+Research/demo wording:
+- allowed only after the runtime self-check passes with a runtime-eligible artifact: "trained model selected expected accuracy";
+- allowed for forced local/dev pipeline validation only: "DEV ML-first runtime";
+- allowed with a scope qualifier while six-factor remains a separate artifact-backed path: "ML-first personalization runtime";
+- not allowed for synthetic-only or unfiltered artifacts: "production ML-first accuracy runtime";
+- not allowed for the forced DEV artifact: "production-ready trained model selected expected accuracy".
 
 These commands document the current operational ML slot.
 They do not by themselves mean the full dissertation prediction layer is complete.

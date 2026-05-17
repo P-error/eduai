@@ -33,7 +33,7 @@ Live content mode is intentionally not implemented in this runner yet. Use `--mo
 - `--subject <string>`: subject title, default `ML Pilot Subject`.
 - `--topic <string>`: topic label, default `ML Pilot Topic`.
 - `--out <path>`: export path, default `exports/pilot_real_user_training_observations.jsonl`.
-- `--artifact <path>`: six-factor JSON artifact path, default `ml/examples/candidate_scorer_artifact.example.json`.
+- `--artifact <path>`: six-factor JSON artifact path, default `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
 - `--mock-content`: deterministic no-LLM pilot mode.
 - `--live-content`: reserved; currently returns a clear not-implemented error.
 - `--include-outcome-missing`: pass through to export.

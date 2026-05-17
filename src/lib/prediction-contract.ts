@@ -183,6 +183,12 @@ export type PredictionArtifactDescriptor = {
   warning: string | null;
   modelVersion: string | null;
   artifactSchemaVersion: string | null;
+  sourceMode: string | null;
+  eligibleOnly: boolean | null;
+  consentOnly: boolean | null;
+  productionEligible: boolean | null;
+  researchEvidence: boolean | null;
+  productionEligibilityReason: string | null;
 };
 
 export type PredictionRuntimeDescriptor = {

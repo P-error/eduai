@@ -41,8 +41,8 @@ Legacy path `codex-report/` может оставаться как placeholder, 
 
 Для six-factor shadow работ отдельно проверять:
 
-- `EDUAI_SIX_FACTOR_SHADOW` по умолчанию выключен;
-- `buildOptionalSixFactorShadowMetadata(...)` возвращает `null` при выключенном flag;
+- `EDUAI_SIX_FACTOR_SHADOW=0` явно выключает metadata/apply path;
+- `buildOptionalSixFactorShadowMetadata(...)` возвращает `null` при явно выключенном flag;
 - prompt/render package не получает six-factor instructions без отдельного apply-флага;
 - technical test `response_format` остаётся `mcq`.
 

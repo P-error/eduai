@@ -298,7 +298,7 @@ async function createSmokeRecords(params: {
     EDUAI_SIX_FACTOR_APPLY: "1",
     EDUAI_SIX_FACTOR_ARTIFACT_PATH:
       process.env.EDUAI_SIX_FACTOR_ARTIFACT_PATH ??
-      "ml/examples/candidate_scorer_artifact.example.json",
+      "artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json",
   };
 
   await cleanupSmokeRecords(params.prisma, params.runId);

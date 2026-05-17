@@ -6,8 +6,19 @@ import {
   getRateLimitBackendHealth,
 } from "@/lib/rate-limit";
 import { getActivePredictionRuntimeConfig } from "@/lib/active-policy";
-import { loadAccuracyMlArtifactSnapshot } from "@/lib/prediction-ml";
+import {
+  getAccuracyMlArtifactEvidence,
+  getAccuracyMlArtifactMlFirstEligibility,
+  loadAccuracyMlArtifactSnapshot,
+} from "@/lib/prediction-ml";
 import { loadEduAiNativePedagogyArtifactSlotSnapshot } from "@/lib/model-artifact-slot";
+import { loadSixFactorPolicyArtifact } from "@/lib/ml-six-factor-artifact-loader";
+import { isSixFactorMlPolicyEnabled } from "@/lib/ml-six-factor-policy-adapter";
+import {
+  isSixFactorApplyEnabled,
+  isSixFactorShadowOnlyEnabled,
+} from "@/lib/ml-six-factor-apply";
+import { isSixFactorShadowEnabled } from "@/lib/ml-six-factor-shadow";
 
 export type OperationalCheckStatus = "ok" | "warn" | "error";
 
@@ -35,6 +46,7 @@ export type OperationalReadinessReport = {
     rateLimiter: OperationalCheck;
     predictionRuntime: OperationalCheck;
     artifactSlot: OperationalCheck;
+    sixFactorArtifact: OperationalCheck;
     llm: OperationalCheck;
   };
 };
@@ -177,13 +189,84 @@ async function checkRateLimiter() {
 
 async function checkPredictionRuntime() {
   const snapshot = await getActivePredictionRuntimeConfig();
+  const artifactSnapshot =
+    snapshot.config.backend.kind === "artifact_ml"
+      ? loadAccuracyMlArtifactSnapshot(snapshot.config.backend.artifactPath)
+      : null;
+  const artifactEligibility =
+    artifactSnapshot?.status === "ready"
+      ? getAccuracyMlArtifactMlFirstEligibility(artifactSnapshot.artifact)
+      : null;
+  const artifactEvidence =
+    artifactSnapshot?.status === "ready"
+      ? getAccuracyMlArtifactEvidence(artifactSnapshot.artifact)
+      : null;
+  const artifactRuntimeReady =
+    snapshot.config.backend.kind === "artifact_ml" &&
+    artifactSnapshot?.status === "ready";
+  const mlFirstProductionEligible =
+    artifactRuntimeReady && artifactEligibility?.ok === true;
   const details = {
     source: snapshot.source,
     path: snapshot.path,
     warning: snapshot.warning,
     backendKind: snapshot.config.backend.kind,
     policyId: snapshot.config.policyId,
+    backendArtifactPath:
+      snapshot.config.backend.kind === "artifact_ml"
+        ? snapshot.config.backend.artifactPath ?? null
+        : null,
+    artifactStatus: artifactSnapshot?.status ?? "not_applicable",
+    artifactPath: artifactSnapshot?.path ?? null,
+    artifactWarning: artifactSnapshot?.warning ?? null,
+    artifactSchemaVersion:
+      artifactSnapshot?.artifact?.artifactSchemaVersion ?? null,
+    modelVersion: artifactSnapshot?.artifact?.modelVersion ?? null,
+    artifactSourceMode: artifactSnapshot?.artifact?.source.mode ?? null,
+    artifactEligibleOnly:
+      artifactSnapshot?.artifact?.source.eligibleOnly ?? null,
+    artifactConsentOnly: artifactSnapshot?.artifact?.source.consentOnly ?? null,
+    artifactTrainSampleCount:
+      artifactSnapshot?.artifact?.training.trainSampleCount ?? null,
+    artifactEvalSampleCount:
+      artifactSnapshot?.artifact?.training.evalSampleCount ?? null,
+    artifactProvenance: artifactEvidence?.artifactProvenance ?? null,
+    artifactRuntimeReady,
+    mlFirstProductionEligible,
+    productionEligible: artifactEvidence?.productionEligible ?? false,
+    researchEvidence: artifactEvidence?.researchEvidence ?? false,
+    productionEligibilityReason: artifactEvidence?.reason ?? null,
+    mlFirstEligibility: artifactEligibility,
+    featurePayloadVersion: snapshot.featurePayloadVersion,
+    accuracyFeatureSchemaVersion: snapshot.accuracyFeatureSchemaVersion,
+    mlFirstReady: mlFirstProductionEligible,
   };
+
+  if (snapshot.config.backend.kind === "artifact_ml") {
+    if (artifactRuntimeReady && mlFirstProductionEligible) {
+      return okCheck(
+        "Prediction runtime is serving from a production-eligible ML artifact.",
+        details,
+      );
+    }
+    if (artifactRuntimeReady) {
+      return errorCheck(
+        "DEV ML artifact active; artifact runtime is ready but not production/research eligible.",
+        details,
+      );
+    }
+    return errorCheck(
+      "Prediction runtime is configured for artifact ML, but the artifact is missing or invalid.",
+      details,
+    );
+  }
+
+  if (snapshot.config.backend.kind === "heuristic_baseline") {
+    return warnCheck(
+      "Prediction runtime is using an explicit heuristic fallback; accuracy ML-first is blocked until a valid artifact is configured.",
+      details,
+    );
+  }
 
   if (snapshot.warning) {
     return warnCheck("Prediction runtime is interpretable with warnings.", details);
@@ -225,6 +308,48 @@ async function checkArtifactSlot() {
   return okCheck("Artifact slot state is interpretable for the current bridge runtime.", details);
 }
 
+function checkSixFactorArtifact() {
+  const artifactResult = loadSixFactorPolicyArtifact();
+  const mlPolicyEnabled = isSixFactorMlPolicyEnabled();
+  const details = {
+    shadowEnabled: isSixFactorShadowEnabled(),
+    applyEnabled: isSixFactorApplyEnabled(),
+    shadowOnly: isSixFactorShadowOnlyEnabled(),
+    mlPolicyEnabled,
+    artifactOk: artifactResult.ok,
+    artifactPath: artifactResult.artifactPath,
+    artifactStatus: artifactResult.ok ? "ready" : artifactResult.errorKind,
+    artifactWarning: artifactResult.ok ? null : artifactResult.error,
+    artifactSchemaVersion: artifactResult.ok
+      ? artifactResult.artifact.artifact_schema_version
+      : null,
+    modelVersion: artifactResult.ok ? artifactResult.artifact.model_version : null,
+    modelFamily: artifactResult.ok
+      ? artifactResult.artifact.model.model_family
+      : null,
+    warnings: artifactResult.warnings,
+  };
+
+  if (!mlPolicyEnabled) {
+    return warnCheck(
+      "Six-factor ML policy is disabled; explicit heuristic/static fallback will be used.",
+      details,
+    );
+  }
+
+  if (!artifactResult.ok) {
+    return errorCheck(
+      "Six-factor ML policy is enabled, but the runtime artifact is missing or invalid.",
+      details,
+    );
+  }
+
+  return warnCheck(
+    "Six-factor ML scorer artifact is runtime-compatible; current artifact provenance is not real-user efficacy proof.",
+    details,
+  );
+}
+
 function checkLlmConfig() {
   const apiKey = optionalEnv("OPENAI_API_KEY");
   const baseUrl = optionalEnv("OPENAI_BASE_URL") ?? "https://api.openai.com/v1";
@@ -255,12 +380,14 @@ export async function getOperationalReadinessReport(): Promise<OperationalReadin
     rateLimiter,
     predictionRuntime,
     artifactSlot,
+    sixFactorArtifact,
   ] = await Promise.all([
     checkDatabaseReachable(),
     checkPrismaContractHealthy(),
     checkRateLimiter(),
     checkPredictionRuntime(),
     checkArtifactSlot(),
+    Promise.resolve(checkSixFactorArtifact()),
   ]);
   const auth = checkAuthConfig();
   const llm = checkLlmConfig();
@@ -272,6 +399,7 @@ export async function getOperationalReadinessReport(): Promise<OperationalReadin
     rateLimiter,
     predictionRuntime,
     artifactSlot,
+    sixFactorArtifact,
     llm,
   };
   const checkLabels: Record<keyof typeof components, string> = {
@@ -281,6 +409,7 @@ export async function getOperationalReadinessReport(): Promise<OperationalReadin
     rateLimiter: "Rate limiter backend",
     predictionRuntime: "Prediction runtime state",
     artifactSlot: "Artifact slot state",
+    sixFactorArtifact: "Six-factor ML artifact state",
     llm: "LLM configuration",
   };
   const checks = Object.entries(components).map(([key, component]) => ({

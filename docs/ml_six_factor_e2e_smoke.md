@@ -11,7 +11,7 @@ The smoke sets these only inside its own process:
 - `EDUAI_SIX_FACTOR_SHADOW=1`
 - `EDUAI_SIX_FACTOR_ML_POLICY=1`
 - `EDUAI_SIX_FACTOR_APPLY=1`
-- `EDUAI_SIX_FACTOR_ARTIFACT_PATH=ml/examples/candidate_scorer_artifact.example.json`
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`
 
 No app config or `configs/active_policy.json` is changed.
 
@@ -68,7 +68,7 @@ All controlled records use a `ml_e2e_smoke_YYYYMMDDTHHMMSS` prefix in `externalI
 
 ## Success Criteria
 
-A successful smoke means the backend loop is technically connected on local/dev data. It does not prove educational effectiveness. The current artifact is synthetic-trained, so real conclusions still require real-user pilot data, calibration, and retraining.
+A successful smoke means the backend loop is technically connected on local/dev data. It does not prove educational effectiveness. The current runtime-compatible artifact is bootstrap/synthetic-oriented, so real conclusions still require real-user pilot data, calibration, and retraining.
 
 ## Optional Retraining
 

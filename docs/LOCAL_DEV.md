@@ -34,13 +34,48 @@ Required values in `.env.local`:
 - optional `CHAT_STORE_RAW_CONTENT`
 - optional `DATASET_EXPORT_SECRET`
 
-The local template points runtime to the THU six-factor ML scorer. ML/apply is default-on:
+The local template points runtime to the THU six-factor ML scorer. ML/apply is explicit-on:
 
 ```bash
+EDUAI_SIX_FACTOR_SHADOW=1
+EDUAI_SIX_FACTOR_ML_POLICY=1
+EDUAI_SIX_FACTOR_APPLY=1
 EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
 ```
 
 For a fast local rollback, set `EDUAI_SIX_FACTOR_APPLY=0`, `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`, or `EDUAI_SIX_FACTOR_ML_POLICY=0` for legacy fallback.
+
+Prediction accuracy ML-first is separate from the six-factor scorer. To generate the local accuracy artifact from runtime-eligible data:
+
+```bash
+DATABASE_URL="postgresql://eduai:eduai_dev_password@localhost:5432/eduai?schema=public" \
+DIRECT_URL="postgresql://eduai:eduai_dev_password@localhost:5432/eduai?schema=public" \
+npm run ml-accuracy:train
+```
+
+If this reports `insufficient_data`, keep `configs/active_policy.json` on `heuristic_baseline`.
+The generated default path `configs/ml_accuracy_logreg_artifact.local.json` is ignored by Git; it is local/dev unless a reviewed artifact is deployed separately.
+Do not use `EDUAI_ML_ELIGIBLE_ONLY=false`, `EDUAI_ML_CONSENT_ONLY=false`, or synthetic data to claim ML-first runtime readiness.
+
+To force the DEV `artifact_ml` pipeline for technical verification only:
+
+```bash
+EDUAI_ML_SOURCE=synthetic \
+EDUAI_ML_ARTIFACT_PATH=configs/ml_accuracy_logreg_artifact.dev.json \
+npm run ml-accuracy:train
+npm run prediction-runtime:dev-self-check
+```
+
+`configs/ml_accuracy_logreg_artifact.dev.json` is a synthetic DEV artifact.
+It can make `expected_accuracy` return `sourceType=ml_artifact`, but it is not
+production eligible and is not research evidence. The strict gate remains:
+
+```bash
+npm run prediction-runtime:self-check
+```
+
+With the synthetic DEV artifact active, that strict gate should fail with
+`synthetic_artifact_not_ml_first_eligible`.
 
 ## 3) Start local DB (Docker)
 

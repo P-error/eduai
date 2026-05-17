@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This document describes the app-side shadow adapter for the six-factor policy contract.
-It is a compatibility layer, not production ML serving.
+This document describes the app-side six-factor policy adapter.
+The runtime can serve a valid JSON artifact, but current artifacts are still bootstrap/synthetic-oriented and are not proof of real educational effect.
 
 Target flow:
 
@@ -30,14 +30,14 @@ The app should not depend on that internal scorer detail. The app receives a six
 
 ## Correctness Check
 
-The current runtime still mainly owns `difficulty` and `depth`.
-The new TypeScript shadow layer bridges this gap without claiming production ML:
+The current prediction runtime still mainly owns `difficulty` and `depth`.
+The six-factor TypeScript layer bridges this gap with explicit provenance:
 
 - features are built only from pre-decision app context;
 - outcome fields such as `postScore`, `nextStepSuccess`, and `normalizedLearningGain` are not included;
 - `response_format=mcq` is not treated as six-factor `presentation_format`;
-- the fallback/bridge decision is explicitly marked as fallback or shadow-only;
-- learner-facing output is unchanged by default.
+- fallback/bridge decisions are explicitly marked as fallback or heuristic;
+- learner-facing application is explicit through `EDUAI_SIX_FACTOR_APPLY` and `appliedToLearnerFacingOutput`.
 
 ## Files
 
@@ -80,8 +80,8 @@ The technical response format remains `mcq`.
 
 ## Shadow Mode
 
-Shadow mode is disabled by default.
-Enable it explicitly with:
+Shadow metadata is enabled by default unless explicitly disabled.
+For production examples it is set explicitly with:
 
 ```bash
 EDUAI_SIX_FACTOR_SHADOW=1
@@ -100,7 +100,7 @@ It does not apply the six-factor prompt instructions to learner-facing output.
 
 ## Apply Mode
 
-Apply mode is a separate explicit gate:
+Apply mode is a separate explicit gate and is default-on unless explicitly disabled:
 
 ```bash
 EDUAI_SIX_FACTOR_SHADOW=1
@@ -114,9 +114,11 @@ ML selection still requires:
 EDUAI_SIX_FACTOR_ML_POLICY=1
 ```
 
-The first learner-facing application path is only:
+Learner-facing application paths include:
 
 - `src/lib/learning-content-generation.ts`
+- `src/lib/test-generation.ts`
+- `src/app/api/chat/route.ts`
 
 With apply enabled, the six-factor decision is converted into prompt instructions through `src/lib/ml-six-factor-render-mapping.ts`.
 The instructions are appended to the learning-content LLM prompt as a separate internal block and cover:
@@ -130,14 +132,14 @@ The instructions are appended to the learning-content LLM prompt as a separate i
 
 Metadata records `appliedToLearnerFacingOutput=true`, `appliedPromptInstructionCount=6`, and `appliedPath=learning_content`.
 
-If `EDUAI_SIX_FACTOR_APPLY` is off, learner-facing content remains unchanged.
+If `EDUAI_SIX_FACTOR_APPLY` is off or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`, learner-facing content remains unchanged.
 If `EDUAI_SIX_FACTOR_SHADOW` is off, apply mode is ignored and the old behavior is preserved.
 
 ## Regression Guarantees
 
-`scripts/ml-six-factor-shadow-self-check.sh` checks both flag modes:
+`npm run ml-six-factor:self-check` checks both flag modes:
 
-- with `EDUAI_SIX_FACTOR_SHADOW` missing or `0`, optional shadow metadata is `null`;
+- with `EDUAI_SIX_FACTOR_SHADOW=0`, optional shadow metadata is `null`;
 - with flag off, logged payloads omit `sixFactorShadow`;
 - with `EDUAI_SIX_FACTOR_SHADOW=1`, logged payloads may include only `sixFactorShadow` metadata;
 - `candidateConfig` and `deliveredConfig` contain all six factors when metadata is present;
@@ -171,7 +173,7 @@ In ML metadata mode the adapter loads the artifact, generates a bounded six-fact
 
 If `EDUAI_SIX_FACTOR_ML_POLICY` is off, or the artifact is missing, invalid, or fails scoring, the metadata uses the heuristic/static six-factor fallback and records warnings.
 
-This still does not apply six-factor render instructions to learner-facing prompts or outputs.
+In shadow-only mode this still does not apply six-factor render instructions to learner-facing prompts or outputs.
 `appliedToLearnerFacingOutput` remains `false`.
 
 ## Route/Content Regression Guarantees
