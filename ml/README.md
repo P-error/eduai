@@ -1,22 +1,52 @@
 # EduAI ML Layer
 
-This directory is a separate research/training layer for EduAI. It does not change the Next.js runtime, Prisma schema, API routes, active policy, LLM generation, or learner-facing logic.
+This directory contains the research/training layer for EduAI's six-factor pedagogical policy.
 
-## Why Contract First
+It defines and tests the ML-side contracts used by the app-facing runtime policy. The current app can apply a compatible six-factor candidate scorer through the TypeScript runtime path, but synthetic/bootstrap artifacts must not be treated as proof of real educational effect.
 
-The current application is still centered on a narrow operational decision scope, mainly `difficulty` and `depth`, with bridge and heuristic-heavy paths. The dissertation target needs a wider, auditable ML formulation. This step defines the contract for that target without pretending that a trained model already exists.
+## Current Runtime Relationship
 
-The future model is framed as a candidate outcome scorer:
+The current app-facing policy path is six-factor candidate scoring:
+
+```text
+app pre-decision context/features
++ candidate_config
+-> predicted outcome
+-> selected delivered_config
+-> prompt/materialization policy
+```
+
+The app-facing decision output contains exactly six factors:
+
+- `difficulty`
+- `depth`
+- `support_level`
+- `presentation_format`
+- `examples_level`
+- `terminology_level`
+
+The runtime can use a compatible JSON linear candidate scorer artifact. The current intended runtime artifact slot is:
+
+```text
+artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+```
+
+The app applies six-factor prompt instructions by default when the runtime path is active and the opt-out flags are not set. If the artifact is missing, invalid, unsupported, or unsafe, the app falls back explicitly and records metadata.
+
+## Why Candidate Scoring
+
+The model is framed as a candidate outcome scorer:
 
 ```text
 pre_decision_features + candidate_config -> predicted_outcome
 ```
 
-The policy layer can later rank candidate configurations using predicted outcomes such as:
+The policy layer ranks candidate configurations using predicted outcomes such as:
 
-- `expected_learning_gain_proxy`
-- `expected_next_step_success`
-- confidence or uncertainty when the artifact supports it
+- signed/normalized learning gain proxy;
+- next-step success;
+- combined outcome score;
+- confidence/diagnostics where supported.
 
 This avoids treating the task as six independent label predictions, which would risk copying existing heuristic choices instead of estimating what improves learning.
 
@@ -31,15 +61,21 @@ The v1 candidate configuration has exactly six factors:
 - `examples_level`: `none`, `single`, `multiple`
 - `terminology_level`: `simple`, `balanced`, `technical`
 
-The full grid contains `3 * 3 * 3 * 4 * 3 * 3 = 972` candidate configurations. Runtime serving should normally use a bounded candidate set around a base configuration rather than scoring the whole grid.
+The full grid contains:
+
+```text
+3 * 3 * 3 * 4 * 3 * 3 = 972
+```
+
+Runtime serving normally uses a bounded candidate set around safe/static/heuristic/current candidates rather than scoring the whole grid.
 
 ## Data Sources
 
-`synthetic` data is needed to cover the full six-factor candidate space before enough real EduAI observations exist.
+`synthetic` data is useful for covering the six-factor candidate space before enough real EduAI observations exist.
 
 `open_dataset` rows can help build learner-state features and calibrate success prediction when the source has enough attempt/outcome history. They must not be described as directly training all six personalization factors unless those factors are actually present or defensibly adapted.
 
-`real_user` EduAI data is needed to test the relationship:
+`real_user` EduAI data is required to test the relationship:
 
 ```text
 delivered_config -> observed outcome
@@ -49,7 +85,36 @@ The contract keeps `candidate_config` and `delivered_config` separate so offline
 
 ## Leakage Rule
 
-`pre_decision_features` may contain only information available before the decision. Outcome fields such as `post_score`, `next_step_success`, and `normalized_learning_gain` are stored only under `outcome` and must not be used as model features.
+`pre_decision_features` may contain only information available before the decision.
+
+Outcome fields are forbidden in features, including:
+- `pre_score`
+- `post_score`
+- `next_step_success`
+- `normalized_learning_gain`
+- `normalized_learning_gain_clamped`
+- `outcome_available`
+- hidden labels.
+
+Outcome values belong only under `outcome` and become usable only after delivery and observation.
+
+## Signed Gain Rule
+
+The primary normalized learning-gain target is signed:
+
+```text
+normalized_learning_gain in [-1, 1]
+```
+
+Negative values are meaningful and represent deterioration after content. They must not be silently clamped to zero for the primary target.
+
+Legacy/nonnegative compatibility can use:
+
+```text
+normalized_learning_gain_clamped in [0, 1]
+```
+
+That field is not the primary signed target.
 
 ## Commands
 
@@ -96,7 +161,7 @@ python ml/scripts/validate_dataset.py --input ml/examples/synthetic_dataset.samp
 python ml/scripts/summarize_dataset.py --input ml/examples/synthetic_dataset.sample.jsonl
 ```
 
-Train the first technical candidate scorer:
+Train a runtime-compatible linear candidate scorer:
 
 ```bash
 python ml/scripts/train_candidate_scorer.py \
@@ -113,6 +178,7 @@ python ml/scripts/evaluate_candidate_scorer.py \
   --input ml/examples/synthetic_dataset.sample.jsonl \
   --artifact ml/examples/candidate_scorer_artifact.example.json \
   --eval-out ml/examples/candidate_scorer_eval.example.json
+
 python ml/scripts/score_candidates.py \
   --artifact ml/examples/candidate_scorer_artifact.example.json \
   --observation ml/examples/training_observation.example.json
@@ -128,6 +194,7 @@ python ml/scripts/generate_synthetic_counterfactual_eval.py \
   --states-per-learner 8 \
   --max-candidates 30 \
   --seed 42
+
 python ml/scripts/evaluate_candidate_ranker.py \
   --artifact ml/examples/candidate_scorer_artifact.example.json \
   --counterfactual-input ml/examples/synthetic_counterfactual_eval.sample.jsonl \
@@ -140,43 +207,46 @@ Validate app-facing inference compatibility examples:
 python ml/scripts/validate_ml_contracts.py
 ```
 
-The app compatibility layer is documented in:
+## Runtime Compatibility
 
-- `ml/contracts/app_inference_compatibility_v1.md`
-- `ml/schemas/app_inference_features.v1.schema.json`
-- `ml/schemas/app_six_factor_decision.v1.schema.json`
+The app runtime currently supports compatible JSON linear candidate scorer artifacts.
 
-It defines the future app-facing boundary:
+Runtime-compatible model family:
+- `linear_candidate_scorer_v1`
+- `linear_candidate_scorer_payload.v1`
 
-```text
-app context/features -> ML policy adapter -> six-factor config -> render/prompt policy
-```
-
-The production app is not switched to this policy by default.
+Offline tree models may be trained/evaluated in Python, but they are not automatically deployable to the TypeScript runtime. Deploying tree models requires a TypeScript tree scorer/loader or another serving integration.
 
 ## Current Honesty State
 
 Implemented now:
 
 - stable six-factor contract;
-- JSON Schemas for training observations and future model artifacts;
+- JSON Schemas for training observations and model artifacts;
 - deterministic candidate grid and bounded candidate generation;
-- example rows and schema validation;
 - synthetic data-preparation generator;
-- generic open-dataset adapter interface;
-- real-user observation normalizer for future EduAI exports;
-- dataset manifest and dataset summary utilities;
-- first JSON-artifact candidate scorer training/evaluation pipeline;
-- synthetic counterfactual ranking diagnostics;
-- class-balance diagnostics for `expected_next_step_success`.
-- app-facing inference compatibility schemas and safe six-factor fallback/render-mapping helpers.
+- real-user observation/export contract;
+- candidate scorer training/evaluation pipeline;
+- runtime-compatible linear JSON artifact path;
+- app-facing inference compatibility schemas;
+- runtime six-factor policy/apply integration in the main app;
+- strict LLM-output validation/fallback exclusion on the app side.
 
-Not implemented now:
+Not proven now:
 
-- no production runtime integration;
-- no downloaded datasets;
-- no real-user six-factor delivered-config logging yet.
+- real-user educational effectiveness;
+- causal superiority over baselines;
+- final model quality on real EduAI outcome-linked rows;
+- semantic correctness of all generated answer keys without live judge/human checks.
 
-The scorer artifact may contain trained JSON weights when produced by `train_candidate_scorer.py`. These weights are trained on synthetic observations only and must not be treated as real-world educational evidence.
+The scorer artifact may contain trained JSON weights. If the weights were trained on synthetic observations only, they are valid for runtime compatibility and pipeline testing, but not for real-world educational claims.
 
-Counterfactual ranking files are also synthetic-only. They are useful for checking whether the scorer recovers the synthetic outcome function, but they do not prove real educational effect.
+## Related Docs
+
+- `docs/PREDICTION_LAYER.md`
+- `docs/ml_dataset_contract.md`
+- `docs/ml_six_factor_runtime_policy_adapter.md`
+- `docs/ml_six_factor_apply_mode.md`
+- `ml/contracts/app_inference_compatibility_v1.md`
+- `ml/contracts/training_pipeline_v1.md`
+- `ml/contracts/dataset_preparation_v1.md`
