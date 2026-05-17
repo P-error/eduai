@@ -1,175 +1,234 @@
 # Reproducibility
 
-This document is about reproducible setup, demo, and evaluation.
-It should be read together with `VISION.md`, `docs/ARCHITECTURE.md`, and `docs/PREDICTION_LAYER.md`.
+This document describes reproducible setup, demo, prompt/LLM checks, and evaluation evidence for the current six-factor EduAI prototype.
 
-Reproducibility requirements for EduAI:
-- declared preference and effective preference must remain distinguishable in analysis;
-- prediction policies must be versioned and comparable;
+It should be read with:
+- `docs/RESEARCH_SPEC.md`
+- `docs/ARCHITECTURE.md`
+- `docs/PREDICTION_LAYER.md`
+- `docs/llm_prompt_strictness_rules.md`
+- `docs/ml_dataset_contract.md`
+
+Reproducibility requirements:
+- declared preference and effective preference remain distinguishable;
+- six-factor decisions are versioned, logged, and comparable;
 - no future leakage;
 - no hidden fallbacks;
-- heuristics and stubs must stay explicitly labeled;
-- time may be logged and evaluated, but it is not the primary learning objective.
+- fallback/invalid generated artifacts are excluded from learning/training updates;
+- synthetic artifacts are not treated as real educational evidence;
+- time/duration is secondary, not the primary learning objective.
 
 ## Clean Setup
 
-1. Node/npm install:
+1. Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
-2. Configure env vars:
+2. Configure env:
+
+```bash
+cp .env.example .env.local
+```
+
+Required values:
 - `DATABASE_URL`
 - `JWT_SECRET`
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL` (optional)
 - `CHAT_STORE_RAW_CONTENT` (optional)
 
-3. Prisma reset + client:
+Six-factor runtime artifact path:
 
 ```bash
-npx prisma generate
-npx prisma migrate reset --force
+EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+```
+
+Optional generated-test semantic judge:
+
+```bash
+EDUAI_LLM_TEST_JUDGE=1
+```
+
+3. Start local PostgreSQL and apply migrations:
+
+```bash
+npm run db:up
+npm run prisma:migrate:deploy
 ```
 
 4. Start app:
 
 ```bash
-npm run dev
+npm run dev:local
+```
+
+Use plain `npm run dev` only when the database is already running and `DATABASE_URL` intentionally points to the desired DB.
+
+## Controlled Pilot-Like Startup
+
+```bash
+npm run db:up
+npm run prisma:migrate:deploy
+npm run build
+npm run start
+```
+
+Operational signals:
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/ready
+npm run auth:self-check
+npm run pilot-readiness:smoke
 ```
 
 ## Defense Demo Scenario (Recommended)
 
-1. Login as user A via `/login`.
-2. Create a topic in `/topics`.
-3. Inspect the learner preference surfaces and note declared preferences if present.
-4. Open `/practice`, run one test in `Standard` mode.
-5. Submit attempt with full telemetry (from UI runner).
-6. Run a second test in `Personalized` mode, submit.
-7. Open `/profile` and `/analytics` to show:
-- declared vs effective preference framing;
-- browser-persisted visual preferences (`theme`, `font size`, `high contrast`) under `Appearance & accessibility`;
-- confidence/sample-size behavior;
-- prediction/runtime status and limitations;
-- next-step pedagogical decision support.
-8. Open `/learn`, send 2-3 turns in both modes.
-9. Login as admin (`@eduai.com`) and inspect `/admin/*` pages.
+The recommended demo is episode-first. Do not use the older standalone `Practice -> Profile -> Analytics` path as the main proof narrative.
 
-The demo should not claim that current heuristic or stub behavior is already equivalent to the target ML policy.
+1. Login or register from `/login`.
+2. Create a subject and topic/section context if needed.
+3. Open `/learn`.
+4. Start a structured learning episode.
+5. Complete the `precheck` test.
+6. Review generated `learning_content`.
+7. Ask one bounded dialogue question if the episode exposes dialogue.
+8. Acknowledge learning content and continue.
+9. Complete the `postcheck` test.
+10. Inspect learner-facing ML personalization metadata when `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`.
+11. Inspect admin/operator episode metadata and export readiness.
+12. Inspect stored metadata examples:
+    - six-factor delivered config;
+    - `decisionSource`;
+    - `fallbackUsed`;
+    - `candidateCount`;
+    - `appliedToLearnerFacingOutput`;
+    - generated-test validation metadata;
+    - learning eligibility/exclusion reason;
+    - linked pre/post outcomes.
 
-## Scripted Showcase Route
+The demo may show that the runtime path, metadata, validation, and episode linkage work. It must not claim real educational effectiveness unless outcome-linked evaluation data is available.
 
-- `/demo` is an isolated simulated showcase, not an alternate learner runtime path.
-- Access is by direct URL only; the main learner navigation does not expose it.
-- The main-app `EN/RU` language toggle does not drive `/demo`; demo copy remains isolated for showcase stability.
-- Main-app visual preferences from `Profile` (`theme`, `font size`, `high contrast`) are also kept out of the demo scope unless someone changes demo styling explicitly in a separate pass.
-- The route uses fixed scripted data for `Alex Carter` and a deterministic scene sequence.
-- It does not require a real learner session.
-- It does not make live LLM calls, model/artifact calls, or database writes.
-- It is suitable for a short thesis narrative about declared preferences, evidence accumulation, and effective setting adaptation.
-- It must not be presented as if the learner actually completed the full visible sequence in real time during the demo route itself.
+## Prompt And LLM Compliance Checks
 
-## Reproducible Evaluation Framing
+Prompt snapshot audit through current six-factor runtime path:
 
-When reporting or defending results, keep these comparisons explicit:
-- declared-preference baseline;
-- heuristic baseline policy;
-- stub-model slot, if used for contract validation;
-- artifact-backed ML policy, if present and valid.
+```bash
+bash scripts/audit-llm-prompts.sh --ml-runtime
+```
 
-For all comparisons:
-- record the active policy id from `configs/active_policy.json`;
-- record backend kind and artifact state;
-- record dataset/export version or source;
-- keep replay order strict: history before current attempt only.
+Mock-provider compliance:
+
+```bash
+bash scripts/check-llm-prompt-compliance.sh --mock-provider --ml-runtime
+```
+
+LLM generation validation self-check:
+
+```bash
+bash scripts/llm-generation-validation-self-check.sh
+```
+
+Live-provider compliance, only when a safe key is available:
+
+```bash
+bash scripts/check-llm-prompt-compliance.sh --live-provider --ml-runtime
+```
+
+If `OPENAI_API_KEY` is unavailable, live checks should report provider unavailable rather than printing secrets or failing opaquely.
+
+## DB-Backed Evidence Checks
+
+Use a real local PostgreSQL instance for checks that involve submit route, episode linkage, learning gates, or exports.
+
+Important checks:
+- generated tests save only after validation or explicit fallback;
+- fallback generated tests have `learningEligible=false`;
+- corrupt stored answer keys return `TEST_DATA_CORRUPT` rather than silently grading;
+- submitted postcheck outcome links back to the episode item;
+- strict export can distinguish eligible and skipped rows.
+
+A failed DB-backed check because PostgreSQL is unavailable is an environment failure, not proof the code path is broken.
 
 ## Fallback vs LLM Modes
 
 ### With LLM
-- Keep valid `OPENAI_API_KEY` and provider URL.
-- Observe generation/tagging source as `llm` in DB metadata.
+- Use valid `OPENAI_API_KEY` and optional `OPENAI_BASE_URL`.
+- Confirm generation source is `llm` or `llm_repaired`.
+- Confirm validation metadata is present.
+- Confirm fallback is false for normal artifacts.
 
 ### Fallback-oriented test
-- Intentionally break provider config (e.g., invalid key) in local run.
-- Generate test and confirm `generationSource=fallback`, `learningEligible=false`.
+- Intentionally disable or break the provider in a controlled local run.
+- Generate content/test and confirm:
+  - `generationSource="fallback"`;
+  - `learningEligible=false`;
+  - fallback/exclusion reason is recorded;
+  - the artifact is not treated as ML success.
 
-This demonstrates fallback behavior only.
-It must not be described as ML personalization.
+This demonstrates fallback safety only. It is not evidence of personalization quality.
 
 ## Artifacts To Save For Defense
 
-- screenshots of Profile/Learn/Practice/Analytics/Topics/Admin pages;
-- DB examples of:
-  - declared/effective preference state where available;
-  - `GeneratedTest.validationMetaJson`;
-  - `TestAttempt.byTagJson._meta.prediction`;
-  - gating skip reasons;
-- sample API responses from:
-  - `/api/users/me/profile`
-  - `/api/users/me/predictions`
-  - `/api/admin/prediction-metrics`;
-- active policy snapshot from `configs/active_policy.json`;
-- artifact metadata if an ML artifact was used.
+- screenshots of `/learn` episode flow;
+- screenshot of safe ML personalization card, if enabled;
+- sample `GeneratedTest.validationMetaJson`;
+- sample `ChatMessage.signalsJson` for learning content/dialogue;
+- sample `TestAttempt.byTagJson._meta`;
+- sample episode summary with precheck/postcheck linkage;
+- prompt audit output;
+- mock and live prompt compliance output, if live key is available;
+- strict export dry-run summary;
+- model artifact metadata if used;
+- final model evaluation/baseline comparison report when available.
 
 ## Deterministic Checks And Scripts
 
-Deterministic backtest self-check command:
-- `npm run backtest:self-check`
-- validates replay order (`history < current attempt`) on a synthetic dataset with hand-checked expectations.
+Useful checks include:
 
-Deterministic calibration self-check command:
-- `npm run calibration:self-check`
-- validates deterministic candidate ranking and holdout evaluation on a synthetic dataset.
+```bash
+npm run lint
+npm run build
+bash scripts/audit-llm-prompts.sh --ml-runtime
+bash scripts/check-llm-prompt-compliance.sh --mock-provider --ml-runtime
+bash scripts/llm-generation-validation-self-check.sh
+bash scripts/ml-six-factor-shadow-self-check.sh
+bash scripts/export-real-user-training-observations.sh --out /tmp/eduai-strict-export-smoke.jsonl --dry-run --strict-episode-outcome-linking
+```
 
-Deterministic dataset export self-check command:
-- `npm run dataset-export:self-check`
-- validates consent filtering, no-future-leakage feature construction, and runtime normalization of export features.
+Python/ML checks depend on local Python dependencies:
 
-Deterministic offline ML self-check command:
-- `npm run ml-accuracy:self-check`
-- validates file-based offline train/eval flow, artifact reload, and heuristic-vs-ML comparison on a synthetic dataset-export fixture.
+```bash
+python -m pip install -e "ml[test]"
+PYTHONPATH=ml/src python -m pytest ml/tests
+```
 
-Deterministic rate-limit self-check command:
-- `npm run rate-limit:self-check`
-- validates limiter behavior (`retryAfterSeconds` present on second hit).
+If `pytest` is missing, install the ML test dependencies or report the dependency gap explicitly.
 
 ## Runtime And Artifact Notes
 
-Optional calibrated params file:
-- `configs/calibrated_params.json`
+Current runtime-compatible artifact path:
 
-Optional offline ML artifact file:
-- `configs/ml_accuracy_logreg_artifact.local.json`
-- runtime loader states are explicit: `ready`, `missing`, `invalid`
-- when absent or invalid, artifact-backed ML runtime does not silently substitute a heuristic accuracy backend
-
-Active prediction policy config:
-- `configs/active_policy.json`
-- controls runtime policy/backend selection for `/api/users/me/predictions` and submit-time logging
-
-Offline ML train/eval examples:
-
-```bash
-EDUAI_ML_DATASET_FILE=/absolute/path/to/dataset.jsonl \
-EDUAI_ML_ARTIFACT_PATH=configs/ml_accuracy_logreg_artifact.local.json \
-npm run ml-accuracy:train
+```text
+artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
 ```
 
-```bash
-EDUAI_ML_DATASET_FILE=/absolute/path/to/dataset.jsonl \
-EDUAI_ML_ARTIFACT_PATH=configs/ml_accuracy_logreg_artifact.local.json \
-npm run ml-accuracy:eval
-```
+Runtime currently supports compatible linear JSON candidate scorer artifacts. Offline tree models are not runtime-compatible unless TypeScript serving support is added.
 
-If `EDUAI_ML_DATASET_FILE` is omitted, commands use the DB-backed dataset-export path.
-If the selected source does not contain enough eligible labeled rows, train/eval must return an explicit insufficient-data state rather than inventing fallback data.
+Synthetic/bootstrap artifacts:
+- validate the runtime scorer/application path;
+- help test contracts and metadata;
+- do not prove real learner benefit.
 
 ## Fixed Reproducibility Anchors
 
-- duration baseline uses `EXPECTED_TIME_MS[difficulty].mcq` scaling from the current codebase;
-- shared duration predictor version remains explicit;
-- accuracy smoothing and heuristic parameters remain versioned and inspectable;
-- runtime feature payload version remains explicit;
-- artifact-backed ML uses only replay-safe features derived from prior evidence;
-- future dissertation ML policies for `difficulty` and `depth` must preserve the same replay, versioning, and audit guarantees.
+- six-factor candidate config is the current policy output;
+- signed learning gain is the primary normalized target where available;
+- LLM-generated artifacts must pass validation or be marked fallback;
+- replay-safe features must be built from history before the decision point;
+- tests are primary learning signals;
+- chat/dialogue is secondary support evidence;
+- fallback and generated-invalid artifacts must be excluded from supervised training/effect claims;
+- comparisons must name the exact policy/backend/artifact/baseline used.
