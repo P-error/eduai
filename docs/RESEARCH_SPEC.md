@@ -1,18 +1,32 @@
 # Research Specification
 
-This document is the primary research framing document for dissertation-related decisions in EduAI.
-It defines the intended research direction and the honesty constraints for interpreting the current prototype.
-It is not a runtime behavior document and not a product-marketing document.
+This document is the primary dissertation-facing research framing document for EduAI. It defines the research problem, implemented scope, and honesty constraints for interpreting the current prototype.
+
+It is not a product-marketing document and must not be used to overclaim educational effectiveness.
 
 ## 1. Current Implementation Baseline
 
-- EduAI is a thesis-defensible prototype.
-- Thesis topic: «Разработка прогнозирования оптимального образовательного контента для отдельных обучающихся с использованием машинного обучения».
-- Current runtime still includes bridge/heuristic-heavy logic, explicit baselines, stubs, and partial artifact-backed paths.
-- The first implemented pedagogical scope is intentionally narrow.
-- Active runtime must not be described as fully model-owned unless current code, artifacts, and documentation explicitly support that claim.
-- Bridge-stage support logic may help select or materialize decisions, but it is not equivalent to a trained EduAI-native pedagogical policy.
-- Current implementation should be described as a transition state between heuristic-heavy bridge architecture and a more ML-ready research system.
+EduAI is a thesis-defensible research prototype for predicting and applying educational content configurations for individual learners.
+
+The earlier implementation focused mainly on `difficulty` and `depth`. That two-factor framing is now a legacy bridge/baseline reference, not the current runtime research boundary.
+
+The current implemented runtime policy uses a six-factor pedagogical configuration:
+
+- `difficulty`: `easy | medium | hard`
+- `depth`: `brief | standard | detailed`
+- `support_level`: `minimal | guided | scaffolded`
+- `presentation_format`: `paragraph | structured_list | step_by_step | qa`
+- `examples_level`: `none | single | multiple`
+- `terminology_level`: `simple | balanced | technical`
+
+The current policy is best described as a six-factor candidate-scoring runtime with explicit provenance, guardrails, fallback marking, LLM-output validation, and outcome-linking/export contracts.
+
+Current honesty state:
+- the app can apply six-factor decisions to learner-facing prompts by default;
+- the runtime can use an artifact-backed linear candidate scorer when the configured artifact is available;
+- the current artifact may be synthetic or bootstrap-derived;
+- synthetic/model-slot validation does not prove real educational effectiveness;
+- real-user or controlled learner outcome data is still required for final effect claims.
 
 ## 2. Target Research Architecture
 
@@ -20,29 +34,53 @@ Target architecture keeps four concerns explicit, separated, and auditable.
 
 ### Learner state
 
-- pre-decision snapshot of declared preferences, accessibility settings, behavioral evidence, performance history, topic context, mastery/readiness estimates, and uncertainty;
-- declared, inferred, and effective preference must remain distinguishable;
-- bridge logic must not silently mutate learner truth.
+The policy receives a pre-decision snapshot of learner/context information, such as declared preferences, prior performance aggregates, recent performance, topic exposure, session position, and topic/concept/skill context.
+
+Required rule:
+- pre-decision features must not contain future outcomes, post-test scores, normalized learning gain, next-step success, raw answer payloads, or hidden labels.
 
 ### Pedagogical decision / policy output
 
-- the research object is the next pedagogical action or decision package shown to the learner;
-- this may be produced by direct prediction/selection or by scoring candidate actions inside a policy;
-- decision outputs must be versioned, provenance-aware, and replay-evaluable.
+The research object is the next pedagogical content configuration shown to the learner.
+
+Current decision package:
+
+```text
+SixFactorCandidateConfigV1
+```
+
+The policy may be implemented as candidate scoring:
+
+```text
+pre_decision_features + candidate_config -> predicted_outcome
+```
+
+Runtime then selects a delivered six-factor configuration subject to guardrails and fallback rules.
 
 ### Materialization / rendering
 
-- rendering transforms a pedagogical decision into concrete content, hints, dialogue structure, wording, tone, format, and other presentation details;
-- rules in this layer materialize decisions; they do not replace policy ownership.
+Materialization transforms the selected six-factor decision into concrete LLM prompt instructions and learner-facing content.
+
+Important distinction:
+- `presentation_format` is a pedagogical presentation preference;
+- technical `response_format=mcq` / `TestSchema` is a hard output contract;
+- personalization must never break JSON schemas, MCQ structure, answer keys, option counts, required keys, or safety constraints.
 
 ### Provenance / evaluation / export
 
-- every delivered decision must be linkable to learner-state snapshot, policy provenance, episode context, content artifact, and measured outcome;
-- export, replay, backtesting, calibration, and comparison must remain possible without future leakage.
+Every delivered decision should be linkable to:
+- learner-state snapshot before the decision;
+- candidate/delivered six-factor configuration;
+- policy/backend provenance;
+- prompt/materialization metadata;
+- generated content/test artifact;
+- validation/fallback status;
+- measured outcome when available;
+- episode sequence role such as precheck, learning content, postcheck, holdout, or delayed recheck.
 
 ## 3. Preferred Problem Formulation
 
-EduAI should predict or select the next pedagogical action, not merely tune two numeric parameters.
+EduAI should estimate which pedagogical content configuration is likely to improve learning for the current learner/context state.
 
 Key preference distinction:
 - declared preference = what the learner says they prefer;
@@ -52,93 +90,132 @@ Key preference distinction:
 Working hypotheses:
 - H1: declared preferences do not always match the content parameters that maximize measurable learning result.
 - H2: behavioral and performance data identify effective content parameters more accurately than self-report alone.
-- H3: personalization based on predicted effective preferences outperforms personalization based only on declared preferences.
+- H3: personalization based on predicted effective preferences outperforms personalization based only on declared preferences or static/heuristic baselines.
 
 Learning objective:
-- optimal educational content = content that maximizes learning gain;
-- first practical baseline proxy = next-task success probability;
-- time may be used as a secondary metric or operational constraint, not as the main educational objective.
+- optimal educational content = content configuration that maximizes measured learning improvement;
+- primary target = signed learning gain where available;
+- supporting target = next-step success;
+- time/duration may be used as a secondary metric or operational constraint, not the main educational objective.
 
-Intended use and signal hierarchy:
-- the intended use scenario is educational use of learner-facing surfaces, not general-purpose assistant use;
-- tests and structured episode checks are the primary learning signal;
-- learner chat interaction is a secondary behavioral and adaptation signal;
-- canonical topics are the core aggregation unit for modeling and evaluation;
-- user collections, custom practice, or free-form interactions may exist for usability, but they do not silently replace the canonical modeling/evaluation frame.
+## 4. Current ML Scope For Thesis Prototype
 
-## 4. Nearest Realistic ML Scope For Thesis Prototype
+The current implemented decision space is six-factor and bounded:
 
-The nearest realistic target scope for a mature thesis prototype is a limited but serious pedagogical decision space, for example:
-- `difficulty`
-- `depth`
-- `instructional_mode`
-- `explanation_strategy`
-- `question_format`
-- `hint_policy`
+```text
+3 difficulty values
+* 3 depth values
+* 3 support values
+* 4 presentation values
+* 3 examples values
+* 3 terminology values
+= 972 possible configurations
+```
 
-Interpretation rules:
-- this is the nearest realistic research target, not a claim that all listed outputs are already implemented;
-- `difficulty` and `depth` remain the early baseline scope of the current implementation;
-- the older narrow scope must no longer be described as the strategic limit of EduAI;
-- the 10 axes remain an authoring/tagging taxonomy, not a set of equal ML targets;
-- `education_level`, `domain`, `context`, and often `task_type` should usually be treated as context, features, or constraints;
-- `cognitive_level` and `micro_complexity` may remain useful authoring/analysis axes, but they are not default first-wave ML targets when they largely overlap with challenge or difficulty.
+Runtime serving normally evaluates a bounded candidate set around safe/static/heuristic/current candidates rather than scoring the entire grid on every request.
 
-## 5. Rendering / Rules Layer Non-Targets
+The six-factor runtime should be interpreted as:
+- an implemented policy/application contract;
+- an auditable candidate-scoring formulation;
+- a runtime path that can be verified with metadata and prompt snapshots;
+- not, by itself, proof of educational effect.
 
-Default non-targets for core ML ownership:
-- `tone`
-- `style`
-- `formatting`
-- `wording`
-- presentation cosmetics
+The old `difficulty + depth` scope remains useful only as:
+- historical bridge framing;
+- baseline comparison;
+- compatibility adapter language in older modules/docs;
+- a simplified explanation when explicitly marked as legacy.
 
-These may be materialization outputs or rendering helpers.
-They may affect usability and perceived quality, but they must not be presented as the default core ML targets of the thesis system.
-Rules may materialize, constrain, baseline, or compare decisions, but they must not silently become the hidden owner of learner-facing or state-mutating pedagogical decisions.
+## 5. Rendering / Rules Layer Boundaries
 
-## 6. Bridge-Stage Honesty Constraints
+The six-factor policy owns pedagogically meaningful content configuration. Rendering/prompt rules materialize that configuration into actual LLM instructions and output constraints.
 
-- heuristics and stubs are not ML;
-- heuristic backends are allowed only as explicit baselines, bridge logic, fallbacks, or comparison layers;
-- bridge logic must not silently overwrite declared preference, learner state, or other learner truth;
-- heuristics must not become hidden owners of pedagogical decisions in learner-facing or state-mutating paths;
-- policy/backend provenance must stay explicit and versioned;
-- prediction policies must remain comparable across baseline, heuristic, stub, and artifact-backed variants;
-- reproducibility, replay, backtesting, and calibration must remain possible;
-- no future leakage;
-- no hidden fallbacks;
-- no UI-side core prediction logic.
+Rendering rules may:
+- translate selected factors into prompt wording;
+- enforce visible support/example markers where the output format allows;
+- preserve schema and safety precedence;
+- provide fallback behavior when the ML artifact is unavailable or unsafe.
+
+Rendering rules must not:
+- silently replace the selected policy decision;
+- hide fallback as ML;
+- mutate learner truth;
+- turn invalid LLM output into normal learning evidence;
+- change answer keys or schemas for style compliance.
+
+## 6. Bridge, Fallback, And Honesty Constraints
+
+- Heuristics and static defaults are not ML.
+- Synthetic artifacts are not real-user validation.
+- Fallback is allowed only if explicitly recorded.
+- ML/apply metadata must distinguish `ml_policy`, heuristic/static fallback, shadow-only, and provider/artifact failure states.
+- Generated tests/content must be validated before being treated as normal artifacts.
+- Fallback or invalid generated artifacts must be excluded from learning/training updates.
+- No future leakage.
+- No hidden fallbacks.
+- No UI-side core prediction logic.
+- No claim of causal learning gain without outcome-linked evaluation.
 
 ## 7. Data And Evaluation Requirements
 
-Research-supporting data must capture enough information to reconstruct and evaluate each delivered pedagogical decision safely.
+Research-supporting data must capture enough information to reconstruct and evaluate each delivered decision safely.
 
 Required recorded elements:
 - learner-state snapshot available before the decision;
-- pedagogical decision shown to the learner;
+- candidate/delivered six-factor configuration;
 - policy/backend provenance and decision source type;
-- content/materialization metadata for the delivered artifact;
+- artifact/model version and fallback status;
+- prompt/materialization metadata;
+- generated content/test validation metadata;
 - topic, concept, or skill scope;
-- episode linkage across pre-check, learning content, post-check, holdout, and delayed re-check when applicable;
-- repetition versus isomorphic-same-skill metadata;
+- episode linkage across precheck, learning content, postcheck, holdout, and delayed recheck when applicable;
 - timestamps and ordering needed for replay-safe evaluation;
-- phase/origin metadata distinguishing bridge-stage synthetic data from real-user data.
+- phase/origin metadata distinguishing synthetic/bootstrap data from real-user data.
 
 Evaluation rules:
-- delayed checks should be supported where possible;
-- evaluation exports must be replay-safe and future-leakage-safe;
 - tests remain the primary learning-evaluation signal;
-- chat may be logged as a secondary/supporting signal, but not treated as an equal learning-gain measure;
-- policy comparison must remain possible against explicit baselines rather than only against the currently active runtime.
+- chat/dialogue remains a secondary support signal;
+- delayed and holdout checks should be supported where possible;
+- evaluation exports must be replay-safe and future-leakage-safe;
+- policy comparison must remain possible against declared-preference, static, heuristic, and ML-policy baselines.
 
-## 8. Staged Rollout
+## 8. LLM Generation Quality Boundary
 
-1. First: establish ML-ready contracts, data capture, export formats, provenance, and serving boundaries, even if the active runtime still uses honest bridge-stage heuristics or stubs.
-2. Second: expand into a limited but serious pedagogical decision scope with explicit decision ownership, explicit provenance, and evaluable learner-facing deployment.
-3. Third: move toward stronger artifact-backed serving, stronger decision ownership, and retraining on real EduAI user data with clear separation from synthetic bridge artifacts.
+External LLM output is not treated as automatically correct.
 
-Current transition-state reading:
-- the repository is still primarily in the first stage, with partial scaffolding toward the second;
-- synthetic or external bootstrap artifacts may support bridge-stage experimentation, but they do not replace real-user validation;
-- documentation must remain explicit about what is actually trained, what is heuristic, and what is only target architecture.
+Generated test/content paths must preserve:
+- strict JSON contracts;
+- repair/retry diagnostics;
+- deterministic validation;
+- optional semantic test judge when enabled;
+- fallback marking;
+- learning exclusion for fallback or invalid artifacts.
+
+For generated tests:
+- `answerIndex` must point to the only correct option;
+- invalid `answerIndex` must not be silently normalized;
+- explanations must not contradict the answer key;
+- fallback tests must not be counted as normal learning evidence.
+
+## 9. Staged Rollout
+
+Current stage:
+- six-factor runtime/apply contract exists;
+- synthetic/bootstrap artifact path can verify runtime scoring/application;
+- prompt and LLM-output validation are hardened;
+- strict exports and episode linkage support later analysis.
+
+Next required stage:
+- run DB-backed evidence checks with PostgreSQL available;
+- run live-provider prompt compliance safely;
+- enable optional semantic judge in controlled runs;
+- collect eligible outcome-linked real/control observations;
+- train or select final runtime-compatible model artifact;
+- compare ML policy against explicit baselines.
+
+Final effect claims require:
+- outcome-linked rows;
+- clear baseline comparison;
+- leakage-safe feature construction;
+- exclusion of fallback/invalid artifacts;
+- transparent sample sizes and limitations.
