@@ -1,140 +1,199 @@
 # Architecture
 
 EduAI is a Next.js App Router system with Prisma/PostgreSQL, JWT auth, and an OpenAI-compatible LLM provider.
-This document describes the current architectural framing used for development.
-`VISION.md` remains the target-state direction; repository code plus current docs remain the source of truth for current behavior.
+
+This document describes the current implemented architecture after the six-factor ML/apply and LLM-validation hardening work. It should be read with `docs/RESEARCH_SPEC.md`, `docs/PREDICTION_LAYER.md`, and `docs/llm_prompt_strictness_rules.md`.
 
 ## Research Boundary
 
 The project goal is not generic UI personalization.
-The core research problem is prediction of optimal educational content for an individual learner with machine learning.
+
+The core research problem is predicting and applying educational content configurations that are likely to improve measured learning outcomes for an individual learner/context state.
 
 Key distinction:
 - declared preference: what the learner says they prefer;
-- effective preference: what actually produces the best measurable learning result.
+- inferred/effective preference: what behavior and outcomes suggest works better;
+- delivered configuration: what the system actually applied to learner-facing content;
+- measured outcome: what happened after delivery.
 
 Current conceptual definition:
-- optimal educational content = content that maximizes learning gain;
-- first practical baseline proxy = next-task success probability;
-- time is secondary and may be used as a constraint or support metric, not as the primary educational objective.
+- optimal educational content = content configuration that improves learning result;
+- primary target = signed learning gain where available;
+- supporting target = next-step success;
+- duration/time = secondary operational signal, not the primary educational objective.
 
-## Two-Layer Architecture
+## Current Two-Layer Architecture
 
-### Layer 1: ML prediction layer
-
-Purpose:
-- predict pedagogically meaningful variables that influence learning gain;
-- infer effective preferences from behavioral and performance data;
-- keep prediction policies versioned, comparable, and replay-safe.
-
-Current dissertation focus:
-- `difficulty`;
-- `explanation depth`.
-
-Possible future ML axis:
-- `instructional_mode`.
-
-Non-goals for the first dissertation version:
-- treating `tone`, `style`, or formatting as primary ML targets;
-- treating all 10 content axes as equal optimization targets.
-
-### Layer 2: rule-based rendering layer
+### Layer 1: six-factor policy / prediction layer
 
 Purpose:
-- translate pedagogical decisions into concrete content presentation;
-- map predicted targets into tone, style, format, and other presentation constraints;
-- keep this materialization logic explicit and auditable.
+- build replay-safe pre-decision learner/context features;
+- score or select six-factor candidate configurations;
+- apply guardrails;
+- return one delivered six-factor decision with explicit provenance.
 
-Rules in this layer are allowed and expected.
-They are not a replacement for the ML prediction layer.
+Current implemented policy output:
+
+- `difficulty`
+- `depth`
+- `support_level`
+- `presentation_format`
+- `examples_level`
+- `terminology_level`
+
+The active research formulation is candidate scoring:
+
+```text
+pre_decision_features + candidate_config -> predicted outcome
+```
+
+The runtime adapter converts app context into candidate scoring, selects a bounded safe candidate, and records metadata such as decision source, model version, backend kind, candidate count, confidence, and fallback state.
+
+### Layer 2: rendering / LLM materialization layer
+
+Purpose:
+- translate the selected six-factor configuration into prompt instructions;
+- preserve JSON, MCQ, dialogue, and safety contracts;
+- validate external LLM output before saving it as normal learning content/test evidence.
+
+Important distinction:
+- `presentation_format` is a pedagogical presentation setting;
+- technical `response_format=mcq`, `TestSchema`, and `learning_content_card` are hard output contracts;
+- schema and safety always override personalization.
 
 ## Current System Modules
 
 Main runtime surfaces:
-- learner UI: Profile, Learn, Practice, Analytics, Topics;
-- researcher/operator UI: Admin `Research episodes` (`/admin/episodes`) for episode launch + inspection in the current admin user's workspace;
-- standalone learner support surface: Test Runner (`/tests/[id]`) kept only as a backward-compatible custom-practice runner;
-- admin UI: observability, prediction metrics, data-quality tooling;
+- learner UI: `/learn`, `/practice`, `/profile`, analytics/insights, topics/subjects;
+- operator/admin UI: `/admin/*`, including episode/export/prompt/policy observability where available;
 - API layer: `src/app/api/**/route.ts`;
 - persistence: Prisma/PostgreSQL;
 - LLM access: `src/lib/llm/provider.ts`.
 
-Current shell/i18n note:
-- the main application UI defaults to English;
-- the main shell exposes a manual `EN/RU` toggle and persists the selected locale in an app cookie;
-- the main `Profile` surface now also exposes practical visual preferences for `theme` (`System/Light/Dark`), app-level font scaling, and a targeted high-contrast mode;
-- those visual preferences are stored as browser cookies and applied only to the main application shell/routes;
-- `/demo` remains outside this visual-settings pass;
-- locale routing is not used;
-- `/demo` remains isolated from the main-app locale toggle behavior.
+Main six-factor runtime modules:
+- `src/lib/ml-six-factor-policy-contract.ts`
+- `src/lib/ml-six-factor-policy-adapter.ts`
+- `src/lib/ml-six-factor-artifact-loader.ts`
+- `src/lib/ml-six-factor-candidate-generator.ts`
+- `src/lib/ml-six-factor-runtime-scorer.ts`
+- `src/lib/ml-six-factor-guardrails.ts`
+- `src/lib/ml-six-factor-shadow.ts`
+- `src/lib/ml-six-factor-apply.ts`
+- `src/lib/ml-six-factor-render-mapping.ts`
+- `src/lib/ml-six-factor-outcome-linking.ts`
+- `src/lib/ml-six-factor-real-user-export.ts`
 
-Current supporting modules include:
-- runtime decision/materialization contract in `src/lib/personalization-runtime.ts`;
-- recommendation and baseline policy logic in `src/lib/recommendation.ts`;
-- statistics and baseline update logic in `src/lib/statistics.ts`;
-- prediction runtime modules in `src/lib/prediction*.ts`;
-- tagging and content metadata logic in `src/lib/tagger.ts` and `src/lib/llm-tagger.ts`.
+Main LLM-generation modules:
+- `src/lib/llm/provider.ts`
+- `src/lib/llm-prompt-builders.ts`
+- `src/lib/test-generation.ts`
+- `src/lib/learning-content-generation.ts`
+- `src/lib/learning-dialogue.ts`
+- `src/lib/generated-test-judge.ts`
+- `src/lib/test-schema.ts`
+- `src/lib/learning-content-schema.ts`
+
+Legacy/support modules still exist for older prediction, heuristic baseline, statistics, and compatibility surfaces. They should be interpreted as baselines, adapters, or historical bridge logic unless a current six-factor document says otherwise.
 
 ## Current Implementation State
 
-The repository currently contains a mix of:
-- heuristic baselines;
-- stub model paths;
-- artifact-backed ML runtime paths;
-- rule-based rendering/materialization logic.
+The repository contains:
+- a six-factor runtime policy/apply path;
+- a runtime-compatible JSON linear candidate scorer path;
+- explicit heuristic/static fallback paths;
+- strict LLM output validation and fallback marking;
+- episode-level orchestration and outcome linkage;
+- legacy two-factor/heuristic support paths kept for compatibility and comparison.
 
-Those paths must be interpreted honestly:
-- heuristic and stub components are not ML;
-- baseline/runtime support metrics are not a substitute for the dissertation ML target definition;
-- if an artifact-backed ML slot is unavailable, the system must report that explicitly rather than hiding a fallback.
+Interpretation rules:
+- artifact-backed six-factor runtime is the current app-facing ML policy path when the artifact is valid;
+- heuristic/static fallback is not ML;
+- synthetic/bootstrap artifacts do not prove real learning effectiveness;
+- old `difficulty + depth` documents or modules are not the current strategic scope unless explicitly marked as legacy baseline.
 
-Current runtime alignment:
-- the shared runtime decision contract now selects `difficulty` and `depth` as the pedagogical outputs;
-- tone, explanation style, and response formatting are materialized afterward in an explicit rules layer;
-- legacy delivery fields remain only as compatibility adapters for current routes and storage surfaces.
+## Six-Factor Runtime Flow
 
-Current decision-boundary step:
-- the repository now carries one explicit research-boundary contract in `src/lib/pedagogical-decision-contract.ts`;
-- `PedagogicalDecisionV1` is the canonical bridge object for pedagogical delivery ownership, even though current runtime still produces it through adapters over existing heuristic/stub/artifact paths;
-- `DecisionProvenanceV1` records whether the current decision boundary was backed by a heuristic, stub, artifact, or unknown source, without pretending that every bridge path is ML;
-- `LearnerStateSnapshotV1` is intentionally only a boundary snapshot, not a new full learner model or migration-driven state redesign;
-- `DeliveredPedagogicalDecisionV1` binds learner snapshot, decision, provenance, and episode-linkage placeholders so later cleanup/export/serving work can depend on one object instead of scattered shapes;
-- this step does not switch the active runtime backend and does not claim that current routes or stored records are fully migrated to the new boundary.
+```text
+1. Learner enters a chat, test generation, learning content, or episode dialogue path.
+2. App builds pre-decision learner/context features.
+3. Six-factor adapter generates a bounded candidate set.
+4. Guardrails remove unsafe candidates.
+5. Runtime scorer evaluates candidates if the artifact is available and compatible.
+6. Adapter selects a delivered six-factor configuration.
+7. Apply mode maps the delivered configuration into prompt instructions.
+8. LLM generates chat text, test JSON, or learning-content JSON.
+9. JSON paths are parsed, repaired when possible, validated, and marked.
+10. Generated artifacts are saved with validation/provenance metadata.
+11. Later outcomes are linked for evaluation/export.
+```
 
-Current evaluation alignment:
-- the runtime can group related interactions into an explicit evaluation episode;
-- each stored test or chat session can now be linked to the episode, policy arm, pedagogical decision, and topic/concept/skill scope that produced it;
-- each linked artifact is also registered in a central `EvaluationEpisodeItem` protocol registry with explicit sequence role (`precheck`, `learning_content`, `postcheck`, `holdout`, `delayed_recheck`), item usage (`training` vs `evaluation` vs chat support), and practice-effect linkage metadata;
-- each evaluation episode now also carries an explicit data-collection phase/origin marker so future synthetic and real training data can stay separated without UI/runtime toggles;
-- arm assignment is now a runtime contract rather than a loose metadata label: baseline, self-report, predicted, and manual override can be selected and then fixed on the episode;
-- a lightweight episode coordinator can now lock one episode-level decision package and advance a structured MVP loop (`precheck -> learning_content -> postcheck/holdout`) instead of relying on manual client-side glue across unrelated endpoints;
-- the learning-content step is now a first-class episode artifact: EduAI generates a structured explanation/chat-delivery step from the same locked pedagogical decision (`difficulty`, `depth`) and the same rules-layer materialization family used by the surrounding tests;
-- the admin-side operator surface now reuses the same subject APIs plus the same episode coordinator instead of introducing a second control plane: it launches episodes, inspects linkage/provenance/sequence, and marks operational export readiness from the stored episode summary;
-- tests remain the primary learning-evaluation signal, while chat is logged only as a secondary supporting signal;
-- direct repetition, isomorphic same-family checks, unseen holdouts, and delayed retention checks are now distinguished in the protocol layer instead of only being implied by scattered metadata.
+Runtime defaults:
+- six-factor ML policy: enabled by default;
+- six-factor metadata: enabled by default;
+- learner-facing apply: enabled by default;
+- opt-out flags disable ML/apply/metadata explicitly.
 
-Current training-data alignment:
-- PostgreSQL remains the canonical operational store; training workflows do not bypass the app by writing only raw CSV files;
-- the main project can now export versioned training snapshots from operational episode data into `training_datasets/synthetic/` and `training_datasets/real/`;
-- both phase roots share one fixed training schema contract, so later retraining on real EduAI data does not require a separate ingestion rewrite;
-- current snapshot writing uses CSV plus explicit schema/metadata/manifest files, with a documented later conversion path to Parquet;
-- a fixed future runtime artifact slot exists under `artifacts/runtime/eduai_native_pedagogy/current/`; this slot may now receive an EduAI-native artifact package, but serving integration remains inactive until a later explicit activation step;
-- synthetic bridge artifacts in that slot must be labeled as internal pipeline artifacts, not as real-user validation.
+Common rollback flags:
+- `EDUAI_SIX_FACTOR_ML_POLICY=0`
+- `EDUAI_SIX_FACTOR_APPLY=0`
+- `EDUAI_SIX_FACTOR_SHADOW=0`
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`
+
+## Evaluation Episode Alignment
+
+The runtime can group related interactions into an explicit evaluation episode.
+
+Current episode structure supports:
+- `precheck`
+- `learning_content`
+- bounded learning dialogue
+- `postcheck`
+- optional `holdout`
+- optional `delayed_recheck`
+
+Tests remain the primary learning-evaluation signal. Chat/dialogue remains secondary support evidence.
+
+Each linked artifact can be registered with:
+- sequence role;
+- item usage;
+- practice-effect linkage;
+- assigned policy arm;
+- topic/concept/skill/family scope;
+- delivered decision/provenance;
+- recorded outcome when available.
+
+## LLM Output Validation Boundary
+
+External LLM output is not trusted blindly.
+
+For generated tests:
+- output must satisfy strict JSON/TestSchema rules;
+- question count must match request;
+- `answerIndex` must be valid and must not be silently rewritten;
+- options must be non-empty and unique after normalization;
+- explanations must be non-empty;
+- fallback placeholder wording is rejected for LLM-generated tests;
+- optional semantic judge can validate answer-key consistency when enabled.
+
+For learning content:
+- output must satisfy strict `learning_content_card` schema;
+- content must remain topic-anchored;
+- sections must be non-empty;
+- six-factor support/example markers are validated where required.
+
+Fallback outputs are marked as fallback and excluded from learning/training updates.
 
 ## High-Level Data Flow
 
-1. The learner starts from `Learn`, which is now the active episode-first learner route.
+1. The learner starts a structured flow, usually from `/learn`.
 2. The API stores replay-safe behavioral and performance signals.
-3. The prediction layer builds features only from information available before the current decision point.
-4. A policy evaluates candidate pedagogical decisions and selects `difficulty` plus `depth`, with explicit versioning and backend-state metadata.
-5. The rendering layer turns those pedagogical decisions into tone, style, and format constraints.
-6. The runtime creates or reuses an evaluation episode, resolves a policy-assignment arm, locks an episode orchestration package, and materializes the next step through a minimal coordinator.
-7. Submit-time logging records predicted versus actual outcomes together with evaluation metadata and updates the linked episode item outcome record.
-8. The learner-facing `/learn` UI uses the same coordinator endpoints to start, restore, submit, and continue one episode instead of manually stitching together chat and standalone test routes.
-9. The coordinator can advance from precheck to learning content and then to postcheck/holdout while keeping tests primary and chat secondary.
-10. The operator-facing `/admin/episodes` surface uses the same stored summaries plus current user subject/section context to launch and inspect episodes without duplicating prediction logic in the UI.
-11. Offline export can now operate either on attempt-level dataset rows, on episode-level evaluation summaries, or on canonical training snapshots projected from operational episode data.
-12. Training snapshot export reads completed episodes from PostgreSQL, keeps synthetic and real phases separate, and writes versioned snapshot directories with schema/metadata/manifest files for later model training.
+3. The six-factor policy builds features only from information available before the current decision point.
+4. The policy selects a six-factor delivered configuration with explicit provenance.
+5. The rendering layer maps the delivered configuration into LLM prompt instructions.
+6. The LLM produces chat text, test JSON, or learning-content JSON.
+7. Runtime validation repairs, accepts, rejects, or falls back.
+8. Submit-time logging records actual outcomes and updates linked episode/item records.
+9. Export can produce replay-safe rows for training/evaluation, including signed learning gain where available.
 
 ## Architectural Invariants
 
@@ -142,6 +201,9 @@ Current training-data alignment:
 - No hidden fallbacks.
 - UI must not contain core prediction logic.
 - Prediction policies must be versioned and comparable.
-- Backtesting and calibration must use replay-safe historical data only.
-- Heuristic or rule-based layers may exist as baselines, fallbacks, or rendering logic, but must never be described as ML.
+- Heuristic/static fallback must never be described as ML.
+- Synthetic artifact success must not be described as real educational effect.
+- Tests are primary evaluation signals; chat is secondary support evidence.
 - Answer keys remain server-side; client payloads stay sanitized.
+- LLM-generated artifacts must pass validation before they are normal learning evidence.
+- Fallback/invalid artifacts must be excluded from learning updates and training export.
