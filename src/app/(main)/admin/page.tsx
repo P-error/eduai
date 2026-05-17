@@ -41,6 +41,8 @@ type OperationalSummaryPayload = {
     researchEvidence: boolean;
     productionEligibilityReason: string | null;
     artifactMlFirstEligibilityReason: string | null;
+    heuristicFallbackAvailable: boolean;
+    fallbackMode: string;
     mlFirstReady: boolean;
     rateLimiterBackend: string;
   };
@@ -238,6 +240,14 @@ export default function AdminOverviewPage() {
             <div className="flex justify-between gap-3">
               <span>Strict ML-first ready</span>
               <span>{summary.runtime.mlFirstReady ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Fallback available</span>
+              <span>{summary.runtime.heuristicFallbackAvailable ? messages.common.yes : messages.common.no}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Fallback mode</span>
+              <span>{summary.runtime.fallbackMode}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span>Artifact status</span>

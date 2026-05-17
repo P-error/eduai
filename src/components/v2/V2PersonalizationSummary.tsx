@@ -81,6 +81,22 @@ function decisionHeadline(metadata: MlPersonalizationView) {
   return "Источник персонализации не распознан";
 }
 
+function decisionChipLabel(
+  metadata: MlPersonalizationView,
+  sourceLabel: string,
+) {
+  if (
+    metadata.decisionSource === "shadow_only" ||
+    !metadata.appliedToLearnerFacingOutput
+  ) {
+    return "Shadow-наблюдение";
+  }
+  if (metadata.fallbackUsed) {
+    return "Безопасный fallback";
+  }
+  return sourceLabel;
+}
+
 export default function V2PersonalizationSummary({
   metadata,
   className,
@@ -110,6 +126,7 @@ export default function V2PersonalizationSummary({
   const sourceLabel =
     DECISION_SOURCE_LABELS[metadata.decisionSource] ?? "техническая настройка";
   const headline = decisionHeadline(metadata);
+  const chipLabel = decisionChipLabel(metadata, sourceLabel);
 
   return (
     <V2Card className={className} tone="soft">
@@ -118,9 +135,7 @@ export default function V2PersonalizationSummary({
           <p className="v2-eyebrow">Персонализация</p>
           <h3 className="v2-title-sm mt-2">{headline}</h3>
         </div>
-        <p className="v2-chip">
-          {metadata.fallbackUsed ? "Безопасный fallback" : sourceLabel}
-        </p>
+        <p className="v2-chip">{chipLabel}</p>
       </div>
 
       <div className="v2-factor-grid mt-5">

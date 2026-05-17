@@ -124,6 +124,8 @@ export async function getAdminOperationalSummary(prisma: PrismaClient) {
       researchEvidence: artifactEvidence?.researchEvidence ?? false,
       productionEligibilityReason: artifactEvidence?.reason ?? null,
       artifactMlFirstEligibilityReason: artifactEligibility?.reason ?? null,
+      heuristicFallbackAvailable: true,
+      fallbackMode: "heuristic_baseline_on_artifact_failure",
       mlFirstReady: mlFirstProductionEligible,
       rateLimiterBackend: RATE_LIMIT_BACKEND,
     },

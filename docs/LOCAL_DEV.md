@@ -77,6 +77,10 @@ npm run prediction-runtime:self-check
 With the synthetic DEV artifact active, that strict gate should fail with
 `synthetic_artifact_not_ml_first_eligible`.
 
+For a local or Vercel demo using the forced DEV artifact, `/api/ready` can be
+HTTP 200 only when it still reports the DEV warning, `artifactRuntimeReady=true`,
+`mlFirstProductionEligible=false`, and `researchEvidence=false`.
+
 ## 3) Start local DB (Docker)
 
 ```bash

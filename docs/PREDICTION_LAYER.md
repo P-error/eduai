@@ -222,6 +222,8 @@ Expected DEV result:
 - artifact status is `ready`;
 - `productionEligible=false`;
 - `researchEvidence=false`.
+- `/api/ready` may be OK for a demo deployment, but it must include the DEV
+  artifact warning and keep `mlFirstProductionEligible=false`.
 
 The strict production gate remains:
 

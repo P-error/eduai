@@ -237,6 +237,8 @@ async function checkPredictionRuntime() {
     researchEvidence: artifactEvidence?.researchEvidence ?? false,
     productionEligibilityReason: artifactEvidence?.reason ?? null,
     mlFirstEligibility: artifactEligibility,
+    heuristicFallbackAvailable: true,
+    fallbackMode: "heuristic_baseline_on_artifact_failure",
     featurePayloadVersion: snapshot.featurePayloadVersion,
     accuracyFeatureSchemaVersion: snapshot.accuracyFeatureSchemaVersion,
     mlFirstReady: mlFirstProductionEligible,
@@ -250,7 +252,7 @@ async function checkPredictionRuntime() {
       );
     }
     if (artifactRuntimeReady) {
-      return errorCheck(
+      return warnCheck(
         "DEV ML artifact active; artifact runtime is ready but not production/research eligible.",
         details,
       );
