@@ -1,34 +1,40 @@
-# Learning Policy v2
+# Learning Policy v2 (Legacy Heuristic Baseline)
 
 Status:
-- current implemented heuristic baseline;
+- legacy/current-comparison heuristic baseline;
 - historical/reference policy for comparison;
-- not the target dissertation ML policy.
+- not the current six-factor ML runtime policy;
+- not the target dissertation evidence by itself.
 
-Implementation sources:
+This document records the transparent heuristic update logic used in parts of the repository and preserved for baseline comparison. It must not be presented as machine learning.
+
+For the current six-factor runtime policy, use:
+- `docs/PREDICTION_LAYER.md`
+- `docs/ml_six_factor_runtime_policy_adapter.md`
+- `docs/ml_six_factor_apply_mode.md`
+- `docs/ml_dataset_contract.md`
+
+Implementation sources historically associated with this baseline:
 - `src/lib/statistics.ts`
 - `src/lib/recommendation.ts`
 - `src/app/api/tests/[id]/submit/route.ts`
 - `src/app/api/tests/generate/route.ts`
 - `src/lib/chat.ts` (chat UX-only weak signal)
 
-This document records the transparent heuristic update logic currently used in parts of the repository.
-It remains useful as a reproducible baseline and comparison policy.
-It must not be presented as machine learning.
-
 ## Position In The Research Stack
 
 - declared preference and effective preference are conceptually distinct;
 - this policy is a heuristic attempt to update user-facing personalization state from observed outcomes;
-- it is a baseline for comparison against future ML policies focused on `difficulty` and `explanation depth`;
-- tone/style/format decisions remain rendering-layer concerns, even when some current logic stores related stats.
+- it is a comparison baseline against the current six-factor candidate-scoring policy;
+- older references to `difficulty` and `explanation depth` describe the historical two-factor bridge, not the current full six-factor runtime;
+- tone/style/format updates in this baseline are UX/rendering evidence, not the current six-factor ML policy by themselves.
 
 ## Baseline Objectives
 
 - keep learner challenge within a target success band through explicit difficulty transitions;
 - maintain transparent, auditable update formulas;
 - gate updates on data quality;
-- provide a comparison layer against future ML policies.
+- provide a reproducible comparison layer against artifact-backed six-factor policies.
 
 ## UX Reward Formula (tests)
 
@@ -83,59 +89,65 @@ Pedagogy exploration (`src/lib/recommendation.ts`):
 - when exploring: random tags for those axes
 - `difficulty_target` remains policy-driven
 
-This exploration logic is heuristic baseline behavior.
-It is not evidence that those axes are equal dissertation ML targets.
+This exploration logic is heuristic baseline behavior. It is not evidence that those axes are equal dissertation ML targets.
 
 ## Compliance and Gating
 
-From generate pipeline:
-- compliance computed on final observed tags (LLM or fallback result used for assignments)
-- `deliveryComplianceGate` turns style compliance into learning exclusion only when explicit/manual UX delivery requirements have complete LLM style-tag evidence below the average/min thresholds
-- internal episode/rendering defaults remain diagnostic rendering metadata; missing or unknown style evidence is not treated as low UX compliance
+Learning eligibility must remain strict enough to avoid contaminating training/evaluation data.
+
+Current hardening rules that matter for this baseline:
+- fallback generated tests are not learning-eligible;
+- invalid or generated-invalid artifacts must not be treated as normal learning evidence;
+- fallback/mixed tagging can exclude learning updates;
+- strict generated-test and learning-content validation metadata should be preserved;
+- optional semantic judge status should be recorded when enabled;
+- missing optional rendering-style evidence is not itself a low-UX-compliance failure.
 
 Learning eligibility at test level:
-- true only when generation source is llm, tagging source is llm, and no proven learning-exclusion gate failed
+- true only when generation and tagging evidence meet the current runtime gates;
+- false when `generationSource="fallback"` or equivalent fallback/invalid generation metadata is present.
 
-Submit-time skip reasons include:
+Submit-time skip reasons may include:
 - `DEFAULT_COLLECTION`
 - `LOW_UX_COMPLIANCE`
 - `LEARNING_INELIGIBLE`
 - `INVALID_TAG_WARNINGS`
+- `FALLBACK_GENERATION`
 
 ## Chat Policy Interaction
 
-- Chat updates only UX axes: `tone`, `explanation_style`
-- reward is intentionally weak proxy (`computeChatUxReward`):
-  - short/very long responses -> 0.35
-  - otherwise -> 0.5
-- pedagogy stats are not updated from chat in current scope.
+- Chat updates only weak UX/support signals in legacy paths.
+- Chat-derived reward remains a weak proxy and must not be treated as a primary learning-gain measure.
+- Episode learning dialogue is secondary support evidence; tests remain primary.
 
 ## Pseudocode
 
 ```text
 on submit:
   validate ownership + payload + idempotency
+  reject corrupt stored test data
   compute score + byTag
-  compute uxReward (if telemetry present)
-  compute difficultyDecision
-  write attempt with _meta (learning/ux/pedagogy/policy/prediction)
-  if skipReason != null: stop
-  update UserTagStat:
-    UX axes use fractional uxReward as correct increment
-    Ped axes use binary correctness increment
-  recompute effective prefs
-  force difficulty_target = difficultyDecision.difficulty
+  compute uxReward when telemetry is present
+  compute difficultyDecision for legacy baseline comparison
+  write attempt with _meta (learning/ux/pedagogy/policy/prediction/evaluation)
+  if skipReason != null: stop learning update
+  update eligible UserTagStat rows
+  recompute effective prefs where applicable
+  keep baseline provenance explicit
 ```
 
 ## Interpretation Rules
 
-- treat this policy as an explicit heuristic baseline and comparison layer;
-- do not describe it as the dissertation ML solution;
-- do not infer from this document that tone/style/format are current ML targets;
-- if future ML policies replace parts of this behavior, keep versioned comparison against this baseline.
+- Treat this policy as a heuristic baseline and comparison layer.
+- Do not describe it as the dissertation ML solution.
+- Do not infer from this document that the current runtime is still only `difficulty + depth`.
+- Do not infer from this document that tone/style/format are the current ML policy by themselves.
+- Compare it against the six-factor ML policy only with explicit provenance and outcome-linked rows.
 
 ## Known Policy Limitations
 
-- telemetry quality directly impacts UX update coverage,
-- epsilon exploration can add noise for very low-N users.
-- heuristic update formulas can diverge from the true effective preference signal.
+- telemetry quality directly impacts UX update coverage;
+- epsilon exploration can add noise for very low-N users;
+- heuristic update formulas can diverge from the true effective preference signal;
+- the policy does not evaluate the full six-factor candidate space;
+- it remains useful mainly as a transparent baseline, not as the current ML runtime claim.
