@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ensureTagLegend } from "@/lib/tag-seed";
@@ -11,6 +10,16 @@ import {
   validateGeneratedTestArtifact,
   type GeneratedTestValidationResult,
 } from "@/lib/test-schema";
+import {
+  buildEpisodeTestPackage,
+  buildStrictDeliveryReinforcement,
+  errorMessage,
+  fallbackTest,
+  pickCoreDeliveryFields,
+  resolveManualDeliveryOverride,
+  testValidationMessages,
+  toJsonValue,
+} from "@/lib/test-generation-helpers";
 import {
   judgeGeneratedTestArtifact,
   type GeneratedTestJudgeRun,
@@ -56,7 +65,6 @@ import {
   clampExplanationDepth,
   createBaselineMaterialization,
   createDeclaredPreferenceMaterialization,
-  type RenderingDecision,
 } from "@/lib/personalization-runtime";
 import {
   MAX_RETRIES,
@@ -137,7 +145,6 @@ export const GenerateSchema = z.object({
   recommendationSnapshot: z.unknown().optional(),
 });
 
-type DeliveryRequest = NonNullable<z.infer<typeof DeliveryComplianceSchema>>;
 export type GenerateTestPayload = z.infer<typeof GenerateSchema>;
 
 type SubjectSnapshot = {
@@ -235,71 +242,8 @@ export class TestGenerationError extends Error {
   }
 }
 
-function toJsonValue(value: unknown) {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
-}
-
 const BASELINE_DELIVERY_PRESET: CoreDeliveryRequest =
   createBaselineMaterialization("test").delivery;
-
-function fallbackTest(subject: string, topic: string, count: number) {
-  return {
-    title: `${subject}: diagnostic fallback for ${topic}`,
-    questions: Array.from({ length: count }).map((_, index) => ({
-      prompt: `Diagnostic fallback check ${index + 1}: which statement is most directly connected to ${topic}?`,
-      options: [
-        `A statement about ${topic}`,
-        "A statement about an unrelated topic",
-        "A statement with no assessable learning claim",
-      ],
-      answerIndex: 0,
-      explanation:
-        "Diagnostic fallback item generated because the external LLM path was unavailable or invalid; this item is excluded from learning updates.",
-    })),
-  } satisfies z.infer<typeof TestSchema>;
-}
-
-function pickCoreDeliveryFields(
-  source: DeliveryRequest | Record<string, unknown> | null | undefined,
-): CoreDeliveryRequest {
-  const root = source ?? {};
-  return {
-    tone: typeof root.tone === "string" ? root.tone : undefined,
-    explanation_style:
-      typeof root.explanation_style === "string"
-        ? root.explanation_style
-        : undefined,
-    response_format:
-      typeof root.response_format === "string"
-        ? root.response_format
-        : undefined,
-    difficulty_target:
-      typeof root.difficulty_target === "string"
-        ? root.difficulty_target
-        : undefined,
-    depth: typeof root.depth === "string" ? root.depth : undefined,
-  };
-}
-
-function buildStrictDeliveryReinforcement(
-  requestedUx: Record<string, string>,
-): string {
-  const requirements = Object.entries(requestedUx)
-    .map(([axis, value]) => `${axis} MUST be ${value}`)
-    .join("; ");
-
-  return `STRICT DELIVERY REQUIREMENTS: For EVERY question ${requirements}. If you cannot comply, rewrite the question until it matches. Do not explain these requirements. Output JSON only.`;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function testValidationMessages(result: GeneratedTestValidationResult) {
-  return [...result.errors, ...result.warnings].map((issue) =>
-    `${issue.path ? `${issue.path}:` : ""}${issue.code}: ${issue.message}`,
-  );
-}
 
 async function resolveSectionSnapshot(
   subjectId: string,
@@ -529,93 +473,6 @@ async function resolveTestGenerationPlan(params: {
   } satisfies GenerateTestPlan;
 }
 
-function buildEpisodeTestPackage(params: {
-  episodeId: string;
-  protocolKey: string;
-  sequenceRole: EvaluationItemMeta["sequenceRole"];
-  touchpointType: EvaluationItemMeta["touchpointType"];
-  subject: SubjectSnapshot;
-  sectionSnapshot: string | null;
-  sectionId: string | null;
-  topic: string;
-  questionCount: number;
-  mode: "quiz" | "exam" | "practice";
-  familyKey: string;
-  conceptKey: string | null;
-  skillKey: string | null;
-  pedagogicalDecision: {
-    difficulty: string;
-    depth: string;
-  };
-  renderingDecision: {
-    tone: string;
-    explanation_style: string;
-    response_format: "mcq";
-  };
-  renderingRules: {
-    id: string;
-    basis: string;
-  };
-  assignment: EvaluationAssignmentMeta;
-  evaluation: EvaluationItemMeta;
-}) {
-  return {
-    schemaVersion: "episode_generation_package_v1_2026_03",
-    episodeId: params.episodeId,
-    protocolKey: params.protocolKey,
-    contentKind: "generated_test",
-    sequenceRole: params.sequenceRole,
-    touchpointType: params.touchpointType,
-    questionCount: params.questionCount,
-    mode: params.mode,
-    pedagogicalDecision: params.pedagogicalDecision,
-    rendering: {
-      tone: params.renderingDecision.tone,
-      explanationStyle: params.renderingDecision.explanation_style,
-      responseFormat: params.renderingDecision.response_format,
-      rulesLayer: params.renderingRules,
-      renderingDecision: {
-        tone: params.renderingDecision.tone,
-        explanationStyle: params.renderingDecision.explanation_style,
-        responseFormat: params.renderingDecision.response_format,
-        presentationMode: "mcq_test",
-        formattingHint:
-          params.pedagogicalDecision.depth === "detailed"
-            ? "scaffolded"
-            : params.pedagogicalDecision.depth === "brief"
-              ? "brief"
-              : "balanced",
-      } satisfies RenderingDecision,
-    },
-    policy: {
-      arm: params.assignment.arm,
-      policyMode: params.assignment.policyMode,
-      policyId: params.assignment.policyId,
-      assignmentSource: params.assignment.assignmentSource,
-      personalizationMode: params.assignment.personalizationMode ?? "on",
-    },
-    scope: {
-      subjectId: params.subject.id,
-      subjectTitle: params.subject.title,
-      sectionId: params.sectionId,
-      sectionPath: params.sectionSnapshot,
-      topic: params.topic,
-      conceptKey: params.conceptKey,
-      skillKey: params.skillKey,
-      familyKey: params.familyKey,
-    },
-    linkage: {
-      linkageKind: params.evaluation.linkageKind,
-      linkedContentId: params.evaluation.linkedContentId,
-      holdoutStrategy: params.evaluation.holdoutStrategy,
-    },
-    outputContract: {
-      kind: "mcq_test",
-      schema: "TestSchema",
-    },
-  } satisfies TestGenerationPackage;
-}
-
 export async function generateTestForUser(
   params: GenerateTestForUserParams,
 ): Promise<GeneratedTestArtifact> {
@@ -642,11 +499,10 @@ export async function generateTestForUser(
     subject.id,
     params.payload.sectionId ?? null,
   );
-  const hasManualDeliveryOverride =
-    params.hasManualDeliveryOverride ??
-    (Boolean(params.rawBody) &&
-      typeof params.rawBody === "object" &&
-      Object.prototype.hasOwnProperty.call(params.rawBody, "delivery"));
+  const hasManualDeliveryOverride = resolveManualDeliveryOverride({
+    hasManualDeliveryOverride: params.hasManualDeliveryOverride,
+    rawBody: params.rawBody,
+  });
   const plan =
     params.resolvedPlan ??
     (await resolveTestGenerationPlan({
