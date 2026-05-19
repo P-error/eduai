@@ -100,6 +100,7 @@ audit_bundles/
 review_bundles/
 
 # local artifacts
+/1805/
 /eduai_clean_*.tar.gz
 /tmp/
 /eduai-clean/*
