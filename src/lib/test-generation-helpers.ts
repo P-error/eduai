@@ -123,6 +123,7 @@ export function buildEpisodeTestPackage(params: {
     difficulty: string;
     depth: string;
   };
+  sixFactorPedagogicalProfile?: TestGenerationPackage["sixFactorPedagogicalProfile"];
   renderingDecision: {
     tone: string;
     explanation_style: string;
@@ -144,6 +145,7 @@ export function buildEpisodeTestPackage(params: {
     touchpointType: params.touchpointType,
     questionCount: params.questionCount,
     mode: params.mode,
+    sixFactorPedagogicalProfile: params.sixFactorPedagogicalProfile ?? null,
     pedagogicalDecision: params.pedagogicalDecision,
     rendering: {
       tone: params.renderingDecision.tone,

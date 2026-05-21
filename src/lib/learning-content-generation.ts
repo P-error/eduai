@@ -30,6 +30,10 @@ import {
   validateLearningContentCard,
   type LearningContentValidationResult,
 } from "@/lib/learning-content-schema";
+import {
+  buildSixFactorPedagogicalPromptProfileFromMetadata,
+  type SixFactorPedagogicalPromptProfileV1,
+} from "@/lib/ml-six-factor-render-mapping";
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
 import {
   buildOptionalSixFactorDeliveredConfigMetadata,
@@ -111,31 +115,71 @@ function buildFallbackCard(params: {
   depth: string;
   tone: string;
   explanationStyle: string;
+  sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null;
   priorTestOutcome?: GenerateLearningContentParams["priorTestOutcome"];
 }) {
   const priorAccuracy =
     params.priorTestOutcome?.accuracy != null
       ? `${Math.round(params.priorTestOutcome.accuracy * 100)}%`
       : "unknown";
+  const guidance = params.sixFactorProfile?.factorGuidance ?? null;
+  const support = guidance?.supportLevel.value ?? "guided";
+  const presentation = guidance?.presentationFormat.value ?? "structured_list";
+  const examples = guidance?.examplesLevel.value ?? "single";
+  const terminology = guidance?.terminologyLevel.value ?? "balanced";
+  const terminologyLine =
+    terminology === "simple"
+      ? "Use plain wording and define only the necessary terms."
+      : terminology === "technical"
+        ? "Use precise subject terms and define each important term briefly."
+        : "Use standard subject terms and define them only when needed.";
+  const supportLine =
+    support === "minimal"
+      ? "Hint: focus on the core rule first, then try the next check."
+      : support === "scaffolded"
+        ? "Check: follow the steps, explain each step to yourself, then solve one similar item."
+        : "Next step: name the rule, apply it once, and verify the answer.";
+  const coreBody =
+    presentation === "qa"
+      ? `Question: what matters most in ${params.topic}? Answer: identify the rule, connect it to the current task, and keep the explanation ${params.explanationStyle}. ${terminologyLine}`
+      : presentation === "step_by_step"
+        ? `1. Identify the core rule for ${params.topic}. 2. Apply it to the current task. 3. Check whether the answer follows the rule. ${terminologyLine}`
+        : presentation === "paragraph"
+          ? `Focus on the main concept behind ${params.topic} and keep the explanation ${params.explanationStyle} in a ${params.tone} tone. ${terminologyLine}`
+          : `- Core rule for ${params.topic}\n- Apply the rule to the task\n- Check the result\n${terminologyLine}`;
+  const sections: LearningContentCard["sections"] = [
+    {
+      heading: "Core idea",
+      body: coreBody,
+    },
+  ];
+
+  if (examples === "single") {
+    sections.push({
+      heading: "One example:",
+      body: `A learner can connect ${params.topic} to the next assessment by naming the rule first, then checking whether the answer follows it. The latest precheck accuracy in this episode was ${priorAccuracy}.`,
+    });
+  } else if (examples === "multiple") {
+    sections.push({
+      heading: "Examples:",
+      body: `Example 1: apply the rule directly to a familiar task. Example 2: compare it with a near miss and explain why the near miss fails. Latest precheck accuracy in this episode: ${priorAccuracy}.`,
+    });
+  }
+
+  sections.push({
+    heading: support === "scaffolded" ? "Guided steps" : "Practice cue",
+    body: supportLine,
+  });
+  sections.push({
+    heading: "Check:",
+    body: `Check: name one rule from ${params.topic} that you would verify before the next assessment step.`,
+  });
 
   return {
     schemaVersion: LEARNING_CONTENT_CARD_SCHEMA_VERSION,
     title: `${params.topic}: guided explanation`,
-    summary: `This episode step explains the core idea at ${params.difficulty} difficulty and ${params.depth} depth.`,
-    sections: [
-      {
-        heading: "Core idea",
-        body: `Focus on the main concept behind ${params.topic} and keep the explanation ${params.explanationStyle} in a ${params.tone} tone.`,
-      },
-      {
-        heading: "One example:",
-        body: `A learner can connect ${params.topic} to the next assessment by naming the rule first, then checking whether the answer follows it. The latest precheck accuracy in this episode was ${priorAccuracy}.`,
-      },
-      {
-        heading: "Check:",
-        body: `Check: name one rule from ${params.topic} that you would verify before the next assessment step.`,
-      },
-    ],
+    summary: `This episode step explains the core idea at ${params.difficulty} difficulty and ${params.depth} depth with ${support} support, ${presentation} organization, ${examples} examples, and ${terminology} terminology.`,
+    sections: sections.slice(0, 4),
     reflectionPrompt: `What is the key idea you would use to solve the next task on ${params.topic}?`,
   } satisfies LearningContentCard;
 }
@@ -168,6 +212,13 @@ function buildLearningContentPackage(params: {
     contentKind: "chat_session",
     sequenceRole: params.evaluation.sequenceRole,
     touchpointType: params.evaluation.touchpointType,
+    sixFactorPedagogicalProfile:
+      isPrimarySixFactorDecisionMetadata(params.plan.sixFactorPrimaryDecision)
+        ? buildSixFactorPedagogicalPromptProfileFromMetadata(
+            params.plan.sixFactorPrimaryDecision,
+            "learning_content",
+          )
+        : null,
     pedagogicalDecision: params.plan.pedagogicalDecision,
     rendering: {
       tone: params.plan.renderingDecision.tone,
@@ -322,6 +373,20 @@ export async function generateLearningContentForEpisode(
     ),
     path: "learning_content",
   });
+  const primarySixFactorPromptProfile =
+    buildSixFactorPedagogicalPromptProfileFromMetadata(
+      primarySixFactorDecision,
+      "learning_content",
+    );
+  const promptSixFactorProfile =
+    primarySixFactorPromptProfile ??
+    generationPackage.sixFactorPedagogicalProfile ??
+    sixFactorApply.shadow?.renderPolicy.pedagogicalProfile ??
+    null;
+  const activeSixFactorConfig =
+    primarySixFactorDecision?.deliveredConfig ??
+    sixFactorApply.metadata?.deliveredConfig ??
+    null;
 
   const promptTemplate = await getActivePromptTemplate("learning_content_v1");
   const baseSystemPrompt = renderPrompt(promptTemplate.template, {
@@ -340,10 +405,12 @@ export async function generateLearningContentForEpisode(
   });
   const baseLearningContentPrompt = buildLearningContentPrompt(
     generationPackage,
-    sixFactorApply.shadow?.renderPolicy.pedagogicalProfile ?? null,
+    promptSixFactorProfile,
   );
   const learningContentPrompt = appendPromptBlocks(baseLearningContentPrompt, [
-    sixFactorApply.promptInstructionBlock,
+    primarySixFactorPromptProfile
+      ? null
+      : sixFactorApply.promptInstructionBlock,
   ]);
 
   let generationSource: "llm" | "llm_repaired" | "fallback" = "llm";
@@ -413,7 +480,7 @@ export async function generateLearningContentForEpisode(
       topic: params.topic,
       subjectTitle: params.subject.title,
       sectionSnapshot: params.sectionSnapshot ?? null,
-      sixFactorConfig: sixFactorApply.metadata?.deliveredConfig ?? null,
+      sixFactorConfig: activeSixFactorConfig,
     });
     generationValidation = validation;
     if (!validation.valid) {
@@ -439,6 +506,7 @@ export async function generateLearningContentForEpisode(
       depth: params.plan.pedagogicalDecision.depth,
       tone: params.plan.renderingDecision.tone,
       explanationStyle: params.plan.renderingDecision.explanation_style,
+      sixFactorProfile: promptSixFactorProfile,
       priorTestOutcome: params.priorTestOutcome ?? null,
     });
     generationValidation = validateLearningContentCard({
@@ -446,7 +514,7 @@ export async function generateLearningContentForEpisode(
       topic: params.topic,
       subjectTitle: params.subject.title,
       sectionSnapshot: params.sectionSnapshot ?? null,
-      sixFactorConfig: sixFactorApply.metadata?.deliveredConfig ?? null,
+      sixFactorConfig: activeSixFactorConfig,
     });
     if (!generationError) {
       generationError = "FALLBACK_GENERATION";

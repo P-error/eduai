@@ -116,6 +116,7 @@ export function buildLearnerStateAggregatePromptSection(
 export function buildPedagogicalTargetsPromptSection(params: {
   difficulty: string;
   depth: string;
+  compatibilityOnly?: boolean;
 }) {
   const difficulty =
     params.difficulty === "easy" ||
@@ -129,6 +130,13 @@ export function buildPedagogicalTargetsPromptSection(params: {
     params.depth === "detailed"
       ? params.depth
       : "standard";
+
+  if (params.compatibilityOnly) {
+    return buildPromptSection("6. Compatibility summary:", [
+      `Legacy materialization bridge: difficulty=${difficulty}; depth=${depth}.`,
+      "The six-factor personalization policy above is the primary pedagogical instruction when present.",
+    ]);
+  }
 
   return buildPromptSection("6. Pedagogical instructions:", [
     `difficulty=${difficulty}: ${describeDifficultyGuidance(
@@ -202,6 +210,7 @@ export function buildChatSystemPrompt(params: {
     buildPedagogicalTargetsPromptSection({
       difficulty: params.difficulty,
       depth: params.depth,
+      compatibilityOnly: Boolean(params.sixFactorPromptInstructionBlock),
     }),
     buildPromptSection("6b. Content/output requirements:", [
       `tone=${params.tone}.`,

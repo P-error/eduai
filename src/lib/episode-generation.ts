@@ -61,6 +61,7 @@ type BaseEpisodeGenerationPackage = {
   protocolKey: string | null;
   sequenceRole: EvaluationSequenceRole;
   touchpointType: EvaluationTouchpointType;
+  sixFactorPedagogicalProfile?: SixFactorPedagogicalPromptProfileV1 | null;
   pedagogicalDecision: {
     difficulty: string;
     depth: string;
@@ -114,7 +115,7 @@ export function buildTestGenerationPrompt(
 ) {
   const externalPackage = buildExternalTestGenerationTaskPackage(
     packageInput,
-    sixFactorProfile,
+    sixFactorProfile ?? packageInput.sixFactorPedagogicalProfile ?? null,
   );
 
   return [
@@ -133,7 +134,7 @@ export function buildLearningContentPrompt(
 ) {
   const externalPackage = buildExternalLearningContentTaskPackage(
     packageInput,
-    sixFactorProfile,
+    sixFactorProfile ?? packageInput.sixFactorPedagogicalProfile ?? null,
   );
 
   return [

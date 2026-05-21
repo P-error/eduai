@@ -45,6 +45,7 @@ export type ExternalLearningContentTaskPackage = {
   };
   learningContext: ExternalLearningContext;
   pedagogicalProfile: SixFactorPedagogicalPromptProfileV1 | ExternalLegacyPedagogicalTargets;
+  pedagogicalProfileSource: "six_factor_primary" | "legacy_two_factor_bridge";
   constraints: {
     doNotInventMissingContext: true;
     stayInsideTopic: true;
@@ -65,6 +66,7 @@ export type ExternalTestGenerationTaskPackage = {
   };
   learningContext: Omit<ExternalLearningContext, "priorTestOutcome">;
   pedagogicalProfile: SixFactorPedagogicalPromptProfileV1 | ExternalLegacyPedagogicalTargets;
+  pedagogicalProfileSource: "six_factor_primary" | "legacy_two_factor_bridge";
   constraints: {
     noExtraKeys: true;
     doNotChangeQuestionCount: true;
@@ -116,10 +118,38 @@ function legacyPedagogicalTargets(
   };
 }
 
+function isSixFactorPedagogicalProfile(
+  value: SixFactorPedagogicalPromptProfileV1 | null | undefined,
+): value is SixFactorPedagogicalPromptProfileV1 {
+  return value?.schemaVersion === "six_factor_prompt_profile_v1_2026_05";
+}
+
+function resolvePedagogicalProfile(
+  packageInput: LearningContentGenerationPackage | TestGenerationPackage,
+  sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null,
+) {
+  if (isSixFactorPedagogicalProfile(sixFactorProfile)) {
+    return {
+      pedagogicalProfile: sixFactorProfile,
+      pedagogicalProfileSource: "six_factor_primary" as const,
+    };
+  }
+
+  return {
+    pedagogicalProfile: legacyPedagogicalTargets(packageInput),
+    pedagogicalProfileSource: "legacy_two_factor_bridge" as const,
+  };
+}
+
 export function buildExternalLearningContentTaskPackage(
   packageInput: LearningContentGenerationPackage,
   sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null,
 ): ExternalLearningContentTaskPackage {
+  const resolvedPedagogy = resolvePedagogicalProfile(
+    packageInput,
+    sixFactorProfile,
+  );
+
   return {
     task: "generate_learning_content_card",
     outputContract: {
@@ -136,7 +166,7 @@ export function buildExternalLearningContentTaskPackage(
       ...learningContextFromPackage(packageInput),
       priorTestOutcome: priorOutcomeSummary(packageInput),
     },
-    pedagogicalProfile: sixFactorProfile ?? legacyPedagogicalTargets(packageInput),
+    ...resolvedPedagogy,
     constraints: {
       doNotInventMissingContext: true,
       stayInsideTopic: true,
@@ -149,6 +179,11 @@ export function buildExternalTestGenerationTaskPackage(
   packageInput: TestGenerationPackage,
   sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null,
 ): ExternalTestGenerationTaskPackage {
+  const resolvedPedagogy = resolvePedagogicalProfile(
+    packageInput,
+    sixFactorProfile,
+  );
+
   return {
     task: "generate_mcq_test",
     outputContract: {
@@ -161,7 +196,7 @@ export function buildExternalTestGenerationTaskPackage(
       preserveMcqStructure: true,
     },
     learningContext: learningContextFromPackage(packageInput),
-    pedagogicalProfile: sixFactorProfile ?? legacyPedagogicalTargets(packageInput),
+    ...resolvedPedagogy,
     constraints: {
       noExtraKeys: true,
       doNotChangeQuestionCount: true,

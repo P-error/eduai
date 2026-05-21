@@ -54,6 +54,10 @@ import {
   type TestGenerationPackage,
 } from "@/lib/episode-generation";
 import {
+  buildSixFactorPedagogicalPromptProfileFromMetadata,
+  formatSixFactorPedagogicalPromptProfileBlock,
+} from "@/lib/ml-six-factor-render-mapping";
+import {
   buildOptionalSixFactorDeliveredConfigMetadata,
   type SixFactorDeliveredConfigMetadataV1,
 } from "@/lib/ml-six-factor-decision-metadata";
@@ -659,6 +663,14 @@ export async function generateTestForUser(
     | null = null;
   let testEvaluation: EvaluationItemMeta | null = null;
   let generationPackage: TestGenerationPackage | null = null;
+  const packageSixFactorPromptProfile = isPrimarySixFactorDecisionMetadata(
+    plan.sixFactorPrimaryDecision,
+  )
+    ? buildSixFactorPedagogicalPromptProfileFromMetadata(
+        plan.sixFactorPrimaryDecision,
+        "test_generation",
+      )
+    : null;
 
   if (evaluationRequest) {
     try {
@@ -710,6 +722,7 @@ export async function generateTestForUser(
         conceptKey: testEvaluation.conceptKey,
         skillKey: testEvaluation.skillKey,
         pedagogicalDecision: plan.pedagogicalDecision,
+        sixFactorPedagogicalProfile: packageSixFactorPromptProfile,
         renderingDecision: plan.renderingDecision,
         renderingRules: plan.renderingRules,
         assignment: plan.assignment,
@@ -785,6 +798,17 @@ export async function generateTestForUser(
     ),
     path: "test_generation",
   });
+  const primarySixFactorPromptProfile =
+    buildSixFactorPedagogicalPromptProfileFromMetadata(
+      primarySixFactorDecision,
+      "test_generation",
+    );
+  const primarySixFactorPromptProfileBlock = primarySixFactorPromptProfile
+    ? formatSixFactorPedagogicalPromptProfileBlock({
+        profile: primarySixFactorPromptProfile,
+        path: "test_generation",
+      })
+    : null;
   const skipOptionalShadowAfterApplyFailure =
     !sixFactorApply.applied &&
     sixFactorApply.warnings.some((warning) =>
@@ -835,7 +859,9 @@ export async function generateTestForUser(
   const sectionLine = section.sectionSnapshot
     ? `Section context: ${section.sectionSnapshot}`
     : "Section context: none";
-  const pedagogicalLine = `Pedagogical targets: difficulty=${plan.pedagogicalDecision.difficulty}, depth=${plan.pedagogicalDecision.depth}.`;
+  const pedagogicalLine = primarySixFactorPromptProfileBlock
+    ? `Six-factor pedagogical profile:\n${primarySixFactorPromptProfileBlock}`
+    : `Pedagogical targets: difficulty=${plan.pedagogicalDecision.difficulty}, depth=${plan.pedagogicalDecision.depth}.`;
   const renderingLine = `Presentation rules: tone=${plan.renderingDecision.tone}, explanation_style=${plan.renderingDecision.explanation_style}, response_format=${plan.renderingDecision.response_format}.`;
   let generationFeedback: string[] = [];
 
@@ -860,7 +886,9 @@ export async function generateTestForUser(
         ? `Generate ${params.payload.questionCount} multiple-choice questions on ${params.payload.topic} for ${subject.title}. ${sectionLine} ${pedagogicalLine} ${renderingLine} Keep answers clear.`
         : buildTestGenerationPrompt(
             generationPackage,
-            sixFactorApply.shadow?.renderPolicy.pedagogicalProfile ?? null,
+            primarySixFactorPromptProfile ??
+              sixFactorApply.shadow?.renderPolicy.pedagogicalProfile ??
+              null,
           );
     const testGenerationPrompt = appendPromptBlocks(baseUserPrompt, [
       generationFeedback.length > 0
@@ -873,7 +901,9 @@ export async function generateTestForUser(
       strictClause.trim().length > 0
         ? `Retry delivery enforcement:\n${strictClause.trim()}`
         : null,
-      sixFactorApply.promptInstructionBlock,
+      primarySixFactorPromptProfileBlock
+        ? null
+        : sixFactorApply.promptInstructionBlock,
     ]);
 
     try {

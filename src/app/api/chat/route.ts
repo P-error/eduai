@@ -44,12 +44,17 @@ import {
   buildOptionalSixFactorDeliveredConfigMetadata,
 } from "@/lib/ml-six-factor-decision-metadata";
 import {
+  buildSixFactorPedagogicalPromptProfileFromMetadata,
+  formatSixFactorPedagogicalPromptProfileBlock,
+} from "@/lib/ml-six-factor-render-mapping";
+import {
   buildPrimarySixFactorDecisionOverride,
   buildPrimarySixFactorDeliveredConfigMetadata,
   buildPrimarySixFactorMlPersonalizationView,
   buildPrimarySixFactorPromptContext,
   buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
   buildSixFactorDerivedPedagogicalDecision,
+  isPrimarySixFactorDecisionMetadata,
   resolvePrimarySixFactorDecision,
   shouldUseSixFactorAsPrimaryDecision,
   withPrimarySixFactorDecisionRefs,
@@ -388,6 +393,14 @@ export async function POST(request: Request) {
   const policyId = evaluationAssignment.policyId;
   const decisionAtIso = decisionAt.toISOString();
   const primarySixFactorDecision = sixFactorPrimary?.deliveredConfigMetadata ?? null;
+  const primarySixFactorPromptProfile = isPrimarySixFactorDecisionMetadata(
+    primarySixFactorDecision,
+  )
+    ? buildSixFactorPedagogicalPromptProfileFromMetadata(
+        primarySixFactorDecision,
+        "chat",
+      )
+    : null;
   const sixFactorLearnerStateAggregates =
     !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
@@ -454,6 +467,12 @@ export async function POST(request: Request) {
   const auxiliarySixFactorShadow = sixFactorDeliveredConfig
     ? null
     : sixFactorShadow;
+  const sixFactorPromptInstructionBlock = primarySixFactorPromptProfile
+    ? formatSixFactorPedagogicalPromptProfileBlock({
+        profile: primarySixFactorPromptProfile,
+        path: "chat",
+      })
+    : sixFactorApply.promptInstructionBlock;
 
   let systemTemplate;
   try {
@@ -480,7 +499,7 @@ export async function POST(request: Request) {
     },
     subjectTopic: promptContext,
     learnerStateAggregates: null,
-    sixFactorPromptInstructionBlock: sixFactorApply.promptInstructionBlock,
+    sixFactorPromptInstructionBlock,
     tone,
     explanationStyle,
     responseFormat,

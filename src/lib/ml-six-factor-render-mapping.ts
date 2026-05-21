@@ -3,6 +3,10 @@ import {
   toMlSixFactorConfig,
   type EduAIAppSixFactorDecisionV1,
 } from "@/lib/ml-six-factor-policy-contract";
+import {
+  buildSixFactorDecisionFromDeliveredConfigMetadata,
+  type SixFactorDeliveredConfigMetadataV1,
+} from "@/lib/ml-six-factor-decision-metadata";
 
 export type SixFactorRenderPolicyV1 = {
   schemaVersion: "six_factor_render_policy_v1_2026_05";
@@ -288,6 +292,45 @@ export function buildSixFactorPedagogicalPromptProfile(
       "Required JSON schema, MCQ contract, answerIndex semantics, and safety constraints override style instructions.",
     ],
   };
+}
+
+export function buildSixFactorPedagogicalPromptProfileFromMetadata(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+  path: SixFactorPromptPathV1,
+): SixFactorPedagogicalPromptProfileV1 | null {
+  if (!metadata) return null;
+  return buildSixFactorPedagogicalPromptProfile(
+    buildSixFactorDecisionFromDeliveredConfigMetadata(metadata),
+    path,
+  );
+}
+
+export function formatSixFactorPedagogicalPromptProfileBlock(params: {
+  profile: SixFactorPedagogicalPromptProfileV1;
+  path: SixFactorPromptPathV1;
+}) {
+  const guidance = params.profile.factorGuidance;
+
+  return [
+    `Selected six-factor pedagogical profile for ${params.path}:`,
+    `difficulty=${guidance.difficulty.value}; depth=${guidance.depth.value}; support_level=${guidance.supportLevel.value}; presentation_format=${guidance.presentationFormat.value}; examples_level=${guidance.examplesLevel.value}; terminology_level=${guidance.terminologyLevel.value}.`,
+    `Profile summary: ${params.profile.profileSummary}`,
+    "Factor guidance:",
+    `- difficulty: ${guidance.difficulty.instruction}`,
+    `- depth: ${guidance.depth.instruction}`,
+    `- support_level: ${guidance.supportLevel.instruction}`,
+    `- presentation_format: ${guidance.presentationFormat.instruction}`,
+    `- examples_level: ${guidance.examplesLevel.instruction}`,
+    `- terminology_level: ${guidance.terminologyLevel.instruction}`,
+    "Path-specific output constraints:",
+    ...params.profile.pathSpecificRequirements.map(
+      (requirement) => `- ${requirement}`,
+    ),
+    "Safety and precedence:",
+    ...params.profile.safetyAndPrecedence.map(
+      (requirement) => `- ${requirement}`,
+    ),
+  ].join("\n");
 }
 
 export function mapSixFactorDecisionToRenderPolicy(
