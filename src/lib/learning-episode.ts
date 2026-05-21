@@ -43,6 +43,7 @@ import {
 import {
   buildPrimarySixFactorMlPersonalizationView,
   buildSixFactorDerivedPedagogicalDecision,
+  isPrimarySixFactorDecisionMetadata,
   resolvePrimarySixFactorDecision,
   shouldUseSixFactorAsPrimaryDecision,
   withPrimarySixFactorDecisionRefs,
@@ -424,7 +425,10 @@ async function resolveSectionSnapshot(
   };
 }
 
-function buildSurfaceContract(plan: MaterializedDeliveryPlan): EpisodeSurfaceContract {
+function buildSurfaceContract(
+  plan: MaterializedDeliveryPlan,
+  compatibilityRole?: string | null,
+): EpisodeSurfaceContract {
   return {
     delivery: {
       tone: plan.delivery.tone,
@@ -436,7 +440,9 @@ function buildSurfaceContract(plan: MaterializedDeliveryPlan): EpisodeSurfaceCon
     renderingDecision: plan.renderingDecision,
     rulesLayer: {
       id: plan.rulesLayerId,
-      basis: plan.basis,
+      basis: compatibilityRole
+        ? `${plan.basis}|decision=${compatibilityRole}`
+        : plan.basis,
     },
   };
 }
@@ -477,9 +483,8 @@ function buildSixFactorMaterialization(params: {
   surface: "test" | "chat";
   decision: EduAIAppSixFactorDecisionV1;
 }) {
-  const pedagogicalDecision = buildSixFactorDerivedPedagogicalDecision(
-    params.decision,
-  );
+  const compatibilityPedagogicalDecision =
+    buildSixFactorDerivedPedagogicalDecision(params.decision);
   const materialization = materializeDeliveryPlan({
     surface: params.surface,
     preferences: {
@@ -493,7 +498,7 @@ function buildSixFactorMaterialization(params: {
             : "stepwise",
       response_format: "mcq",
     },
-    decision: pedagogicalDecision,
+    decision: compatibilityPedagogicalDecision,
   });
 
   return {
@@ -503,8 +508,23 @@ function buildSixFactorMaterialization(params: {
       id: materialization.rulesLayerId,
       basis: `${materialization.basis}|decision=six_factor_primary`,
     },
-    pedagogicalDecision,
+    pedagogicalDecision: compatibilityPedagogicalDecision,
   };
+}
+
+function assertEpisodePrimarySixFactorDecision(
+  orchestration: EpisodeOrchestrationPackage,
+) {
+  if (orchestration.policyMeta.usedSixFactorPrimary !== true) {
+    return;
+  }
+  if (
+    !isPrimarySixFactorDecisionMetadata(
+      orchestration.sixFactorPrimaryDecision,
+    )
+  ) {
+    throw new Error("EPISODE_PRIMARY_SIX_FACTOR_DECISION_MISSING");
+  }
 }
 
 async function resolveEpisodeOrchestrationPackage(params: {
@@ -608,6 +628,8 @@ async function resolveEpisodeOrchestrationPackage(params: {
             } satisfies PedagogicalDecision,
           });
 
+  // Совместимый мост: материализация всё ещё потребляет difficulty/depth,
+  // но владельцем решения при наличии остаётся sixFactorPrimaryDecision.
   const pedagogicalDecision: PedagogicalDecision = {
     difficulty: baseTestMaterialization.pedagogicalDecision.difficulty,
     depth: baseTestMaterialization.pedagogicalDecision.depth,
@@ -901,7 +923,12 @@ async function resolveEpisodeOrchestrationPackage(params: {
         renderingDecision: baseTestMaterialization.renderingDecision,
         rulesLayer: baseTestMaterialization.rulesLayer,
       },
-      learningContent: buildSurfaceContract(contentSurfaceMaterialization),
+      learningContent: buildSurfaceContract(
+        contentSurfaceMaterialization,
+        sixFactorPrimary
+          ? "derived_two_factor_compatibility_projection"
+          : null,
+      ),
     },
   } satisfies EpisodeOrchestrationPackage;
 }
@@ -918,13 +945,22 @@ function readOrchestrationPackage(
     return null;
   }
 
-  const legacySixFactorPrimary =
-    readSixFactorDeliveredConfigMetadata(orchestration.sixFactorPrimaryDecision) ??
-    readSixFactorDeliveredConfigMetadata(orchestration.sixFactorDecisionMetadata);
+  const canonicalSixFactorPrimary = readSixFactorDeliveredConfigMetadata(
+    orchestration.sixFactorPrimaryDecision,
+  );
+  const previousKeySixFactorPrimary = readSixFactorDeliveredConfigMetadata(
+    orchestration.sixFactorDecisionMetadata,
+  );
+  const persistedSixFactorPrimary =
+    isPrimarySixFactorDecisionMetadata(canonicalSixFactorPrimary)
+      ? canonicalSixFactorPrimary
+      : isPrimarySixFactorDecisionMetadata(previousKeySixFactorPrimary)
+        ? previousKeySixFactorPrimary
+        : null;
 
   return {
     ...(orchestration as unknown as EpisodeOrchestrationPackage),
-    sixFactorPrimaryDecision: legacySixFactorPrimary,
+    sixFactorPrimaryDecision: persistedSixFactorPrimary,
   };
 }
 
@@ -1610,6 +1646,7 @@ export async function createLearningEpisode(
       contentId: null,
     }),
   } satisfies EpisodeOrchestrationPackage;
+  assertEpisodePrimarySixFactorDecision(finalOrchestration);
 
   await persistOrchestrationPackage({
     episodeId: resolvedEpisode.episode.id,

@@ -103,16 +103,29 @@ export function buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
   };
 }
 
+export function isPrimarySixFactorDecisionMetadata(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+): metadata is SixFactorDeliveredConfigMetadataV1 {
+  return (
+    metadata != null &&
+    metadata.appliedAsPrimary === true &&
+    metadata.decisionSource !== "legacy_derived" &&
+    metadata.decisionSource !== "shadow_only"
+  );
+}
+
 export function buildPrimarySixFactorPromptContext(
   metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
 ): BuildEduAIAppPolicyFeaturesInput | null {
-  return metadata?.featuresSnapshot ?? null;
+  return isPrimarySixFactorDecisionMetadata(metadata)
+    ? metadata.featuresSnapshot
+    : null;
 }
 
 export function buildPrimarySixFactorDecisionOverride(
   metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
 ): EduAIAppSixFactorDecisionV1 | null {
-  return metadata
+  return isPrimarySixFactorDecisionMetadata(metadata)
     ? buildSixFactorDecisionFromDeliveredConfigMetadata(metadata)
     : null;
 }
@@ -135,6 +148,7 @@ export function buildPrimarySixFactorDeliveredConfigMetadata(params: {
 }): SixFactorDeliveredConfigMetadataV1 | null {
   const primary = params.primaryDecision;
   if (!primary) return null;
+  if (!isPrimarySixFactorDecisionMetadata(primary)) return null;
 
   if (!params.appliedMetadata) {
     return {

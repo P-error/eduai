@@ -68,6 +68,7 @@ import {
   buildPrimarySixFactorPromptContext,
   buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
   buildSixFactorDerivedPedagogicalDecision,
+  isPrimarySixFactorDecisionMetadata,
   resolvePrimarySixFactorDecision,
   shouldUseSixFactorAsPrimaryDecision,
   withPrimarySixFactorDecisionRefs,
@@ -737,10 +738,13 @@ export async function generateTestForUser(
 
   const sixFactorDecisionAt = new Date();
   const sixFactorDecisionAtIso = sixFactorDecisionAt.toISOString();
-  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
+  const primarySixFactorDecision = isPrimarySixFactorDecisionMetadata(
     plan.sixFactorPrimaryDecision,
-    { sessionRef: resolvedEpisode?.id ?? null },
-  );
+  )
+    ? withPrimarySixFactorDecisionRefs(plan.sixFactorPrimaryDecision, {
+        sessionRef: resolvedEpisode?.id ?? null,
+      })
+    : null;
   const sixFactorLearnerStateAggregates =
     !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({

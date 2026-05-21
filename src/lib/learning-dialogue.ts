@@ -26,6 +26,7 @@ import {
   buildPrimarySixFactorDeliveredConfigMetadata,
   buildPrimarySixFactorPromptContext,
   buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
+  isPrimarySixFactorDecisionMetadata,
   withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
 import {
@@ -222,12 +223,16 @@ export async function appendLearningEpisodeDialogueTurn(
     session.messages.find((message) => message.role === "assistant") ??
     null;
   const seedSignals = asObject(seedAssistantMessage?.signalsJson);
-  const seedSixFactorDeliveredConfig =
-    readSixFactorDeliveredConfigMetadata(seedSignals);
-  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
-    seedSixFactorDeliveredConfig,
-    { sessionRef: episodeId },
+  const seedSixFactorDeliveredConfig = readSixFactorDeliveredConfigMetadata(
+    seedSignals?.sixFactorDeliveredConfig,
   );
+  const primarySixFactorDecision = isPrimarySixFactorDecisionMetadata(
+    seedSixFactorDeliveredConfig,
+  )
+    ? withPrimarySixFactorDecisionRefs(seedSixFactorDeliveredConfig, {
+        sessionRef: episodeId,
+      })
+    : null;
   const promptTemplate = await getActivePromptTemplate("chat_system_v1");
   const declaredPreferences = sanitizePreferenceMap(
     (user.declaredPreferencesJson ?? {}) as Record<string, unknown>,

@@ -44,6 +44,7 @@ import {
   buildPrimarySixFactorDeliveredConfigMetadata,
   buildPrimarySixFactorPromptContext,
   buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
+  isPrimarySixFactorDecisionMetadata,
   withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
@@ -274,10 +275,13 @@ export async function generateLearningContentForEpisode(
   });
   const sixFactorDecisionAt = new Date();
   const sixFactorDecisionAtIso = sixFactorDecisionAt.toISOString();
-  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
+  const primarySixFactorDecision = isPrimarySixFactorDecisionMetadata(
     params.plan.sixFactorPrimaryDecision,
-    { sessionRef: resolvedEpisode.episode.id },
-  );
+  )
+    ? withPrimarySixFactorDecisionRefs(params.plan.sixFactorPrimaryDecision, {
+        sessionRef: resolvedEpisode.episode.id,
+      })
+    : null;
   const learnerStateAggregates =
     !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
