@@ -44,13 +44,17 @@ import {
   buildOptionalSixFactorDeliveredConfigMetadata,
 } from "@/lib/ml-six-factor-decision-metadata";
 import {
-  buildSixFactorCompatibilityPedagogicalDecision,
+  buildPrimarySixFactorDecisionOverride,
+  buildPrimarySixFactorDeliveredConfigMetadata,
+  buildPrimarySixFactorMlPersonalizationView,
+  buildPrimarySixFactorPromptContext,
+  buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
   buildSixFactorDerivedPedagogicalDecision,
   resolvePrimarySixFactorDecision,
   shouldUseSixFactorAsPrimaryDecision,
+  withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
-import { buildMlPersonalizationView } from "@/lib/ml-personalization-view";
 import {
   buildRateLimitErrorResponse,
   rateLimitRouteOrThrow,
@@ -309,16 +313,16 @@ export async function POST(request: Request) {
         preferences: {
           tone: "formal",
           explanation_style:
-            sixFactorPrimary.shadow.decision.presentationFormat === "qa"
+            sixFactorPrimary.decision.presentationFormat === "qa"
               ? "exploratory"
-              : sixFactorPrimary.shadow.decision.depth === "brief" &&
-                  sixFactorPrimary.shadow.decision.supportLevel === "minimal"
+              : sixFactorPrimary.decision.depth === "brief" &&
+                  sixFactorPrimary.decision.supportLevel === "minimal"
                 ? "concise"
                 : "stepwise",
           response_format: "mcq",
         },
         decision: buildSixFactorDerivedPedagogicalDecision(
-          sixFactorPrimary.shadow.decision,
+          sixFactorPrimary.decision,
         ),
       })
     : null;
@@ -328,18 +332,18 @@ export async function POST(request: Request) {
         pedagogyPreset: sixFactorMaterialization.pedagogyPreset,
         runtime: {
           policyId:
-            sixFactorPrimary.shadow.decision.policyId ??
+            sixFactorPrimary.decision.policyId ??
             "six_factor_runtime_ml_policy_v1",
-          policyVersion: sixFactorPrimary.shadow.decision.modelVersion,
+          policyVersion: sixFactorPrimary.decision.modelVersion,
           backendKind:
-            sixFactorPrimary.shadow.decision.backendKind ??
-            sixFactorPrimary.shadow.decision.decisionSource,
+            sixFactorPrimary.decision.backendKind ??
+            sixFactorPrimary.decision.decisionSource,
           backendId:
-            sixFactorPrimary.shadow.decision.artifactPath ??
-            sixFactorPrimary.shadow.decision.modelVersion,
+            sixFactorPrimary.decision.artifactPath ??
+            sixFactorPrimary.decision.modelVersion,
         },
         pedagogicalDecision: buildSixFactorDerivedPedagogicalDecision(
-          sixFactorPrimary.shadow.decision,
+          sixFactorPrimary.decision,
         ),
         rulesLayer: {
           id: sixFactorMaterialization.rulesLayerId,
@@ -383,7 +387,9 @@ export async function POST(request: Request) {
   const policyMode = evaluationAssignment.policyMode;
   const policyId = evaluationAssignment.policyId;
   const decisionAtIso = decisionAt.toISOString();
-  const sixFactorLearnerStateAggregates = isSixFactorShadowEnabled()
+  const primarySixFactorDecision = sixFactorPrimary?.deliveredConfigMetadata ?? null;
+  const sixFactorLearnerStateAggregates =
+    !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
         prisma,
         userId: user.id,
@@ -397,26 +403,29 @@ export async function POST(request: Request) {
         decisionCreatedAt: decisionAt,
       })
     : null;
-  const sixFactorPolicyContext = {
-    userRef: user.id,
-    subjectRef: promptContext.subjectId,
-    topicRef: promptContext.conceptKey ?? promptContext.skillKey ?? null,
-    conceptKey: promptContext.conceptKey,
-    skillKey: promptContext.skillKey,
-    familyKey: promptContext.familyKey,
-    topic: promptContext.topic,
-    sessionRef: evaluationRequest?.episodeId ?? null,
-    ...(sixFactorLearnerStateAggregates ?? {}),
-    previousDifficulty: difficulty,
-    previousDepth: depth,
-    declaredPreferences,
-    policyId,
-    backendKind: preset.runtime?.backendKind ?? null,
-    modelVersion: preset.runtime?.policyVersion ?? null,
-  };
+  const sixFactorPolicyContext =
+    buildPrimarySixFactorPromptContext(primarySixFactorDecision) ?? {
+      userRef: user.id,
+      subjectRef: promptContext.subjectId,
+      topicRef: promptContext.conceptKey ?? promptContext.skillKey ?? null,
+      conceptKey: promptContext.conceptKey,
+      skillKey: promptContext.skillKey,
+      familyKey: promptContext.familyKey,
+      topic: promptContext.topic,
+      sessionRef: evaluationRequest?.episodeId ?? null,
+      ...(sixFactorLearnerStateAggregates ?? {}),
+      previousDifficulty: difficulty,
+      previousDepth: depth,
+      declaredPreferences,
+      policyId,
+      backendKind: preset.runtime?.backendKind ?? null,
+      modelVersion: preset.runtime?.policyVersion ?? null,
+    };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
-    decisionOverride: sixFactorPrimary?.shadow.decision ?? null,
+    decisionOverride: buildPrimarySixFactorDecisionOverride(
+      primarySixFactorDecision,
+    ),
     path: "chat",
   });
   const skipOptionalShadowAfterApplyFailure =
@@ -430,14 +439,21 @@ export async function POST(request: Request) {
       ? null
       : buildOptionalSixFactorShadowMetadata(sixFactorPolicyContext));
   const sixFactorDeliveredConfig =
+    buildPrimarySixFactorDeliveredConfigMetadata({
+      primaryDecision: primarySixFactorDecision,
+      appliedMetadata: sixFactorApply.metadata,
+      appliedPath: "chat",
+      warnings: sixFactorApply.warnings,
+    }) ??
     buildOptionalSixFactorDeliveredConfigMetadata({
       sixFactorShadow,
       decisionCreatedAt: decisionAtIso,
       featuresCutoffAt: decisionAtIso,
       appliedPath: "chat",
     });
-  const sixFactorPersonalization =
-    buildMlPersonalizationView(sixFactorDeliveredConfig);
+  const auxiliarySixFactorShadow = sixFactorDeliveredConfig
+    ? null
+    : sixFactorShadow;
 
   let systemTemplate;
   try {
@@ -547,6 +563,12 @@ export async function POST(request: Request) {
     }
   }
 
+  const storedSixFactorDeliveredConfig = withPrimarySixFactorDecisionRefs(
+    sixFactorDeliveredConfig,
+    { sessionRef: evaluationEpisodeId ?? undefined },
+  );
+  const sixFactorPersonalization =
+    buildPrimarySixFactorMlPersonalizationView(storedSixFactorDeliveredConfig);
   const eventAtIso = decisionAtIso;
   const eventMeta = {
     source: "chat" as const,
@@ -560,11 +582,10 @@ export async function POST(request: Request) {
       explanation_style: explanationStyle,
     },
     pedagogicalDecision:
-      sixFactorDeliveredConfig && sixFactorPrimary
-        ? buildSixFactorCompatibilityPedagogicalDecision({
-            decision: sixFactorPrimary.shadow.decision,
-            source: "six_factor_primary",
-          })
+      storedSixFactorDeliveredConfig?.appliedAsPrimary === true
+        ? buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+            storedSixFactorDeliveredConfig,
+          )
         : {
             difficulty,
             depth,
@@ -586,8 +607,12 @@ export async function POST(request: Request) {
       skipReason: uxUpdate.reason,
       uxRewardChat,
     },
-    ...(sixFactorShadow ? { sixFactorShadow } : {}),
-    ...(sixFactorDeliveredConfig ? { sixFactorDeliveredConfig } : {}),
+    ...(auxiliarySixFactorShadow
+      ? { sixFactorShadow: auxiliarySixFactorShadow }
+      : {}),
+    ...(storedSixFactorDeliveredConfig
+      ? { sixFactorDeliveredConfig: storedSixFactorDeliveredConfig }
+      : {}),
   };
 
   try {
@@ -616,8 +641,8 @@ export async function POST(request: Request) {
           prisma: tx,
           item: chatEvaluation,
           contentId: stored.sessionId,
-          decisionRuntimeSupplement: sixFactorDeliveredConfig
-            ? { sixFactorDeliveredConfig }
+          decisionRuntimeSupplement: storedSixFactorDeliveredConfig
+            ? { sixFactorDeliveredConfig: storedSixFactorDeliveredConfig }
             : null,
         });
       }
@@ -650,11 +675,10 @@ export async function POST(request: Request) {
         response_format: responseFormat,
       },
       pedagogicalDecision:
-        sixFactorDeliveredConfig && sixFactorPrimary
-          ? buildSixFactorCompatibilityPedagogicalDecision({
-              decision: sixFactorPrimary.shadow.decision,
-              source: "six_factor_primary",
-            })
+        storedSixFactorDeliveredConfig?.appliedAsPrimary === true
+          ? buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+              storedSixFactorDeliveredConfig,
+            )
           : {
               difficulty,
               depth,

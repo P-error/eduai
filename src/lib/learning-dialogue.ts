@@ -19,11 +19,14 @@ import {
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
 import {
   buildOptionalSixFactorDeliveredConfigMetadata,
-  buildSixFactorDecisionFromDeliveredConfigMetadata,
   readSixFactorDeliveredConfigMetadata,
 } from "@/lib/ml-six-factor-decision-metadata";
 import {
-  buildSixFactorCompatibilityPedagogicalDecision,
+  buildPrimarySixFactorDecisionOverride,
+  buildPrimarySixFactorDeliveredConfigMetadata,
+  buildPrimarySixFactorPromptContext,
+  buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
+  withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
 import {
   buildOptionalSixFactorShadowMetadata,
@@ -221,11 +224,10 @@ export async function appendLearningEpisodeDialogueTurn(
   const seedSignals = asObject(seedAssistantMessage?.signalsJson);
   const seedSixFactorDeliveredConfig =
     readSixFactorDeliveredConfigMetadata(seedSignals);
-  const seedSixFactorDecision = seedSixFactorDeliveredConfig
-    ? buildSixFactorDecisionFromDeliveredConfigMetadata(
-        seedSixFactorDeliveredConfig,
-      )
-    : null;
+  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
+    seedSixFactorDeliveredConfig,
+    { sessionRef: episodeId },
+  );
   const promptTemplate = await getActivePromptTemplate("chat_system_v1");
   const declaredPreferences = sanitizePreferenceMap(
     (user.declaredPreferencesJson ?? {}) as Record<string, unknown>,
@@ -236,7 +238,8 @@ export async function appendLearningEpisodeDialogueTurn(
   const dialogueDecisionAt = new Date();
   const dialogueDecisionAtIso = dialogueDecisionAt.toISOString();
   const learningContent = state.currentStep.learningContent;
-  const learnerStateAggregates = isSixFactorShadowEnabled()
+  const learnerStateAggregates =
+    !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
         prisma,
         userId: user.id,
@@ -256,32 +259,31 @@ export async function appendLearningEpisodeDialogueTurn(
         decisionCreatedAt: dialogueDecisionAt,
       })
     : null;
-  const sixFactorPolicyContext = {
-    userRef: user.id,
-    subjectRef: state.episode?.subjectId ?? null,
-    topicRef: state.episode?.conceptKey ?? null,
-    conceptKey: state.episode?.conceptKey ?? null,
-    skillKey: state.episode?.skillKey ?? null,
-    topic: state.episode?.topic ?? learningContent.title,
-    sessionRef: episodeId,
-    ...(learnerStateAggregates ?? {}),
-    previousDifficulty:
-      seedSixFactorDeliveredConfig?.deliveredConfig.difficulty ??
-      learningContent.pedagogicalContext.difficulty ??
-      "medium",
-    previousDepth:
-      seedSixFactorDeliveredConfig?.deliveredConfig.depth ??
-      learningContent.pedagogicalContext.depth ??
-      "standard",
-    declaredPreferences,
-    policyId: learningContent.pedagogicalContext.policyId,
-    backendKind:
-      typeof seedSignals?.policyMode === "string" ? seedSignals.policyMode : null,
-    modelVersion: null,
-  };
+  const sixFactorPolicyContext =
+    buildPrimarySixFactorPromptContext(primarySixFactorDecision) ?? {
+      userRef: user.id,
+      subjectRef: state.episode?.subjectId ?? null,
+      topicRef: state.episode?.conceptKey ?? null,
+      conceptKey: state.episode?.conceptKey ?? null,
+      skillKey: state.episode?.skillKey ?? null,
+      topic: state.episode?.topic ?? learningContent.title,
+      sessionRef: episodeId,
+      ...(learnerStateAggregates ?? {}),
+      previousDifficulty:
+        learningContent.pedagogicalContext.difficulty ?? "medium",
+      previousDepth:
+        learningContent.pedagogicalContext.depth ?? "standard",
+      declaredPreferences,
+      policyId: learningContent.pedagogicalContext.policyId,
+      backendKind:
+        typeof seedSignals?.policyMode === "string" ? seedSignals.policyMode : null,
+      modelVersion: null,
+    };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
-    decisionOverride: seedSixFactorDecision,
+    decisionOverride: buildPrimarySixFactorDecisionOverride(
+      primarySixFactorDecision,
+    ),
     path: "chat",
   });
   const skipOptionalShadowAfterApplyFailure =
@@ -295,12 +297,21 @@ export async function appendLearningEpisodeDialogueTurn(
       ? null
       : buildOptionalSixFactorShadowMetadata(sixFactorPolicyContext));
   const sixFactorDeliveredConfig =
+    buildPrimarySixFactorDeliveredConfigMetadata({
+      primaryDecision: primarySixFactorDecision,
+      appliedMetadata: sixFactorApply.metadata,
+      appliedPath: "chat",
+      warnings: sixFactorApply.warnings,
+    }) ??
     buildOptionalSixFactorDeliveredConfigMetadata({
       sixFactorShadow,
       decisionCreatedAt: dialogueDecisionAtIso,
       featuresCutoffAt: dialogueDecisionAtIso,
       appliedPath: "chat",
     });
+  const auxiliarySixFactorShadow = sixFactorDeliveredConfig
+    ? null
+    : sixFactorShadow;
   const systemPrompt = buildEpisodeDialogueSystemPrompt({
     baseTemplate: promptTemplate.template,
     declared: declaredPreferences,
@@ -385,11 +396,10 @@ export async function appendLearningEpisodeDialogueTurn(
         explanation_style: explanationStyle,
       },
       pedagogicalDecision:
-        sixFactorDeliveredConfig && seedSixFactorDecision
-          ? buildSixFactorCompatibilityPedagogicalDecision({
-              decision: seedSixFactorDecision,
-              source: "six_factor_primary",
-            })
+        sixFactorDeliveredConfig?.appliedAsPrimary === true
+          ? buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+              sixFactorDeliveredConfig,
+            )
           : {
               difficulty:
                 state.currentStep.learningContent.pedagogicalContext
@@ -422,7 +432,9 @@ export async function appendLearningEpisodeDialogueTurn(
         skipReason: uxUpdate.reason,
         uxRewardChat,
       },
-      ...(sixFactorShadow ? { sixFactorShadow } : {}),
+      ...(auxiliarySixFactorShadow
+        ? { sixFactorShadow: auxiliarySixFactorShadow }
+        : {}),
       ...(sixFactorDeliveredConfig ? { sixFactorDeliveredConfig } : {}),
     },
   });

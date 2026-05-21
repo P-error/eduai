@@ -14,6 +14,9 @@ import {
 import {
   readSixFactorDeliveredConfigMetadata,
 } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
+} from "@/lib/ml-six-factor-primary-decision";
 
 export const EVALUATION_SCHEMA_VERSION =
   "evaluation_protocol_v1_2026_03" as const;
@@ -763,18 +766,16 @@ function buildStoredPedagogicalDecisionJson(params: {
     params.decisionRuntimeJson,
   );
   if (!sixFactorDeliveredConfig) return params.pedagogicalDecision;
+  if (
+    sixFactorDeliveredConfig.appliedAsPrimary !== true &&
+    sixFactorDeliveredConfig.decisionSource !== "legacy_derived"
+  ) {
+    return params.pedagogicalDecision;
+  }
 
-  return {
-    ...params.pedagogicalDecision,
-    compatibilityRole: "derived_two_factor_projection",
-    derivedFrom:
-      sixFactorDeliveredConfig.decisionSource === "legacy_derived"
-        ? "legacy_derived"
-        : "six_factor_delivered_config",
-    sixFactorConfig: sixFactorDeliveredConfig.deliveredConfig,
-    sixFactorDecisionSource: sixFactorDeliveredConfig.decisionSource,
-    sixFactorFallbackUsed: sixFactorDeliveredConfig.fallbackUsed,
-  };
+  return buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+    sixFactorDeliveredConfig,
+  );
 }
 
 function sequenceRoleSatisfied(

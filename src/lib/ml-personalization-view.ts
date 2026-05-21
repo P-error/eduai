@@ -13,6 +13,8 @@ export type MlPersonalizationView = {
   modelVersion: string | null;
   backendKind: string | null;
   candidateCount: number | null;
+  fallbackReason: string | null;
+  appliedAsPrimary: boolean;
   appliedToLearnerFacingOutput: boolean;
   appliedPromptInstructionCount: number | null;
   appliedPath: string | null;
@@ -63,6 +65,8 @@ export function buildMlPersonalizationView(
     modelVersion: metadata.modelVersion,
     backendKind: metadata.backendKind,
     candidateCount: metadata.candidateCount,
+    fallbackReason: metadata.fallbackReason,
+    appliedAsPrimary: metadata.appliedAsPrimary,
     appliedToLearnerFacingOutput: metadata.appliedToLearnerFacingOutput,
     appliedPromptInstructionCount: metadata.appliedPromptInstructionCount,
     appliedPath: metadata.appliedPath,

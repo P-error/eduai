@@ -53,22 +53,25 @@ import {
   buildTestGenerationPrompt,
   type TestGenerationPackage,
 } from "@/lib/episode-generation";
-import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildOptionalSixFactorDeliveredConfigMetadata,
+  type SixFactorDeliveredConfigMetadataV1,
+} from "@/lib/ml-six-factor-decision-metadata";
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
-  type SixFactorDecisionMetadataV1,
 } from "@/lib/ml-six-factor-shadow";
 import {
-  buildSixFactorCompatibilityPedagogicalDecision,
+  buildPrimarySixFactorDecisionOverride,
+  buildPrimarySixFactorDeliveredConfigMetadata,
+  buildPrimarySixFactorPromptContext,
+  buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
   buildSixFactorDerivedPedagogicalDecision,
   resolvePrimarySixFactorDecision,
   shouldUseSixFactorAsPrimaryDecision,
+  withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
-import {
-  type EduAIAppSixFactorDecisionV1,
-} from "@/lib/ml-six-factor-policy-contract";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
 import { getSubjectRecommendation } from "@/lib/recommendation";
 import {
@@ -198,8 +201,7 @@ export type GenerateTestPlan = {
   } | null;
   recommendationSnapshot: unknown;
   policyMeta: Record<string, unknown>;
-  sixFactorDecision: EduAIAppSixFactorDecisionV1 | null;
-  sixFactorDecisionMetadata: SixFactorDecisionMetadataV1 | null;
+  sixFactorPrimaryDecision: SixFactorDeliveredConfigMetadataV1 | null;
 };
 
 export type GenerateTestUser = {
@@ -389,16 +391,16 @@ async function resolveTestGenerationPlan(params: {
         preferences: {
           tone: "formal",
           explanation_style:
-            sixFactorPrimary.shadow.decision.presentationFormat === "qa"
+            sixFactorPrimary.decision.presentationFormat === "qa"
               ? "exploratory"
-              : sixFactorPrimary.shadow.decision.depth === "brief" &&
-                  sixFactorPrimary.shadow.decision.supportLevel === "minimal"
+              : sixFactorPrimary.decision.depth === "brief" &&
+                  sixFactorPrimary.decision.supportLevel === "minimal"
                 ? "concise"
                 : "stepwise",
           response_format: "mcq",
         },
         decision: buildSixFactorDerivedPedagogicalDecision(
-          sixFactorPrimary.shadow.decision,
+          sixFactorPrimary.decision,
         ),
       })
     : null;
@@ -427,13 +429,15 @@ async function resolveTestGenerationPlan(params: {
         ...clientRequestedDelivery,
       }
     : baseDelivery;
-  const pedagogicalDecision = {
-    difficulty:
-      appliedDelivery.difficulty_target ??
-      BASELINE_DELIVERY_PRESET.difficulty_target ??
-      "medium",
-    depth: clampExplanationDepth(appliedDelivery.depth),
-  };
+  const pedagogicalDecision = sixFactorPrimary
+    ? buildSixFactorDerivedPedagogicalDecision(sixFactorPrimary.decision)
+    : {
+        difficulty:
+          appliedDelivery.difficulty_target ??
+          BASELINE_DELIVERY_PRESET.difficulty_target ??
+          "medium",
+        depth: clampExplanationDepth(appliedDelivery.depth),
+      };
   const renderingDecision: GenerateTestPlan["renderingDecision"] = {
     tone: appliedDelivery.tone ?? BASELINE_DELIVERY_PRESET.tone ?? "formal",
     explanation_style:
@@ -460,9 +464,9 @@ async function resolveTestGenerationPlan(params: {
     declaredCoverage: selfReportMaterialization.coverage,
     usedSixFactorPrimary: sixFactorPrimary != null,
     sixFactorDecisionSource:
-      sixFactorPrimary?.shadow.decision.decisionSource ?? null,
+      sixFactorPrimary?.deliveredConfigMetadata.decisionSource ?? null,
     sixFactorFallbackUsed:
-      sixFactorPrimary?.shadow.decision.fallbackUsed ?? null,
+      sixFactorPrimary?.deliveredConfigMetadata.fallbackUsed ?? null,
     pedagogicalDecisionRole: sixFactorPrimary
       ? "derived_two_factor_compatibility_projection"
       : "legacy_two_factor_decision",
@@ -492,18 +496,18 @@ async function resolveTestGenerationPlan(params: {
   const assignment = buildEvaluationAssignment({
     selection: policySelection,
     runtimePolicyId: sixFactorPrimary
-      ? sixFactorPrimary.shadow.decision.policyId
+      ? sixFactorPrimary.decision.policyId
       : recommendation?.ok
         ? recommendation.preset.meta?.runtimePolicyId ?? null
         : null,
     backendKind: sixFactorPrimary
-      ? sixFactorPrimary.shadow.decision.backendKind
+      ? sixFactorPrimary.decision.backendKind
       : recommendation?.ok
         ? recommendation.preset.meta?.backendKind ?? null
         : null,
     backendId: sixFactorPrimary
-      ? sixFactorPrimary.shadow.decision.artifactPath ??
-        sixFactorPrimary.shadow.decision.modelVersion
+      ? sixFactorPrimary.decision.artifactPath ??
+        sixFactorPrimary.decision.modelVersion
       : recommendation?.ok
         ? recommendation.preset.meta?.backendId ?? null
         : null,
@@ -537,18 +541,18 @@ async function resolveTestGenerationPlan(params: {
     decisionBackend: sixFactorPrimary
       ? {
           runtimePolicyId:
-            sixFactorPrimary.shadow.decision.policyId ??
+            sixFactorPrimary.decision.policyId ??
             "six_factor_runtime_ml_policy_v1",
           backendKind:
-            sixFactorPrimary.shadow.decision.backendKind ??
-            sixFactorPrimary.shadow.decision.decisionSource,
+            sixFactorPrimary.decision.backendKind ??
+            sixFactorPrimary.decision.decisionSource,
           backendId:
-            sixFactorPrimary.shadow.decision.artifactPath ??
-            sixFactorPrimary.shadow.decision.modelVersion,
-          backendStatus: sixFactorPrimary.shadow.decision.fallbackUsed
+            sixFactorPrimary.decision.artifactPath ??
+            sixFactorPrimary.decision.modelVersion,
+          backendStatus: sixFactorPrimary.decision.fallbackUsed
             ? "fallback"
             : "ready",
-          schemaVersion: sixFactorPrimary.shadow.decision.modelVersion,
+          schemaVersion: sixFactorPrimary.decision.modelVersion,
         }
       : recommendation?.ok
       ? {
@@ -563,8 +567,7 @@ async function resolveTestGenerationPlan(params: {
       : null,
     recommendationSnapshot,
     policyMeta,
-    sixFactorDecision: sixFactorPrimary?.shadow.decision ?? null,
-    sixFactorDecisionMetadata: sixFactorPrimary?.shadow.metadata ?? null,
+    sixFactorPrimaryDecision: sixFactorPrimary?.deliveredConfigMetadata ?? null,
   } satisfies GenerateTestPlan;
 }
 
@@ -734,7 +737,12 @@ export async function generateTestForUser(
 
   const sixFactorDecisionAt = new Date();
   const sixFactorDecisionAtIso = sixFactorDecisionAt.toISOString();
-  const sixFactorLearnerStateAggregates = isSixFactorShadowEnabled()
+  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
+    plan.sixFactorPrimaryDecision,
+    { sessionRef: resolvedEpisode?.id ?? null },
+  );
+  const sixFactorLearnerStateAggregates =
+    !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
         prisma,
         userId: params.user.id,
@@ -748,26 +756,29 @@ export async function generateTestForUser(
         decisionCreatedAt: sixFactorDecisionAt,
       })
     : null;
-  const sixFactorPolicyContext = {
-    userRef: params.user.id,
-    subjectRef: subject.id,
-    topicRef: testEvaluation?.conceptKey ?? null,
-    conceptKey: testEvaluation?.conceptKey ?? null,
-    skillKey: testEvaluation?.skillKey ?? null,
-    familyKey: testEvaluation?.familyKey ?? null,
-    topic: params.payload.topic,
-    sessionRef: resolvedEpisode?.id ?? null,
-    ...(sixFactorLearnerStateAggregates ?? {}),
-    previousDifficulty: plan.pedagogicalDecision.difficulty,
-    previousDepth: plan.pedagogicalDecision.depth,
-    declaredPreferences,
-    policyId: plan.policyId,
-    backendKind: plan.decisionBackend?.backendKind ?? null,
-    modelVersion: plan.decisionBackend?.schemaVersion ?? null,
-  };
+  const sixFactorPolicyContext =
+    buildPrimarySixFactorPromptContext(primarySixFactorDecision) ?? {
+      userRef: params.user.id,
+      subjectRef: subject.id,
+      topicRef: testEvaluation?.conceptKey ?? null,
+      conceptKey: testEvaluation?.conceptKey ?? null,
+      skillKey: testEvaluation?.skillKey ?? null,
+      familyKey: testEvaluation?.familyKey ?? null,
+      topic: params.payload.topic,
+      sessionRef: resolvedEpisode?.id ?? null,
+      ...(sixFactorLearnerStateAggregates ?? {}),
+      previousDifficulty: plan.pedagogicalDecision.difficulty,
+      previousDepth: plan.pedagogicalDecision.depth,
+      declaredPreferences,
+      policyId: plan.policyId,
+      backendKind: plan.decisionBackend?.backendKind ?? null,
+      modelVersion: plan.decisionBackend?.schemaVersion ?? null,
+    };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
-    decisionOverride: plan.sixFactorDecision,
+    decisionOverride: buildPrimarySixFactorDecisionOverride(
+      primarySixFactorDecision,
+    ),
     path: "test_generation",
   });
   const skipOptionalShadowAfterApplyFailure =
@@ -1126,12 +1137,21 @@ export async function generateTestForUser(
       ? null
       : buildOptionalSixFactorShadowMetadata(sixFactorPolicyContext));
   const sixFactorDeliveredConfig =
+    buildPrimarySixFactorDeliveredConfigMetadata({
+      primaryDecision: primarySixFactorDecision,
+      appliedMetadata: sixFactorApply.metadata,
+      appliedPath: "test_generation",
+      warnings: sixFactorApply.warnings,
+    }) ??
     buildOptionalSixFactorDeliveredConfigMetadata({
       sixFactorShadow,
       decisionCreatedAt: sixFactorDecisionAtIso,
       featuresCutoffAt: sixFactorDecisionAtIso,
       appliedPath: "test_generation",
     });
+  const auxiliarySixFactorShadow = sixFactorDeliveredConfig
+    ? null
+    : sixFactorShadow;
 
   const saved = await prisma.$transaction(async (tx) => {
     const createdTest = await tx.generatedTest.create({
@@ -1176,11 +1196,10 @@ export async function generateTestForUser(
           requestedDelivery: clientRequestedDelivery,
           appliedDelivery: plan.appliedDelivery,
           pedagogicalDecision:
-            sixFactorDeliveredConfig && plan.sixFactorDecision
-              ? buildSixFactorCompatibilityPedagogicalDecision({
-                  decision: plan.sixFactorDecision,
-                  source: "six_factor_primary",
-                })
+            sixFactorDeliveredConfig?.appliedAsPrimary === true
+              ? buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+                  sixFactorDeliveredConfig,
+                )
               : plan.pedagogicalDecision,
           renderingDecision: plan.renderingDecision,
           decisionContext: plan.decisionContext ?? null,
@@ -1202,7 +1221,9 @@ export async function generateTestForUser(
           policyMode: plan.policyMode,
           policyId: plan.policyId,
           policyMeta: plan.policyMeta,
-          ...(sixFactorShadow ? { sixFactorShadow } : {}),
+          ...(auxiliarySixFactorShadow
+            ? { sixFactorShadow: auxiliarySixFactorShadow }
+            : {}),
           ...(sixFactorDeliveredConfig ? { sixFactorDeliveredConfig } : {}),
         }),
         sectionSnapshot: section.sectionSnapshot,

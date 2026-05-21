@@ -38,14 +38,14 @@ import {
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
-  type SixFactorDecisionMetadataV1,
 } from "@/lib/ml-six-factor-shadow";
 import {
-  buildSixFactorCompatibilityPedagogicalDecision,
+  buildPrimarySixFactorDecisionOverride,
+  buildPrimarySixFactorDeliveredConfigMetadata,
+  buildPrimarySixFactorPromptContext,
+  buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
+  withPrimarySixFactorDecisionRefs,
 } from "@/lib/ml-six-factor-primary-decision";
-import {
-  type EduAIAppSixFactorDecisionV1,
-} from "@/lib/ml-six-factor-policy-contract";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
 import { sanitizePreferenceMap } from "@/lib/tags";
 import { type GenerateTestUser } from "@/lib/test-generation";
@@ -69,8 +69,7 @@ export type GenerateLearningContentPlan = {
     id: string;
     basis: string;
   };
-  sixFactorDecision: EduAIAppSixFactorDecisionV1 | null;
-  sixFactorDecisionMetadata: SixFactorDecisionMetadataV1 | null;
+  sixFactorPrimaryDecision: SixFactorDeliveredConfigMetadataV1 | null;
 };
 
 export type GenerateLearningContentParams = {
@@ -275,7 +274,12 @@ export async function generateLearningContentForEpisode(
   });
   const sixFactorDecisionAt = new Date();
   const sixFactorDecisionAtIso = sixFactorDecisionAt.toISOString();
-  const learnerStateAggregates = isSixFactorShadowEnabled()
+  const primarySixFactorDecision = withPrimarySixFactorDecisionRefs(
+    params.plan.sixFactorPrimaryDecision,
+    { sessionRef: resolvedEpisode.episode.id },
+  );
+  const learnerStateAggregates =
+    !primarySixFactorDecision && isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
         prisma,
         userId: params.user.id,
@@ -289,26 +293,29 @@ export async function generateLearningContentForEpisode(
         decisionCreatedAt: sixFactorDecisionAt,
       })
     : {};
-  const sixFactorPolicyContext = {
-    userRef: params.user.id,
-    subjectRef: params.subject.id,
-    topicRef: params.evaluation.conceptKey ?? null,
-    conceptKey: params.evaluation.conceptKey ?? null,
-    skillKey: params.evaluation.skillKey ?? null,
-    familyKey: params.familyKey,
-    topic: params.topic,
-    sessionRef: resolvedEpisode.episode.id,
-    ...learnerStateAggregates,
-    previousDifficulty: params.plan.pedagogicalDecision.difficulty,
-    previousDepth: params.plan.pedagogicalDecision.depth,
-    declaredPreferences: declaredPreferences,
-    policyId: params.plan.policyId,
-    backendKind: params.plan.assignment.backendKind,
-    modelVersion: null,
-  };
+  const sixFactorPolicyContext =
+    buildPrimarySixFactorPromptContext(primarySixFactorDecision) ?? {
+      userRef: params.user.id,
+      subjectRef: params.subject.id,
+      topicRef: params.evaluation.conceptKey ?? null,
+      conceptKey: params.evaluation.conceptKey ?? null,
+      skillKey: params.evaluation.skillKey ?? null,
+      familyKey: params.familyKey,
+      topic: params.topic,
+      sessionRef: resolvedEpisode.episode.id,
+      ...learnerStateAggregates,
+      previousDifficulty: params.plan.pedagogicalDecision.difficulty,
+      previousDepth: params.plan.pedagogicalDecision.depth,
+      declaredPreferences: declaredPreferences,
+      policyId: params.plan.policyId,
+      backendKind: params.plan.assignment.backendKind,
+      modelVersion: null,
+    };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
-    decisionOverride: params.plan.sixFactorDecision,
+    decisionOverride: buildPrimarySixFactorDecisionOverride(
+      primarySixFactorDecision,
+    ),
     path: "learning_content",
   });
 
@@ -464,15 +471,30 @@ export async function generateLearningContentForEpisode(
             ...sixFactorShadowBase.warnings,
             "six_factor_apply_warning: LLM generation was unavailable; fallback content may only partially reflect six-factor render instructions.",
           ],
-        }
+      }
       : sixFactorShadowBase;
   const sixFactorDeliveredConfig =
+    buildPrimarySixFactorDeliveredConfigMetadata({
+      primaryDecision: primarySixFactorDecision,
+      appliedMetadata: sixFactorApply.metadata,
+      appliedPath: "learning_content",
+      warnings:
+        generationSource === "fallback"
+          ? [
+              ...sixFactorApply.warnings,
+              "six_factor_apply_warning: LLM generation was unavailable; fallback content may only partially reflect six-factor render instructions.",
+            ]
+          : sixFactorApply.warnings,
+    }) ??
     buildOptionalSixFactorDeliveredConfigMetadata({
       sixFactorShadow,
       decisionCreatedAt: sixFactorDecisionAtIso,
       featuresCutoffAt: sixFactorDecisionAtIso,
       appliedPath: "learning_content",
     });
+  const auxiliarySixFactorShadow = sixFactorDeliveredConfig
+    ? null
+    : sixFactorShadow;
   const sessionMeta: ChatSessionMeta = {
     subjectId: params.subject.id,
     promptTemplateId: promptTemplate.id,
@@ -504,11 +526,10 @@ export async function generateLearningContentForEpisode(
               explanation_style: params.plan.renderingDecision.explanation_style,
             },
             pedagogicalDecision:
-              sixFactorDeliveredConfig && params.plan.sixFactorDecision
-                ? buildSixFactorCompatibilityPedagogicalDecision({
-                    decision: params.plan.sixFactorDecision,
-                    source: "six_factor_primary",
-                  })
+              sixFactorDeliveredConfig?.appliedAsPrimary === true
+                ? buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+                    sixFactorDeliveredConfig,
+                  )
                 : params.plan.pedagogicalDecision,
             rulesLayer: params.plan.renderingRules,
             generationSource,
@@ -525,7 +546,9 @@ export async function generateLearningContentForEpisode(
               testsRemainPrimary: true,
             },
             evaluation,
-            ...(sixFactorShadow ? { sixFactorShadow } : {}),
+            ...(auxiliarySixFactorShadow
+              ? { sixFactorShadow: auxiliarySixFactorShadow }
+              : {}),
             ...(sixFactorDeliveredConfig ? { sixFactorDeliveredConfig } : {}),
             messageStats: {
               userChars: 0,

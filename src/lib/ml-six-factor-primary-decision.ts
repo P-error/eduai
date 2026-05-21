@@ -8,11 +8,22 @@ import {
 } from "@/lib/ml-six-factor-policy-adapter";
 import {
   type EduAIAppSixFactorDecisionV1,
+  type EduAISixFactorMlConfigV1,
 } from "@/lib/ml-six-factor-policy-contract";
 import {
   buildShadowSixFactorDecision,
   type SixFactorShadowResultV1,
+  type SixFactorDecisionMetadataV1,
 } from "@/lib/ml-six-factor-shadow";
+import {
+  buildSixFactorDecisionFromDeliveredConfigMetadata,
+  buildSixFactorDeliveredConfigMetadata,
+  type SixFactorDeliveredConfigMetadataV1,
+} from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildMlPersonalizationView,
+  type MlPersonalizationView,
+} from "@/lib/ml-personalization-view";
 
 export type SixFactorPrimarySelectionMode =
   | "baseline_default"
@@ -22,11 +33,21 @@ export type SixFactorPrimarySelectionMode =
   | "manual_override"
   | "observational_only";
 
+export type SixFactorCompatibilityPedagogicalDecision = ReturnType<
+  typeof buildSixFactorCompatibilityPedagogicalDecision
+>;
+
 export type ResolvedPrimarySixFactorDecision = {
   decisionCreatedAt: Date;
   decisionCreatedAtIso: string;
   context: BuildEduAIAppPolicyFeaturesInput;
   shadow: SixFactorShadowResultV1;
+  decision: EduAIAppSixFactorDecisionV1;
+  features: SixFactorShadowResultV1["features"];
+  deliveredConfig: EduAISixFactorMlConfigV1;
+  deliveredConfigMetadata: SixFactorDeliveredConfigMetadataV1;
+  compatibilityPedagogicalDecision: SixFactorCompatibilityPedagogicalDecision;
+  appliedAsPrimary: true;
 };
 
 export function shouldUseSixFactorAsPrimaryDecision(params: {
@@ -59,6 +80,112 @@ export function buildSixFactorCompatibilityPedagogicalDecision(params: {
     ...buildSixFactorDerivedPedagogicalDecision(params.decision),
     compatibilityRole: "derived_two_factor_projection",
     derivedFrom: params.source,
+  };
+}
+
+export function buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+  metadata: SixFactorDeliveredConfigMetadataV1,
+) {
+  const derivedFrom: "legacy_derived" | "six_factor_primary" =
+    metadata.decisionSource === "legacy_derived"
+      ? "legacy_derived"
+      : "six_factor_primary";
+
+  return {
+    ...buildSixFactorDerivedPedagogicalDecision(
+      buildSixFactorDecisionFromDeliveredConfigMetadata(metadata),
+    ),
+    compatibilityRole: "derived_two_factor_projection",
+    derivedFrom,
+    sixFactorConfig: metadata.deliveredConfig,
+    sixFactorDecisionSource: metadata.decisionSource,
+    sixFactorFallbackUsed: metadata.fallbackUsed,
+  };
+}
+
+export function buildPrimarySixFactorPromptContext(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+): BuildEduAIAppPolicyFeaturesInput | null {
+  return metadata?.featuresSnapshot ?? null;
+}
+
+export function buildPrimarySixFactorDecisionOverride(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+): EduAIAppSixFactorDecisionV1 | null {
+  return metadata
+    ? buildSixFactorDecisionFromDeliveredConfigMetadata(metadata)
+    : null;
+}
+
+function mergeWarnings(...groups: Array<string[] | null | undefined>) {
+  return [
+    ...new Set(
+      groups
+        .flatMap((group) => group ?? [])
+        .filter((warning) => warning.trim().length > 0),
+    ),
+  ];
+}
+
+export function buildPrimarySixFactorDeliveredConfigMetadata(params: {
+  primaryDecision: SixFactorDeliveredConfigMetadataV1 | null | undefined;
+  appliedMetadata?: SixFactorDecisionMetadataV1 | null;
+  appliedPath?: string | null;
+  warnings?: string[];
+}): SixFactorDeliveredConfigMetadataV1 | null {
+  const primary = params.primaryDecision;
+  if (!primary) return null;
+
+  if (!params.appliedMetadata) {
+    return {
+      ...primary,
+      appliedAsPrimary: true,
+      appliedPath: params.appliedPath ?? primary.appliedPath,
+      warnings: mergeWarnings(primary.warnings, params.warnings),
+    };
+  }
+
+  return buildSixFactorDeliveredConfigMetadata({
+    sixFactorShadow: params.appliedMetadata,
+    decisionCreatedAt: primary.decisionCreatedAt,
+    featuresCutoffAt: primary.featuresCutoffAt,
+    appliedPath: params.appliedPath ?? params.appliedMetadata.appliedPath,
+    appliedAsPrimary: true,
+    fallbackReason: primary.fallbackReason,
+    warnings: mergeWarnings(primary.warnings, params.warnings),
+  });
+}
+
+export function buildPrimarySixFactorMlPersonalizationView(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+): MlPersonalizationView | null {
+  return buildMlPersonalizationView(metadata);
+}
+
+export function withPrimarySixFactorDecisionRefs(
+  metadata: SixFactorDeliveredConfigMetadataV1 | null | undefined,
+  refs: Partial<SixFactorDeliveredConfigMetadataV1["featureRefs"]>,
+): SixFactorDeliveredConfigMetadataV1 | null {
+  if (!metadata) return null;
+
+  const featureRefs = {
+    ...metadata.featureRefs,
+    ...Object.fromEntries(
+      Object.entries(refs).filter(([, value]) => value !== undefined),
+    ),
+  } as SixFactorDeliveredConfigMetadataV1["featureRefs"];
+
+  return {
+    ...metadata,
+    featureRefs,
+    featuresSnapshot: {
+      ...metadata.featuresSnapshot,
+      userRef: featureRefs.userRef,
+      subjectRef: featureRefs.subjectRef,
+      topicRef: featureRefs.topicRef,
+      sessionRef: featureRefs.sessionRef,
+      contentEventRef: featureRefs.contentEventRef,
+    },
   };
 }
 
@@ -115,10 +242,27 @@ export async function resolvePrimarySixFactorDecision(params: {
     modelVersion: params.modelVersion ?? null,
   } satisfies BuildEduAIAppPolicyFeaturesInput;
 
+  const shadow = buildShadowSixFactorDecision(context, params.env);
+  const deliveredConfigMetadata = buildSixFactorDeliveredConfigMetadata({
+    sixFactorShadow: shadow.metadata,
+    decisionCreatedAt,
+    featuresCutoffAt: decisionCreatedAt,
+    appliedAsPrimary: true,
+  });
+
   return {
     decisionCreatedAt,
     decisionCreatedAtIso: decisionCreatedAt.toISOString(),
     context,
-    shadow: buildShadowSixFactorDecision(context, params.env),
+    shadow,
+    decision: shadow.decision,
+    features: shadow.features,
+    deliveredConfig: deliveredConfigMetadata.deliveredConfig,
+    deliveredConfigMetadata,
+    compatibilityPedagogicalDecision:
+      buildSixFactorCompatibilityPedagogicalDecisionFromMetadata(
+        deliveredConfigMetadata,
+      ),
+    appliedAsPrimary: true,
   };
 }

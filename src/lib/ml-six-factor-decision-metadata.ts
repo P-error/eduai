@@ -27,6 +27,13 @@ export type SixFactorDeliveredConfigMetadataV1 = {
   sixFactorDecisionVersion: typeof EDUAI_APP_SIX_FACTOR_DECISION_V1;
   featuresVersion: typeof EDUAI_APP_POLICY_FEATURES_V1;
   featuresSnapshot: EduAIAppPolicyFeaturesV1;
+  featureRefs: {
+    userRef: string;
+    subjectRef: string | null;
+    topicRef: string | null;
+    sessionRef: string | null;
+    contentEventRef: string | null;
+  };
   candidateConfig: EduAISixFactorMlConfigV1;
   deliveredConfig: EduAISixFactorMlConfigV1;
   decisionSource: SixFactorDecisionSource;
@@ -35,9 +42,11 @@ export type SixFactorDeliveredConfigMetadataV1 = {
   artifactPath: string | null;
   backendKind: string | null;
   fallbackUsed: boolean;
+  fallbackReason: string | null;
   candidateCount: number | null;
   confidence: number | null;
   warnings: string[];
+  appliedAsPrimary: boolean;
   appliedToLearnerFacingOutput: boolean;
   appliedPath: string | null;
   appliedPromptInstructionCount: number | null;
@@ -82,6 +91,51 @@ function readWarnings(value: unknown) {
     .filter((entry): entry is string => entry != null);
 }
 
+function buildFeatureRefs(features: EduAIAppPolicyFeaturesV1) {
+  return {
+    userRef: features.userRef,
+    subjectRef: features.subjectRef,
+    topicRef: features.topicRef,
+    sessionRef: features.sessionRef,
+    contentEventRef: features.contentEventRef,
+  };
+}
+
+function readFeatureRefs(
+  value: unknown,
+  features: EduAIAppPolicyFeaturesV1,
+) {
+  const root = isRecord(value) ? value : {};
+  return {
+    userRef: readString(root.userRef) ?? features.userRef,
+    subjectRef: readString(root.subjectRef) ?? features.subjectRef,
+    topicRef: readString(root.topicRef) ?? features.topicRef,
+    sessionRef: readString(root.sessionRef) ?? features.sessionRef,
+    contentEventRef:
+      readString(root.contentEventRef) ?? features.contentEventRef,
+  };
+}
+
+function inferFallbackReason(params: {
+  fallbackUsed: boolean;
+  explicit?: unknown;
+  warnings: string[];
+}) {
+  const explicit = readString(params.explicit);
+  if (explicit) return explicit;
+  if (!params.fallbackUsed) return null;
+  return (
+    params.warnings.find(
+      (warning) =>
+        warning.includes("fallback") ||
+        warning.includes("artifact_error") ||
+        warning.includes("scoring_error") ||
+        warning.includes("disabled") ||
+        warning.includes("legacy_derived"),
+    ) ?? "fallback_used_without_specific_reason"
+  );
+}
+
 function readObjectValue(value: unknown, key: string) {
   return isRecord(value) ? value[key] : undefined;
 }
@@ -113,17 +167,24 @@ export function buildSixFactorDeliveredConfigMetadata(params: {
   decisionCreatedAt?: DateInput;
   featuresCutoffAt?: DateInput;
   appliedPath?: string | null;
+  appliedAsPrimary?: boolean;
+  fallbackReason?: string | null;
   leakageNotes?: string | null;
   warnings?: string[];
 }): SixFactorDeliveredConfigMetadataV1 {
   const nowIso = new Date().toISOString();
   const decisionCreatedAt = toIso(params.decisionCreatedAt, nowIso);
+  const warnings = [
+    ...params.sixFactorShadow.warnings,
+    ...(params.warnings ?? []),
+  ];
 
   return {
     metadataVersion: SIX_FACTOR_DELIVERED_CONFIG_METADATA_VERSION,
     sixFactorDecisionVersion: EDUAI_APP_SIX_FACTOR_DECISION_V1,
     featuresVersion: EDUAI_APP_POLICY_FEATURES_V1,
     featuresSnapshot: params.sixFactorShadow.featuresSnapshot,
+    featureRefs: params.sixFactorShadow.featureRefs,
     candidateConfig: params.sixFactorShadow.candidateConfig,
     deliveredConfig: params.sixFactorShadow.deliveredConfig,
     decisionSource: params.sixFactorShadow.decisionSource,
@@ -132,12 +193,15 @@ export function buildSixFactorDeliveredConfigMetadata(params: {
     artifactPath: params.sixFactorShadow.artifactPath,
     backendKind: params.sixFactorShadow.backendKind,
     fallbackUsed: params.sixFactorShadow.fallbackUsed,
+    fallbackReason: inferFallbackReason({
+      fallbackUsed: params.sixFactorShadow.fallbackUsed,
+      explicit: params.fallbackReason,
+      warnings,
+    }),
     candidateCount: params.sixFactorShadow.candidateCount,
     confidence: params.sixFactorShadow.confidence,
-    warnings: [
-      ...params.sixFactorShadow.warnings,
-      ...(params.warnings ?? []),
-    ],
+    warnings,
+    appliedAsPrimary: params.appliedAsPrimary === true,
     appliedToLearnerFacingOutput:
       params.sixFactorShadow.appliedToLearnerFacingOutput,
     appliedPath: params.appliedPath ?? params.sixFactorShadow.appliedPath,
@@ -159,6 +223,8 @@ export function buildOptionalSixFactorDeliveredConfigMetadata(params: {
   decisionCreatedAt?: DateInput;
   featuresCutoffAt?: DateInput;
   appliedPath?: string | null;
+  appliedAsPrimary?: boolean;
+  fallbackReason?: string | null;
   leakageNotes?: string | null;
   warnings?: string[];
 }) {
@@ -168,6 +234,8 @@ export function buildOptionalSixFactorDeliveredConfigMetadata(params: {
     decisionCreatedAt: params.decisionCreatedAt,
     featuresCutoffAt: params.featuresCutoffAt,
     appliedPath: params.appliedPath,
+    appliedAsPrimary: params.appliedAsPrimary,
+    fallbackReason: params.fallbackReason,
     leakageNotes: params.leakageNotes,
     warnings: params.warnings,
   });
@@ -248,6 +316,15 @@ export function buildLegacyDerivedSixFactorDeliveredConfigMetadata(params: {
         readObjectValue(runtime, "modelVersion") ??
         readObjectValue(runtime, "backendId"),
     }),
+    featureRefs: buildFeatureRefs(
+      sanitizeAppPolicyFeatures({
+        userRef: params.userRef ?? "unknown_user",
+        subjectRef: params.subjectRef ?? null,
+        topicRef: params.topicRef ?? null,
+        sessionRef: params.sessionRef ?? null,
+        contentEventRef: params.contentEventRef ?? null,
+      }),
+    ),
     candidateConfig: config,
     deliveredConfig: config,
     decisionSource: "legacy_derived",
@@ -260,11 +337,14 @@ export function buildLegacyDerivedSixFactorDeliveredConfigMetadata(params: {
     artifactPath: null,
     backendKind: readString(readObjectValue(runtime, "backendKind")),
     fallbackUsed: true,
+    fallbackReason:
+      "legacy_derived: old two-factor pedagogicalDecision was adapted for read/export compatibility only.",
     candidateCount: null,
     confidence: 0,
     warnings: [
       "legacy_derived: old two-factor pedagogicalDecision was adapted for read/export compatibility only.",
     ],
+    appliedAsPrimary: false,
     appliedToLearnerFacingOutput: false,
     appliedPath: null,
     appliedPromptInstructionCount: null,
@@ -305,14 +385,19 @@ function readCanonicalMetadata(
   const fallbackIso = new Date().toISOString();
   const decisionCreatedAt = toIso(value.decisionCreatedAt as DateInput, fallbackIso);
   const leakageGuard = isRecord(value.leakageGuard) ? value.leakageGuard : {};
+  const featuresSnapshot = sanitizeAppPolicyFeatures(
+    isRecord(value.featuresSnapshot) ? value.featuresSnapshot : {},
+  );
+  const warnings = readWarnings(value.warnings);
+  const fallbackUsed =
+    typeof value.fallbackUsed === "boolean" ? value.fallbackUsed : true;
 
   return {
     metadataVersion: SIX_FACTOR_DELIVERED_CONFIG_METADATA_VERSION,
     sixFactorDecisionVersion: EDUAI_APP_SIX_FACTOR_DECISION_V1,
     featuresVersion: EDUAI_APP_POLICY_FEATURES_V1,
-    featuresSnapshot: sanitizeAppPolicyFeatures(
-      isRecord(value.featuresSnapshot) ? value.featuresSnapshot : {},
-    ),
+    featuresSnapshot,
+    featureRefs: readFeatureRefs(value.featureRefs, featuresSnapshot),
     candidateConfig: value.candidateConfig,
     deliveredConfig: value.deliveredConfig,
     decisionSource: value.decisionSource,
@@ -320,11 +405,16 @@ function readCanonicalMetadata(
     modelVersion: readString(value.modelVersion),
     artifactPath: readString(value.artifactPath),
     backendKind: readString(value.backendKind),
-    fallbackUsed:
-      typeof value.fallbackUsed === "boolean" ? value.fallbackUsed : true,
+    fallbackUsed,
+    fallbackReason: inferFallbackReason({
+      fallbackUsed,
+      explicit: value.fallbackReason,
+      warnings,
+    }),
     candidateCount: normalizeCandidateCount(value.candidateCount),
     confidence: normalizeConfidence(value.confidence),
-    warnings: readWarnings(value.warnings),
+    warnings,
+    appliedAsPrimary: value.appliedAsPrimary === true,
     appliedToLearnerFacingOutput:
       value.appliedToLearnerFacingOutput === true,
     appliedPath: readString(value.appliedPath),

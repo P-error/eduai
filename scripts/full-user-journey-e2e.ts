@@ -340,8 +340,7 @@ function makeAssignmentPlan(params: {
       id: "full_user_journey_e2e_rules_v1",
       basis: "controlled_api_db_e2e",
     },
-    sixFactorDecision: null,
-    sixFactorDecisionMetadata: null,
+    sixFactorPrimaryDecision: null,
   };
 }
 
