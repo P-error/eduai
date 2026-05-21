@@ -1,27 +1,75 @@
-# EduAI (Thesis Prototype)
+# EduAI
 
-EduAI is a thesis-defensible prototype for machine-learning-based prediction of optimal educational content for individual learners.
-It is not a production LMS: the system is designed to be transparent, auditable, and honest about data quality and model availability.
-`docs/RESEARCH_SPEC.md` is the primary research framing document; `VISION.md` describes the target-state product direction.
+EduAI is a thesis-defensible prototype for prediction and selection of pedagogically meaningful educational content for individual learners.
 
-Research framing:
+The current repository is not a generic LMS and not a proof that every learner-facing decision is already validated by real-user ML evidence. It is an auditable research prototype with explicit runtime provenance, fallback states, evaluation episodes, and dataset/export paths.
+
+## Current runtime state
+
+Read this first when judging the current implementation:
+
+- `docs/INDEX.md` - documentation map and current runtime summary.
+- `docs/RESEARCH_SPEC.md` - dissertation/research framing and honesty constraints.
+- `VISION.md` - target-state product direction, not a runtime claim.
+
+The current implementation has two separate ML-related runtime contours:
+
+1. **Prediction accuracy runtime**
+   - Configured by `configs/active_policy.json`.
+   - Current tracked config uses `backend.kind=artifact_ml` with `configs/ml_accuracy_logreg_artifact.dev.json`.
+   - That DEV artifact predicts `expected_accuracy` only.
+   - It is synthetic/dev evidence, not production ML-first evidence and not real-user learning-effect proof.
+
+2. **Six-factor pedagogical runtime**
+   - Implemented in `src/lib/ml-six-factor-*.ts`.
+   - Default artifact path: `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
+   - Selects and applies six pedagogical/rendering factors:
+     - `difficulty`
+     - `depth`
+     - `support_level`
+     - `presentation_format`
+     - `examples_level`
+     - `terminology_level`
+   - Applied to learner-facing generation paths when enabled:
+     - chat
+     - learning content
+     - test generation
+   - Current artifact provenance is synthetic/bootstrap. It verifies runtime integration and metadata provenance; it does not prove real educational effectiveness.
+
+Older documents may still mention the early two-factor scope (`difficulty` + `depth`). Treat that as the early bridge scope, not as a complete description of the current runtime.
+
+## Research framing
+
+Core distinction:
+
 - declared preference = what the learner says they prefer;
-- effective preference = what actually produces the best measurable learning result;
+- inferred preference = the system estimate from observed behavior and performance;
+- effective preference = what actually yields the best measurable learning result.
+
+Conceptual objective:
+
 - optimal educational content = content that maximizes learning gain;
-- first practical baseline proxy for optimality = next-task success probability;
+- first practical proxy = next-task success probability;
 - time is a secondary metric or operational constraint, not the main educational objective.
 
-System framing:
-- ML prediction layer: predicts pedagogically meaningful variables; current dissertation focus is `difficulty` + `explanation depth`.
-- Rule-based rendering layer: materializes those decisions into tone, style, format, and presentation.
-- Heuristic or stub logic may exist only as an honest baseline, fallback, or comparison layer. It must not be presented as ML.
+Honesty rules:
 
-Core product surface:
-- Learn: educational chat with personalization mode on/off.
-- Practice: test generation + submission with telemetry.
-- Profile: declared/effective preference view with confidence and limitations.
-- Insights: prediction policy status, support metrics, and calibration summary.
-- Admin: data quality, personalization, prediction, chat, and test observability.
+- heuristics and stubs are not ML;
+- synthetic/dev artifacts are not real-user efficacy evidence;
+- no hidden fallbacks;
+- no future leakage;
+- policy/backend provenance must remain explicit;
+- tests and structured episode checks remain the primary learning signal;
+- chat is secondary/supporting evidence.
+
+## Core product surface
+
+- Learn: episode-first learning flow with structured checks, learning content, and bounded dialogue.
+- Practice: test generation and submission with telemetry.
+- Profile: declared/effective preference and personalization state.
+- Analytics: progress, prediction status, limitations, and next-step support.
+- Topics/Subjects: learner-owned educational structure.
+- Admin: observability, data quality, prediction metrics, evaluation/export tooling.
 
 ## Quickstart
 
@@ -38,43 +86,35 @@ cp .env.example .env.local
 ```
 
 Required values:
+
 - `DATABASE_URL`
+- `DIRECT_URL`
 - `JWT_SECRET`
 - `OPENAI_API_KEY`
-- `OPENAI_BASE_URL` (optional; OpenAI-compatible provider)
-- `CHAT_STORE_RAW_CONTENT` (optional, `1` enables raw chat storage; default is redacted storage)
+- `OPENAI_BASE_URL` optional
+- `CHAT_STORE_RAW_CONTENT` optional, default redacted storage
+- `DATASET_EXPORT_SECRET` recommended for export pseudonymization
 
-3. Start local Postgres:
-
-```bash
-npm run db:up
-```
-
-4. Run Prisma migration:
+Local/demo six-factor mode is explicit in `.env.example`:
 
 ```bash
-npm run prisma:migrate:deploy
+EDUAI_SIX_FACTOR_SHADOW=1
+EDUAI_SIX_FACTOR_ML_POLICY=1
+EDUAI_SIX_FACTOR_APPLY=1
+EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
+NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1
 ```
 
-5. Run local app:
+3. Start local Postgres and app:
 
 ```bash
 npm run dev:local
 ```
 
-`dev:local` now auto-starts the compose PostgreSQL service, applies `prisma migrate deploy` against the compose-aligned local DB URL, then starts Next.js.
-Use plain `npm run dev` only when the database is already up and you intentionally want a custom `DATABASE_URL`.
+`dev:local` starts the compose PostgreSQL service, applies `prisma migrate deploy` against the compose-aligned local DB URL, then starts Next.js.
+Use plain `npm run dev` only when the database is already up and `DATABASE_URL` intentionally points to the target database.
 
-Offline build/lint checks:
-
-```bash
-npm run lint
-npm run build
-```
-
-## Pilot-Like Local Startup
-
-For a controlled pilot-style local startup, use the deployment-aligned path:
+## Pilot-like local startup
 
 ```bash
 npm run db:up
@@ -83,7 +123,7 @@ npm run build
 npm run start
 ```
 
-Operational signals:
+Operational checks:
 
 ```bash
 curl http://localhost:3000/api/health
@@ -92,22 +132,55 @@ npm run auth:self-check
 npm run pilot-readiness:smoke
 ```
 
-## Minimal demo flow
+`/api/ready` is the runtime gate. It checks DB, Prisma contract, auth config, rate limiter, prediction runtime, artifact slots, six-factor artifact state, and LLM config.
 
-1. Login from `/login`.
-2. Create subject(s) in `/subjects`.
-3. Generate a test from `/practice`.
-4. Submit attempt and inspect result panel (prediction vs actual + learning quality note).
-5. Use `/learn` chat in Personalized/Standard mode.
-6. Open `/profile` and `/insights`.
-7. For admin users (`@eduai.com`): inspect `/admin/*` dashboards.
+## Quality checks
+
+```bash
+npm run lint
+npm run build
+npx prisma validate
+```
+
+Useful self-checks:
+
+```bash
+npm run auth:self-check
+npm run learner-flow-contract:self-check
+npm run learning-episode:self-check
+npm run ml-six-factor:self-check
+npm run prediction-runtime:dev-self-check
+npm run pilot-readiness:smoke
+```
+
+The strict production ML-first gate is:
+
+```bash
+npm run prediction-runtime:self-check
+```
+
+With the tracked synthetic DEV accuracy artifact, the strict production gate is expected to fail with a synthetic/dev eligibility blocker. That is intentional.
+
+## Minimal learner flow
+
+1. Register or login from `/register` or `/login`.
+2. Create a subject and sections/topics.
+3. Use `/learn` for the episode-first loop.
+4. Complete precheck -> learning content/dialogue -> postcheck/holdout steps.
+5. Use `/practice` for custom/core test generation.
+6. Submit tests with telemetry.
+7. Inspect `/profile`, `/analytics`, and admin observability pages.
+
+Admin access depends on stored `user.isAdmin=true`, not on email domain.
 
 ## Canonical docs
 
-`docs/RESEARCH_SPEC.md` describes the dissertation-facing research framing.
-`VISION.md` describes the target-state product direction.
-See `docs/INDEX.md` for the complete v2 documentation set.
-For full local bootstrap/troubleshooting, see `docs/LOCAL_DEV.md`.
-For GitHub/Vercel deployment flow, see `docs/DEPLOYMENT.md` and `docs/RELEASE_CHECKLIST.md`.
+- `docs/INDEX.md` - documentation map and current runtime summary.
+- `docs/LOCAL_DEV.md` - local bootstrap and troubleshooting.
+- `docs/DEPLOYMENT.md` - GitHub/Vercel deployment flow.
+- `docs/API_REFERENCE.md` - endpoint contracts.
+- `docs/PREDICTION_LAYER.md` - prediction/runtime honesty rules.
+- `docs/ml_six_factor_apply_mode.md` - six-factor apply behavior.
+- `docs/ml_six_factor_runtime_policy_adapter.md` - six-factor policy adapter.
 
-For bootstrapping a new ChatGPT thread with full current state, use `context_seed.md`.
+For bootstrapping a new ChatGPT thread with full current state, use `context_seed.md` if present and up to date.
