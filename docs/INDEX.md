@@ -1,6 +1,17 @@
-# Documentation Index (v2)
+# Documentation Index (v3)
 
-This folder documents the current, implemented state of EduAI and the agreed research framing used for further development.
+This folder documents the current implemented state of EduAI and the agreed research framing used for further development.
+
+Current runtime note:
+
+- EduAI currently has a prediction accuracy runtime configured by `configs/active_policy.json`.
+- The tracked active policy uses a synthetic/dev `artifact_ml` accuracy artifact at `configs/ml_accuracy_logreg_artifact.dev.json`.
+- EduAI also has an integrated six-factor pedagogical runtime in `src/lib/ml-six-factor-*.ts`.
+- The current default six-factor scorer path is `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
+- The six factors are `difficulty`, `depth`, `support_level`, `presentation_format`, `examples_level`, and `terminology_level`.
+- Synthetic/dev artifacts verify runtime wiring and provenance, not real-user learning effect.
+- Older wording about only `difficulty + depth` describes an earlier bridge phase, not the complete current runtime.
+
 `docs/RESEARCH_SPEC.md` is the primary research framing document for dissertation-related decisions.
 `VISION.md` is the target-state product direction.
 Repository code plus current up-to-date docs remain the source of truth for current behavior.
@@ -13,10 +24,10 @@ Some documents are explicitly marked as baseline or historical reference documen
 2. `VISION.md` - target-state product direction and product boundary.
 
 ### For Commission (methodology and defense)
-1. `docs/ARCHITECTURE.md` - system framing, boundaries, and two-layer logic.
+1. `docs/ARCHITECTURE.md` - system framing, boundaries, and current runtime contours.
 2. `docs/AXIS_SCHEMA_V2.md` - authoring/tagging taxonomy and axis roles.
 3. `docs/PREDICTION_LAYER.md` - research prediction contract, runtime modes, and honesty rules.
-4. `docs/LEARNING_POLICY_V2.md` - current heuristic baseline policy and comparison reference.
+4. `docs/LEARNING_POLICY_V2.md` - heuristic comparison policy and historical reference.
 5. `docs/ADMIN_OBSERVABILITY.md` - calibration/data quality metrics.
 6. `docs/LIMITATIONS_ETHICS.md` - limitations, privacy, ethics.
 7. `docs/REPRODUCIBILITY.md` - reproducible setup, demo, and evaluation checklist.
@@ -40,10 +51,15 @@ Some documents are explicitly marked as baseline or historical reference documen
 16. `docs/llm_prompt_compliance_check.md` - controlled mock/live provider compliance checks for prompt snapshots.
 17. `docs/browser_live_user_journey_pilot.md` - browser/live learner-journey pilot harness and PASS/PARTIAL/FAIL interpretation.
 18. `docs/ml_dataset_contract.md` - six-factor supervised training observation format and leakage rules.
+19. `docs/ml_six_factor_apply_mode.md` - six-factor apply behavior.
+20. `docs/ml_six_factor_runtime_policy_adapter.md` - six-factor policy adapter.
+21. `docs/ml_six_factor_delivered_config_logging.md` - delivered-config logging.
+22. `docs/ml_six_factor_app_shadow_integration.md` - app-level six-factor shadow integration.
 
 ## Docs conventions
 - Distinguish declared preference from effective preference.
 - Do not describe heuristic, stub, or rule-based layers as ML.
+- Do not treat synthetic/dev artifacts as real-user efficacy evidence.
 - Do not treat the 10 content axes as equal dissertation ML targets.
 - User-facing language uses: `Personalized` / `Standard`.
 - Internal keys (`policyMode`, `learningEligible`, axis keys) are documented for engineering only.
