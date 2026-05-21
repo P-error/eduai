@@ -609,6 +609,10 @@ export async function POST(request: Request) {
             difficulty,
             depth,
           },
+    pedagogicalDecisionCompatibilityRole: storedSixFactorDeliveredConfig
+      ? "derived_two_factor_projection"
+      : "legacy_two_factor_bridge",
+    selectedSixFactorConfig: sixFactorPersonalization?.selected_config ?? null,
     rulesLayer: preset.rulesLayer,
     evaluationSignal: {
       quality: "secondary_chat_support",
@@ -702,6 +706,10 @@ export async function POST(request: Request) {
               difficulty,
               depth,
             },
+      pedagogicalDecisionCompatibilityRole: storedSixFactorDeliveredConfig
+        ? "derived_two_factor_projection"
+        : "legacy_two_factor_bridge",
+      selectedSixFactorConfig: sixFactorPersonalization?.selected_config ?? null,
       evaluationSignal: {
         quality: "secondary_chat_support",
         role: "supporting_secondary",

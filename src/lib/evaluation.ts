@@ -17,6 +17,10 @@ import {
 import {
   buildSixFactorCompatibilityPedagogicalDecisionFromMetadata,
 } from "@/lib/ml-six-factor-primary-decision";
+import {
+  buildPublicSixFactorConfigurationView,
+  type PublicSixFactorConfigurationView,
+} from "@/lib/ml-personalization-view";
 
 export const EVALUATION_SCHEMA_VERSION =
   "evaluation_protocol_v1_2026_03" as const;
@@ -271,12 +275,15 @@ export type EvaluationItemRecord = {
     | {
         difficulty: string;
         depth: string;
+        [key: string]: unknown;
       }
     | null;
+  selectedSixFactorConfig: PublicSixFactorConfigurationView | null;
   decisionRuntime: {
     runtimePolicyId: string | null;
     backendKind: string | null;
     backendId: string | null;
+    [key: string]: unknown;
   };
   outcome: {
     attemptId: string | null;
@@ -937,6 +944,10 @@ function parseItemRecord(item: {
         ? decisionRuntime.backendId
         : null,
   };
+  const selectedSixFactorConfig = buildPublicSixFactorConfigurationView({
+    decisionRuntime: normalizedDecisionRuntime,
+    pedagogicalDecision: normalizedPedagogicalDecision,
+  });
 
   return {
     id: item.id,
@@ -969,6 +980,7 @@ function parseItemRecord(item: {
     sectionId: item.sectionId,
     topic: item.topic,
     pedagogicalDecision: normalizedPedagogicalDecision,
+    selectedSixFactorConfig,
     decisionRuntime: normalizedDecisionRuntime,
     outcome:
       outcome == null

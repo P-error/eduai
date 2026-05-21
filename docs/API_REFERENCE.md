@@ -200,7 +200,8 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - each row includes:
     - identity/linkage: `episodeId`, `subject.{id,title}`, `section.{id,title}`, `topic`, `conceptKey`, `skillKey`
     - assignment/provenance: `arm`, `provenance.{assignmentSource,selectionMode,personalizationMode,policyMode,policyId,runtimePolicyId,backendKind,backendId}`
-    - locked decision summary: `selectedPedagogicalDecision.{difficulty,depth}`
+    - selected six-factor configuration: `selectedSixFactorConfig.{difficulty,depth,supportLevel,presentationFormat,examplesLevel,terminologyLevel}`
+    - compatibility projection: `selectedPedagogicalDecision.{difficulty,depth}`
     - progression summary: `status`, `counts`, `sequence.{expected,completed,missing,nextExpectedRole}`
     - export/evaluation readiness: `exportReadiness.{ready,code}`
 - Notes:
@@ -340,15 +341,16 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - stores chat signals
   - marks chat telemetry as `secondary_chat_support`
   - updates UX stats with weak reward proxy
-- Response: `{ reply, meta: { policyMode, policyId, uxPreset, pedagogicalDecision, evaluationSignal, sixFactorPersonalization?, signalsStored } }`
+- Response: `{ reply, meta: { policyMode, policyId, uxPreset, pedagogicalDecision, pedagogicalDecisionCompatibilityRole, selectedSixFactorConfig?, evaluationSignal, sixFactorPersonalization?, signalsStored } }`
   - `sixFactorPersonalization` is a safe learner-facing summary when six-factor metadata exists. It includes `selected_config`, `decisionSource`, `fallbackUsed`, `artifactVersion`, `backendKind`, `candidateCount`, `appliedToLearnerFacingOutput`, `appliedPromptInstructionCount`, and `appliedPath`; it does not expose raw feature snapshots, warnings, or debug JSON.
+  - `pedagogicalDecision` remains a derived two-factor compatibility projection when six-factor metadata exists.
 - Errors: `AUTH_REQUIRED`, `INVALID_INPUT`, `INVALID_EVALUATION_ASSIGNMENT`, `INVALID_EVALUATION_EPISODE`, `LLM_BAD_RESPONSE`, `INTERNAL_ERROR`
 
 ### Episode step semantics
 - `learning_content` is now a first-class episode role, not an out-of-band helper function.
 - The coordinator materializes learning content as a structured explanation plus bounded episode-local dialogue loop inside the same evaluation episode contract.
 - Follow-up learner questions stay on the same episode-linked `chat_session`; `/chat` does not return as the canonical learner route.
-- `/learn` episode state may include `learningContent.mlPersonalization` and assistant dialogue message `mlPersonalization` fields. The UI shows them only when `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`.
+- `/learn` episode state may include `learningContent.mlPersonalization` and assistant dialogue message `mlPersonalization` fields. The learner UI can show a compact primary six-factor summary without `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`; the flag still controls expanded debug details.
 - New predicted episode steps store full six-factor delivered metadata in `decisionRuntimeJson.sixFactorDeliveredConfig`; stored `pedagogicalDecisionJson` may still expose `difficulty/depth`, but it is marked as a derived compatibility projection when six-factor metadata exists.
 - Tests remain the primary learning signal; the learning-content/chat step is logged only as secondary/supporting evidence.
 

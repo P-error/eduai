@@ -54,6 +54,7 @@ type EpisodeItem = {
     difficulty: string;
     depth: string;
   } | null;
+  selectedSixFactorConfig: OperatorEpisodeListEntry["selectedSixFactorConfig"];
   decisionRuntime: {
     runtimePolicyId: string | null;
     backendKind: string | null;
@@ -163,6 +164,40 @@ function formatPercent(value: number | null | undefined) {
 function formatDurationMs(value: number | null | undefined) {
   if (value == null) return "—";
   return `${Math.round(value / 1000)} sec`;
+}
+
+function formatOperatorFactorValue(value: string | null | undefined) {
+  if (!value) return "—";
+  return value.replaceAll("_", " ");
+}
+
+function operatorSixFactorRows(
+  config: OperatorEpisodeListEntry["selectedSixFactorConfig"] | null | undefined,
+) {
+  return [
+    ["difficulty", config?.difficulty ?? null],
+    ["depth", config?.depth ?? null],
+    ["support", config?.supportLevel ?? null],
+    ["format", config?.presentationFormat ?? null],
+    ["examples", config?.examplesLevel ?? null],
+    ["terminology", config?.terminologyLevel ?? null],
+  ] as const;
+}
+
+function operatorSixFactorSourceLabel(
+  config: OperatorEpisodeListEntry["selectedSixFactorConfig"] | null | undefined,
+) {
+  if (!config) return "No six-factor config";
+  if (config.compatibilityRole === "legacy_two_factor_bridge") {
+    return "legacy compatibility projection";
+  }
+  if (config.decisionSource === "heuristic_baseline") {
+    return "heuristic fallback, not ML evidence";
+  }
+  if (config.fallbackUsed) {
+    return "fallback explicitly marked";
+  }
+  return config.appliedAsPrimary ? "primary six-factor configuration" : "six-factor projection";
 }
 
 function formatArmLabel(value: string) {
@@ -440,6 +475,11 @@ export default function AdminEpisodesPage() {
     : selectedEpisode
       ? deriveReadinessFromState(selectedEpisode)
       : { ready: false, code: "episode_active" as const };
+  const selectedSixFactorConfig =
+    selectedEntry?.selectedSixFactorConfig ??
+    selectedEpisode?.episode.items.find((item) => item.selectedSixFactorConfig)
+      ?.selectedSixFactorConfig ??
+    null;
 
   async function refreshSubjects(preferredSubjectId?: string | null) {
     const response = await authFetch("/api/subjects");
@@ -933,12 +973,20 @@ export default function AdminEpisodesPage() {
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-current/10 bg-black/10 px-3 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] opacity-60">
-                        Decision lock
+                        Six-factor configuration
                       </p>
-                      <p className="mt-2">
-                        difficulty: {episode.selectedPedagogicalDecision.difficulty ?? "—"}
+                      <div className="mt-2 grid gap-1">
+                        {operatorSixFactorRows(episode.selectedSixFactorConfig).map(
+                          ([name, value]) => (
+                            <p key={name}>
+                              {name}: {formatOperatorFactorValue(value)}
+                            </p>
+                          ),
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs opacity-70">
+                        {operatorSixFactorSourceLabel(episode.selectedSixFactorConfig)}
                       </p>
-                      <p>depth: {episode.selectedPedagogicalDecision.depth ?? "—"}</p>
                     </div>
                     <div className="rounded-2xl border border-current/10 bg-black/10 px-3 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] opacity-60">
@@ -1075,17 +1123,23 @@ export default function AdminEpisodesPage() {
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                    Locked pedagogical decision
+                    Six-factor pedagogical configuration
                   </p>
                   <div className="mt-3 grid gap-2 text-sm text-slate-200">
-                    <p>
-                      difficulty:{" "}
+                    {operatorSixFactorRows(selectedSixFactorConfig).map(([name, value]) => (
+                      <p key={name}>
+                        {name}: {formatOperatorFactorValue(value)}
+                      </p>
+                    ))}
+                    <p className="text-slate-400">
+                      Source: {operatorSixFactorSourceLabel(selectedSixFactorConfig)}
+                    </p>
+                    <p className="text-slate-500">
+                      Legacy compatibility projection: difficulty{" "}
                       {selectedEntry?.selectedPedagogicalDecision.difficulty ??
                         selectedEpisode.episode.items.find((item) => item.pedagogicalDecision)?.pedagogicalDecision?.difficulty ??
                         "—"}
-                    </p>
-                    <p>
-                      depth:{" "}
+                      , depth{" "}
                       {selectedEntry?.selectedPedagogicalDecision.depth ??
                         selectedEpisode.episode.items.find((item) => item.pedagogicalDecision)?.pedagogicalDecision?.depth ??
                         "—"}
@@ -1186,12 +1240,21 @@ export default function AdminEpisodesPage() {
                         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm text-slate-300">
                             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                              Decision
+                              Six-factor config
                             </p>
-                            <p className="mt-2">
+                            <div className="mt-2 grid gap-1">
+                              {operatorSixFactorRows(
+                                item?.selectedSixFactorConfig ?? selectedSixFactorConfig,
+                              ).map(([name, value]) => (
+                                <p key={name}>
+                                  {name}: {formatOperatorFactorValue(value)}
+                                </p>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
                               {item?.pedagogicalDecision
-                                ? `${item.pedagogicalDecision.difficulty} / ${item.pedagogicalDecision.depth}`
-                                : "—"}
+                                ? `compatibility: ${item.pedagogicalDecision.difficulty} / ${item.pedagogicalDecision.depth}`
+                                : "compatibility: —"}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm text-slate-300">

@@ -75,6 +75,85 @@ function formatSettingValue(value: string | null | undefined) {
     .join(" ");
 }
 
+const SIX_FACTOR_VALUE_LABELS = {
+  en: {
+    difficulty: {
+      easy: "Easy",
+      medium: "Medium",
+      hard: "Hard",
+    },
+    depth: {
+      brief: "Brief",
+      standard: "Standard",
+      detailed: "Detailed",
+    },
+    supportLevel: {
+      minimal: "Minimal",
+      guided: "Guided",
+      scaffolded: "Scaffolded",
+    },
+    presentationFormat: {
+      paragraph: "Paragraph",
+      structured_list: "Structured list",
+      step_by_step: "Step by step",
+      qa: "Q&A",
+    },
+    examplesLevel: {
+      none: "No examples",
+      single: "One example",
+      multiple: "Multiple examples",
+    },
+    terminologyLevel: {
+      simple: "Simple",
+      balanced: "Balanced",
+      technical: "Technical",
+    },
+  },
+  ru: {
+    difficulty: {
+      easy: "Лёгкая",
+      medium: "Средняя",
+      hard: "Сложная",
+    },
+    depth: {
+      brief: "Краткая",
+      standard: "Сбалансированная",
+      detailed: "Подробная",
+    },
+    supportLevel: {
+      minimal: "Минимальная",
+      guided: "С подсказками",
+      scaffolded: "Пошаговая",
+    },
+    presentationFormat: {
+      paragraph: "Связный текст",
+      structured_list: "Структурированный список",
+      step_by_step: "Пошагово",
+      qa: "Вопрос-ответ",
+    },
+    examplesLevel: {
+      none: "Без примеров",
+      single: "Один пример",
+      multiple: "Несколько примеров",
+    },
+    terminologyLevel: {
+      simple: "Простая",
+      balanced: "Сбалансированная",
+      technical: "Техническая",
+    },
+  },
+} as const;
+
+function formatSixFactorValue(
+  axis: keyof (typeof SIX_FACTOR_VALUE_LABELS)["en"],
+  value: string | null | undefined,
+  locale: keyof typeof SIX_FACTOR_VALUE_LABELS,
+) {
+  if (!value) return "-";
+  const axisLabels = SIX_FACTOR_VALUE_LABELS[locale][axis] as Record<string, string>;
+  return axisLabels[value] ?? formatSettingValue(value);
+}
+
 function roleTone(role: LearnerEpisodeSequenceRole) {
   if (role === "learning_content") {
     return "border-sky-800/70 bg-sky-950/20 text-sky-200";
@@ -639,6 +718,64 @@ export default function LearnerEpisodeWorkspace() {
   }
 
   const nextRole = episodeState ? findNextPendingRole(episodeState) : null;
+  const sixFactorLearningContentItems = activeLearningContent
+    ? [
+        {
+          label: messages.learn.difficultySetting,
+          value: formatSixFactorValue(
+            "difficulty",
+            activeLearningContent.mlPersonalization?.selected_config.difficulty ??
+              activeLearningContent.pedagogicalContext.difficulty,
+            locale,
+          ),
+        },
+        {
+          label: messages.learn.depthSetting,
+          value: formatSixFactorValue(
+            "depth",
+            activeLearningContent.mlPersonalization?.selected_config.depth ??
+              activeLearningContent.pedagogicalContext.depth,
+            locale,
+          ),
+        },
+        {
+          label: locale === "ru" ? "Поддержка" : "Support",
+          value: formatSixFactorValue(
+            "supportLevel",
+            activeLearningContent.mlPersonalization?.selected_config.support_level ??
+              activeLearningContent.pedagogicalContext.supportLevel,
+            locale,
+          ),
+        },
+        {
+          label: locale === "ru" ? "Формат" : "Format",
+          value: formatSixFactorValue(
+            "presentationFormat",
+            activeLearningContent.mlPersonalization?.selected_config.presentation_format ??
+              activeLearningContent.pedagogicalContext.presentationFormat,
+            locale,
+          ),
+        },
+        {
+          label: locale === "ru" ? "Примеры" : "Examples",
+          value: formatSixFactorValue(
+            "examplesLevel",
+            activeLearningContent.mlPersonalization?.selected_config.examples_level ??
+              activeLearningContent.pedagogicalContext.examplesLevel,
+            locale,
+          ),
+        },
+        {
+          label: locale === "ru" ? "Терминология" : "Terminology",
+          value: formatSixFactorValue(
+            "terminologyLevel",
+            activeLearningContent.mlPersonalization?.selected_config.terminology_level ??
+              activeLearningContent.pedagogicalContext.terminologyLevel,
+            locale,
+          ),
+        },
+      ]
+    : [];
 
   return (
     <section className="grid gap-6">
@@ -1052,7 +1189,7 @@ export default function LearnerEpisodeWorkspace() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 lg:grid-cols-5">
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-current/20 bg-slate-950/30 p-4 text-sm">
                   <p className="text-xs uppercase tracking-[0.18em] text-current/70">
                     {messages.learn.currentTopic}
@@ -1069,47 +1206,22 @@ export default function LearnerEpisodeWorkspace() {
                     {subjectLabel ?? messages.learn.topicFallback}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-current/20 bg-slate-950/30 p-4 text-sm">
-                  <p className="text-xs uppercase tracking-[0.18em] text-current/70">
-                    {messages.learn.difficultySetting}
-                  </p>
-                  <p className="mt-2 font-medium">
-                    {formatSettingValue(
-                      activeStep.learningContent.pedagogicalContext.difficulty,
-                    )}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-current/20 bg-slate-950/30 p-4 text-sm">
-                  <p className="text-xs uppercase tracking-[0.18em] text-current/70">
-                    {messages.learn.depthSetting}
-                  </p>
-                  <p className="mt-2 font-medium">
-                    {formatSettingValue(
-                      activeStep.learningContent.pedagogicalContext.depth,
-                    )}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-current/20 bg-slate-950/30 p-4 text-sm">
-                  <p className="text-xs uppercase tracking-[0.18em] text-current/70">
-                    {messages.learn.styleSetting}
-                  </p>
-                  <p className="mt-2 font-medium">
-                    {formatSettingValue(
-                      activeStep.learningContent.pedagogicalContext.explanationStyle,
-                    )}
-                    <span className="text-current/70">
-                      {" "}
-                      ·{" "}
-                      {formatSettingValue(
-                        activeStep.learningContent.pedagogicalContext.tone,
-                      )}
-                    </span>
-                  </p>
-                </div>
+                {sixFactorLearningContentItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-current/20 bg-slate-950/30 p-4 text-sm"
+                  >
+                    <p className="text-xs uppercase tracking-[0.18em] text-current/70">
+                      {item.label}
+                    </p>
+                    <p className="mt-2 font-medium">{item.value}</p>
+                  </div>
+                ))}
               </div>
 
               <MlPersonalizationCard
                 className="mt-5"
+                forceVisible
                 metadata={activeStep.learningContent.mlPersonalization}
               />
 
@@ -1233,6 +1345,7 @@ export default function LearnerEpisodeWorkspace() {
                                 {!isLearner ? (
                                   <MlPersonalizationCard
                                     className="mt-3"
+                                    forceVisible
                                     metadata={message.mlPersonalization}
                                   />
                                 ) : null}

@@ -3,6 +3,8 @@ import type { MlPersonalizationView } from "@/lib/ml-personalization-view";
 type MlPersonalizationCardProps = {
   metadata?: MlPersonalizationView | null;
   className?: string;
+  compact?: boolean;
+  forceVisible?: boolean;
 };
 
 const difficultyLabels = {
@@ -89,15 +91,26 @@ function decisionHeadline(metadata: MlPersonalizationView) {
 export default function MlPersonalizationCard({
   metadata,
   className = "",
+  compact = false,
+  forceVisible = false,
 }: MlPersonalizationCardProps) {
-  if (!isMlPersonalizationVisible() || !metadata) return null;
+  if (!metadata) return null;
+  const debugVisible = isMlPersonalizationVisible();
+  const learnerPrimaryVisible =
+    forceVisible &&
+    metadata.isPrimary &&
+    metadata.appliedToLearnerFacingOutput;
+  if (!debugVisible && !learnerPrimaryVisible) return null;
 
   const selected = metadata.selected_config;
   const headline = decisionHeadline(metadata);
   const summary = [
     `${label(difficultyLabels, selected.difficulty)} сложность`,
     `${label(depthLabels, selected.depth)} глубина`,
+    `${label(supportLabels, selected.support_level)} поддержка`,
     label(formatLabels, selected.presentation_format),
+    label(examplesLabels, selected.examples_level),
+    `${label(terminologyLabels, selected.terminology_level)} терминология`,
   ].join(" · ");
   const fields = [
     ["Сложность", label(difficultyLabels, selected.difficulty)],
@@ -127,6 +140,33 @@ export default function MlPersonalizationCard({
       metadata.candidateCount == null ? "не указано" : String(metadata.candidateCount),
     ],
   ];
+
+  if (compact || !debugVisible) {
+    return (
+      <section
+        className={`rounded-2xl border border-violet-700/45 bg-violet-950/15 px-4 py-3 text-sm text-violet-50 ${className}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-violet-200">
+              Six-factor personalization
+            </p>
+            <p className="mt-1 font-medium">{headline}</p>
+          </div>
+          <p className="max-w-xl text-left text-xs leading-5 text-violet-100/90">
+            {summary}
+          </p>
+        </div>
+        {metadata.fallbackUsed ||
+        metadata.decisionSource === "heuristic_baseline" ||
+        metadata.decisionSource === "legacy_derived" ? (
+          <p className="mt-2 text-xs leading-5 text-violet-100/75">
+            Источник подписан явно: fallback/эвристика не являются ML-доказательством.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <details

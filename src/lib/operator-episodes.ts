@@ -31,6 +31,7 @@ export type OperatorEpisodeListEntry = {
     difficulty: string | null;
     depth: string | null;
   };
+  selectedSixFactorConfig: EvaluationEpisodeSummary["items"][number]["selectedSixFactorConfig"];
   provenance: {
     assignmentSource: EvaluationEpisodeSummary["assignment"]["assignmentSource"];
     selectionMode: EvaluationEpisodeSummary["assignment"]["selectionMode"];
@@ -58,14 +59,24 @@ type OperatorEpisodeListOptions = {
 };
 
 function deriveSelectedPedagogicalDecision(summary: EvaluationEpisodeSummary) {
+  const selectedSixFactor =
+    summary.items.find((item) => item.selectedSixFactorConfig != null)
+      ?.selectedSixFactorConfig ?? null;
   const selected =
     summary.items.find((item) => item.pedagogicalDecision != null)
       ?.pedagogicalDecision ?? null;
 
   return {
-    difficulty: selected?.difficulty ?? null,
-    depth: selected?.depth ?? null,
+    difficulty: selectedSixFactor?.difficulty ?? selected?.difficulty ?? null,
+    depth: selectedSixFactor?.depth ?? selected?.depth ?? null,
   };
+}
+
+function deriveSelectedSixFactorConfig(summary: EvaluationEpisodeSummary) {
+  return (
+    summary.items.find((item) => item.selectedSixFactorConfig != null)
+      ?.selectedSixFactorConfig ?? null
+  );
 }
 
 function deriveExportReadiness(summary: EvaluationEpisodeSummary) {
@@ -108,6 +119,7 @@ export function buildOperatorEpisodeListEntry(params: {
   } | null;
 }): OperatorEpisodeListEntry {
   const { summary } = params;
+  const selectedSixFactorConfig = deriveSelectedSixFactorConfig(summary);
 
   return {
     episodeId: summary.episodeId,
@@ -133,6 +145,7 @@ export function buildOperatorEpisodeListEntry(params: {
       nextExpectedRole: summary.sequence.missing[0] ?? null,
     },
     selectedPedagogicalDecision: deriveSelectedPedagogicalDecision(summary),
+    selectedSixFactorConfig,
     provenance: {
       assignmentSource: summary.assignment.assignmentSource,
       selectionMode: summary.assignment.selectionMode,
