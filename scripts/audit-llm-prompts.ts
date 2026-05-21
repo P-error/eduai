@@ -16,6 +16,8 @@ import {
   type LearningContentGenerationPackage,
   type TestGenerationPackage,
 } from "@/lib/episode-generation";
+import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
+import { buildOptionalSixFactorShadowMetadata } from "@/lib/ml-six-factor-shadow";
 
 type PromptSnapshot = {
   path: string;
@@ -69,6 +71,32 @@ const forbiddenOutcomeFields = [
   "answersJson",
   "selectedAnswers",
   "rawAnswers",
+];
+
+const forbiddenInternalPromptFields = [
+  "episodeId",
+  "protocolKey",
+  "policyId",
+  "assignmentSource",
+  "rulesLayer",
+  "linkedContentId",
+  "holdoutStrategy",
+  "backendKind",
+  "artifactPath",
+  "candidateCount",
+  "featuresSnapshot",
+  "featureRefs",
+  "userRef",
+  "sessionRef",
+  "contentEventRef",
+  "Learner-state aggregates",
+  "priorAttemptsCount",
+  "priorCorrectRate",
+  "recentCorrectRate",
+  "recentAttemptsCount",
+  "topicSeenCount",
+  "minutesSinceLastActivity",
+  "sessionPosition",
 ];
 
 const factorLabels = [
@@ -343,7 +371,7 @@ function snapshots() {
       "You are an educational assistant. Declared preferences and effective preferences are supplied below.",
     profile,
     subjectTopic,
-    learnerStateAggregates: firstAggregates,
+    learnerStateAggregates: null,
     sixFactorPromptInstructionBlock: chatFirstApply.promptInstructionBlock,
     tone: "formal",
     explanationStyle: "stepwise",
@@ -352,11 +380,17 @@ function snapshots() {
     depth: "standard",
   });
   const testUserPrompt = appendPromptBlocks(
-    buildTestGenerationPrompt(buildTestPackage()),
+    buildTestGenerationPrompt(
+      buildTestPackage(),
+      testApply.shadow.renderPolicy.pedagogicalProfile,
+    ),
     [testApply.promptInstructionBlock],
   );
   const learningSecondPrompt = appendPromptBlocks(
-    buildLearningContentPrompt(buildLearningContentPackage(secondAggregates)),
+    buildLearningContentPrompt(
+      buildLearningContentPackage(secondAggregates),
+      learningSecondApply.shadow.renderPolicy.pedagogicalProfile,
+    ),
     [learningSecondApply.promptInstructionBlock],
   );
   const chatSecondSystem = buildChatSystemPrompt({
@@ -364,7 +398,7 @@ function snapshots() {
       "You are an educational assistant. Declared preferences and effective preferences are supplied below.",
     profile,
     subjectTopic,
-    learnerStateAggregates: secondAggregates,
+    learnerStateAggregates: null,
     sixFactorPromptInstructionBlock: chatSecondApply.promptInstructionBlock,
     tone: "formal",
     explanationStyle: "stepwise",
@@ -449,6 +483,10 @@ function serialize(snapshot: PromptSnapshot) {
   return JSON.stringify(snapshot);
 }
 
+function promptContent(snapshot: PromptSnapshot) {
+  return snapshot.messages.map((message) => message.content).join("\n");
+}
+
 function hasSystemOrEquivalent(snapshot: PromptSnapshot) {
   return snapshot.messages.some((message) => message.role === "system");
 }
@@ -493,7 +531,7 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
   ];
 
   for (const snapshot of promptList) {
-    const content = serialize(snapshot);
+    const content = promptContent(snapshot);
     assertPrompt(
       assertions,
       `${snapshot.path}: system/developer instruction equivalent present`,
@@ -512,8 +550,10 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     );
     assertPrompt(
       assertions,
-      `${snapshot.path}: all six-factor instructions present`,
-      content.includes("Six-factor render instructions") && hasAllFactors(content),
+      `${snapshot.path}: all six factors present as pedagogical profile or guidance`,
+      content.includes("Selected six-factor pedagogical profile") &&
+        content.includes("Profile summary") &&
+        hasAllFactors(content),
     );
     assertPrompt(
       assertions,
@@ -522,11 +562,18 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     );
     assertPrompt(
       assertions,
-      `${snapshot.path}: no raw ML candidate/features payload leaked into prompt`,
-      !content.includes("candidateConfig") &&
+      `${snapshot.path}: internal-only fields absent from prompt`,
+      forbiddenInternalPromptFields.every((field) => !content.includes(field)) &&
+        !content.includes("candidateConfig") &&
         !content.includes("candidate_config") &&
-        !content.includes("featuresSnapshot") &&
         !content.includes("features_snapshot"),
+    );
+    assertPrompt(
+      assertions,
+      `${snapshot.path}: old fragile example-count wording absent`,
+      !content.includes("exactly one visible example marker") &&
+        !content.includes("must appear exactly once") &&
+        !content.includes("word \"example\" must appear exactly once"),
     );
     assertPrompt(
       assertions,
@@ -583,10 +630,60 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
   assertPrompt(
     assertions,
     "apply disabled: no six-factor instructions",
-    !offChat.includes("Six-factor render instructions") &&
+    !offChat.includes("Selected six-factor pedagogical profile") &&
       !offChat.includes("support_level:") &&
       !offChat.includes("examples_level:") &&
       !offChat.includes("terminology_level:"),
+  );
+
+  const shadowOnlyEnv = {
+    EDUAI_SIX_FACTOR_SHADOW: "1",
+    EDUAI_SIX_FACTOR_APPLY: "1",
+    EDUAI_SIX_FACTOR_SHADOW_ONLY: "1",
+    EDUAI_SIX_FACTOR_ML_POLICY: "0",
+  };
+  const shadowOnlyApply = buildAppliedSixFactorPromptInstructions({
+    context: buildPolicyContext(firstAggregates),
+    env: shadowOnlyEnv,
+    path: "learning_content",
+  });
+  const shadowOnlyMetadata = buildOptionalSixFactorShadowMetadata(
+    buildPolicyContext(firstAggregates),
+    shadowOnlyEnv,
+  );
+  assertPrompt(
+    assertions,
+    "shadow-only mode: prompt unchanged while metadata exists",
+    shadowOnlyApply.applied === false &&
+      shadowOnlyApply.promptInstructionBlock == null &&
+      shadowOnlyMetadata != null &&
+      shadowOnlyMetadata.appliedToLearnerFacingOutput === false,
+  );
+
+  const deliveredMetadata = buildOptionalSixFactorDeliveredConfigMetadata({
+    sixFactorShadow: all.learningContentSecond.appliedToLearnerFacingOutput
+      ? appliedResult("learning_content", secondAggregates).metadata
+      : null,
+    decisionCreatedAt: "2026-05-19T00:00:00.000Z",
+    featuresCutoffAt: "2026-05-19T00:00:00.000Z",
+    appliedPath: "learning_content",
+  });
+  assertPrompt(
+    assertions,
+    "sixFactorDeliveredConfig metadata retains core trace fields",
+    deliveredMetadata != null &&
+      deliveredMetadata.candidateConfig != null &&
+      deliveredMetadata.deliveredConfig != null &&
+      deliveredMetadata.leakageGuard.usesOnlyPreDecisionData === true &&
+      deliveredMetadata.appliedPath === "learning_content",
+  );
+  assertPrompt(
+    assertions,
+    "apply mode: prompt block changes learner-facing prompt and marks metadata applied",
+    all.learningContentSecond.appliedToLearnerFacingOutput === true &&
+      promptContent(all.learningContentSecond).includes(
+        "Selected six-factor pedagogical profile",
+      ),
   );
 
   const testContent = serialize(all.testGeneration);
@@ -612,50 +709,34 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     "test generation: presentation_format does not replace MCQ output",
     testContent.includes("presentation_format") &&
       testContent.includes("must not change JSON keys") &&
-      testMessageContent.includes('"responseFormat": "mcq"'),
+      testMessageContent.includes('"preserveMcqStructure": true'),
   );
   assertPrompt(
     assertions,
     "test generation: support/example rules stay inside MCQ fields",
-    testContent.includes("For MCQ/TestSchema") &&
-      testContent.includes("allowed prompt or explanation fields") &&
-      testContent.includes("never add extra JSON keys"),
+    testContent.includes("TestSchema") &&
+      testContent.includes("prompt or explanation text") &&
+      testContent.includes("Never add extra JSON keys"),
   );
   assertPrompt(
     assertions,
     "test generation: support/example rules do not change MCQ count",
-    testContent.includes("Test generation requirement") &&
-      testContent.includes("keep the requested number of MCQ questions") &&
-      testContent.includes("must not create extra items or non-MCQ output"),
+    testMessageContent.includes('"questionCount": 3') &&
+      testMessageContent.includes(
+        "Generate exactly the requested number of MCQ questions",
+      ) &&
+      testMessageContent.includes("emit non-MCQ output"),
   );
 
-  const secondContent = serialize(all.chatSecond);
+  const secondContent = promptContent(all.chatSecond);
   assertPrompt(
     assertions,
-    "second prompt: updated aggregate priorAttemptsCount present",
-    secondContent.includes('"priorAttemptsCount":1') ||
-      secondContent.includes('"priorAttemptsCount": 1') ||
-      secondContent.includes("priorAttemptsCount=1"),
+    "second prompt: raw learner aggregates absent",
+    forbiddenInternalPromptFields.every((field) => !secondContent.includes(field)),
   );
   assertPrompt(
     assertions,
-    "second prompt: updated aggregate rates and topic count present",
-    (secondContent.includes('"priorCorrectRate":0.75') ||
-      secondContent.includes('"priorCorrectRate": 0.75') ||
-      secondContent.includes("priorCorrectRate=0.75")) &&
-      (secondContent.includes('"recentCorrectRate":0.75') ||
-        secondContent.includes('"recentCorrectRate": 0.75') ||
-        secondContent.includes("recentCorrectRate=0.75")) &&
-      (secondContent.includes('"recentAttemptsCount":1') ||
-        secondContent.includes('"recentAttemptsCount": 1') ||
-        secondContent.includes("recentAttemptsCount=1")) &&
-      (secondContent.includes('"topicSeenCount":1') ||
-        secondContent.includes('"topicSeenCount": 1') ||
-        secondContent.includes("topicSeenCount=1")),
-  );
-  assertPrompt(
-    assertions,
-    "second prompt: guided support requires visible marker",
+    "second prompt: guided support has visible marker guidance",
     secondContent.includes("support_level=guided") &&
       secondContent.includes("visible guided support element") &&
       secondContent.includes("Check:") &&
@@ -663,22 +744,20 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
   );
   assertPrompt(
     assertions,
-    "second prompt: single example requires one visible marker",
+    "second prompt: single example is structural, not word-count based",
     secondContent.includes("examples_level=single") &&
-      secondContent.includes("exactly one visible example marker") &&
-      secondContent.includes("Example:") &&
-      secondContent.includes("One example:"),
+      secondContent.includes("one short worked illustration") &&
+      !secondContent.includes("must appear exactly once"),
   );
   assertPrompt(
     assertions,
     "second prompt: underspecified mistake still gets example and support",
-    secondContent.includes("Chat requirement") &&
-      secondContent.includes("do not respond only by asking for more context") &&
-      secondContent.includes("Next step:"),
+    secondContent.includes("exact item is not available") &&
+      secondContent.includes("topic-safe explanation"),
   );
 
-  const learningContentSecond = serialize(all.learningContentSecond);
-  const chatFirstContent = serialize(all.chatFirst);
+  const learningContentSecond = promptContent(all.learningContentSecond);
+  const chatFirstContent = promptContent(all.chatFirst);
   assertPrompt(
     assertions,
     "chat prompt: does not require JSON response",
@@ -690,23 +769,22 @@ function runAssertions(all: ReturnType<typeof snapshots>) {
     assertions,
     "learning content second prompt: guided support marker allowed in schema fields",
     learningContentSecond.includes("support_level=guided") &&
-      learningContentSecond.includes("For learning_content_card JSON") &&
-      learningContentSecond.includes("existing allowed fields"),
+      learningContentSecond.includes("learning_content_card JSON") &&
+      learningContentSecond.includes("allowed field"),
   );
   assertPrompt(
     assertions,
-    "learning content second prompt: single example constrained to one heading",
+    "learning content second prompt: single example constrained structurally",
     learningContentSecond.includes("examples_level=single") &&
-      learningContentSecond.includes("must appear exactly once") &&
-      learningContentSecond.includes("dedicated section heading exactly") &&
+      learningContentSecond.includes("heading exactly") &&
       learningContentSecond.includes("One example:") &&
-      learningContentSecond.includes("without labeling it again"),
+      !learningContentSecond.includes("word \"example\" must appear exactly once"),
   );
   assertPrompt(
     assertions,
     "learning content second prompt: schema section count explicit",
     learningContentSecond.includes("sections array must contain 2-4 items") &&
-      learningContentSecond.includes("return 2-4 sections"),
+      learningContentSecond.includes("Use 2-4 sections"),
   );
   assertPrompt(
     assertions,

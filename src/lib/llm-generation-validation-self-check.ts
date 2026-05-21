@@ -151,6 +151,10 @@ function checkLearningContentValidation() {
         body: "Keep both sides balanced while isolating the variable.",
       },
       {
+        heading: "One example:",
+        body: "For 2x + 3 = 11, subtract 3 first and then divide by 2.",
+      },
+      {
         heading: "Check:",
         body: "Check: substitute the answer back into the linear equation.",
       },
@@ -257,7 +261,7 @@ function checkPromptAuditMlFallback() {
     "missing artifact must be detected as runtime ML fallback",
   );
   assert(
-    result.promptInstructionBlock.includes("Six-factor render instructions"),
+    result.promptInstructionBlock.includes("Selected six-factor pedagogical profile"),
     "six-factor prompt block must be present",
   );
   assert(

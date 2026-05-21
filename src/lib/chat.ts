@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { computeLayeredPreferences, isPersonalizationReady } from "@/lib/statistics";
 import { TAGS_BY_AXIS } from "@/lib/tags";
+import { type EduAISixFactorMlConfigV1 } from "@/lib/ml-six-factor-policy-contract";
 
 export const CHAT_MAX_MESSAGES = 20;
 export const LEARNING_DIALOGUE_MAX_LEARNER_TURNS = 4;
@@ -45,7 +46,13 @@ export type ChatEventMeta = {
   policyMode: string | null;
   policyId: string | null;
   uxPreset: { tone: string; explanation_style: string };
-  pedagogicalDecision?: { difficulty: string; depth: string };
+  pedagogicalDecision?: {
+    difficulty: string;
+    depth: string;
+    compatibilityRole?: string;
+    derivedFrom?: string;
+    sixFactorConfig?: EduAISixFactorMlConfigV1;
+  };
   rulesLayer?: { id: string; basis: string };
   generationSource?: "llm" | "llm_repaired" | "fallback";
   generationPackage?: Record<string, unknown> | null;

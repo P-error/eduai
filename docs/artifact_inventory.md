@@ -43,10 +43,11 @@ The THU six-factor scorer ranks candidate configs with `difficulty`, `depth`, `s
 
 ## Reports And Audits
 
-- `reports/codex/` - Codex task reports. Legacy `codex_report_*.md` из `codex-report/` перенесены сюда.
+- `codex-report/` - canonical current location для новых Codex/task reports.
+- `reports/codex/` - legacy/archive location для старых Codex reports. Новые отчёты сюда не писать.
 - `reports/audits/` - репозиторные аудиты.
 - `reports/archive/` - исторические snapshots и одноразовые tree/report outputs.
-- `codex-report/` - legacy placeholder; не хранить новые отчёты.
+- Не создавать дубли одного Codex/task report одновременно в `codex-report/` и `reports/codex/`.
 
 ## Local Archives
 
@@ -82,3 +83,4 @@ The THU six-factor scorer ranks candidate configs with `difficulty`, `depth`, `s
 - `artifacts/ui-audit-*`, `training_datasets/*`, `bootstrap_training/*` оставлены на месте из-за риска нарушить audit/training reproducibility.
 
 Historical cleanup notes do not override the runtime artifact paths documented above.
+Это историческое cleanup-действие не задаёт текущую policy для новых task reports. Текущая policy 2026-05-18: новые Codex/task reports сохраняются в `codex-report/`, а `reports/codex/` остаётся legacy/archive path.

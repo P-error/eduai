@@ -38,7 +38,14 @@ import {
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
+  type SixFactorDecisionMetadataV1,
 } from "@/lib/ml-six-factor-shadow";
+import {
+  buildSixFactorCompatibilityPedagogicalDecision,
+} from "@/lib/ml-six-factor-primary-decision";
+import {
+  type EduAIAppSixFactorDecisionV1,
+} from "@/lib/ml-six-factor-policy-contract";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
 import { sanitizePreferenceMap } from "@/lib/tags";
 import { type GenerateTestUser } from "@/lib/test-generation";
@@ -62,6 +69,8 @@ export type GenerateLearningContentPlan = {
     id: string;
     basis: string;
   };
+  sixFactorDecision: EduAIAppSixFactorDecisionV1 | null;
+  sixFactorDecisionMetadata: SixFactorDecisionMetadataV1 | null;
 };
 
 export type GenerateLearningContentParams = {
@@ -119,8 +128,8 @@ function buildFallbackCard(params: {
         body: `Focus on the main concept behind ${params.topic} and keep the explanation ${params.explanationStyle} in a ${params.tone} tone.`,
       },
       {
-        heading: "How to use it",
-        body: `Connect the explanation to the next assessment step. The latest precheck accuracy in this episode was ${priorAccuracy}.`,
+        heading: "One example:",
+        body: `A learner can connect ${params.topic} to the next assessment by naming the rule first, then checking whether the answer follows it. The latest precheck accuracy in this episode was ${priorAccuracy}.`,
       },
       {
         heading: "Check:",
@@ -299,6 +308,7 @@ export async function generateLearningContentForEpisode(
   };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
+    decisionOverride: params.plan.sixFactorDecision,
     path: "learning_content",
   });
 
@@ -317,7 +327,10 @@ export async function generateLearningContentForEpisode(
       effectivePreferences,
     },
   });
-  const baseLearningContentPrompt = buildLearningContentPrompt(generationPackage);
+  const baseLearningContentPrompt = buildLearningContentPrompt(
+    generationPackage,
+    sixFactorApply.shadow?.renderPolicy.pedagogicalProfile ?? null,
+  );
   const learningContentPrompt = appendPromptBlocks(baseLearningContentPrompt, [
     sixFactorApply.promptInstructionBlock,
   ]);
@@ -490,7 +503,13 @@ export async function generateLearningContentForEpisode(
               tone: params.plan.renderingDecision.tone,
               explanation_style: params.plan.renderingDecision.explanation_style,
             },
-            pedagogicalDecision: params.plan.pedagogicalDecision,
+            pedagogicalDecision:
+              sixFactorDeliveredConfig && params.plan.sixFactorDecision
+                ? buildSixFactorCompatibilityPedagogicalDecision({
+                    decision: params.plan.sixFactorDecision,
+                    source: "six_factor_primary",
+                  })
+                : params.plan.pedagogicalDecision,
             rulesLayer: params.plan.renderingRules,
             generationSource,
             generationError,

@@ -28,6 +28,7 @@ export const SIX_FACTOR_DECISION_SOURCE_VALUES = [
   "heuristic_baseline",
   "static_fallback",
   "shadow_only",
+  "legacy_derived",
 ] as const;
 
 export type DifficultyFactor = (typeof DIFFICULTY_VALUES)[number];

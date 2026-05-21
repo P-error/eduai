@@ -41,6 +41,17 @@ import {
   type MlPersonalizationView,
 } from "@/lib/ml-personalization-view";
 import {
+  buildSixFactorDerivedPedagogicalDecision,
+  resolvePrimarySixFactorDecision,
+  shouldUseSixFactorAsPrimaryDecision,
+} from "@/lib/ml-six-factor-primary-decision";
+import {
+  type EduAIAppSixFactorDecisionV1,
+} from "@/lib/ml-six-factor-policy-contract";
+import {
+  type SixFactorDecisionMetadataV1,
+} from "@/lib/ml-six-factor-shadow";
+import {
   generateTestForUser,
   type GenerateTestPlan,
   type GenerateTestPayload,
@@ -97,6 +108,8 @@ type EpisodeOrchestrationPackage = {
   } | null;
   recommendationSnapshot: unknown;
   policyMeta: Record<string, unknown>;
+  sixFactorDecision: EduAIAppSixFactorDecisionV1 | null;
+  sixFactorDecisionMetadata: SixFactorDecisionMetadataV1 | null;
   decisionBoundary: DeliveredPedagogicalDecisionV1;
   surfaces: {
     test: EpisodeSurfaceContract;
@@ -178,6 +191,10 @@ export type MaterializedEpisodeStep =
         pedagogicalContext: {
           difficulty: string | null;
           depth: string | null;
+          supportLevel: string | null;
+          presentationFormat: string | null;
+          examplesLevel: string | null;
+          terminologyLevel: string | null;
           tone: string | null;
           explanationStyle: string | null;
           policyMode: string | null;
@@ -448,6 +465,46 @@ function resolveBridgeDecisionSource(params: {
   return "baseline_bridge" as const;
 }
 
+function decisionBackendKindForSixFactor(
+  decision: EduAIAppSixFactorDecisionV1,
+) {
+  return decision.decisionSource === "ml_policy" ? "artifact" : "heuristic";
+}
+
+function buildSixFactorMaterialization(params: {
+  surface: "test" | "chat";
+  decision: EduAIAppSixFactorDecisionV1;
+}) {
+  const pedagogicalDecision = buildSixFactorDerivedPedagogicalDecision(
+    params.decision,
+  );
+  const materialization = materializeDeliveryPlan({
+    surface: params.surface,
+    preferences: {
+      tone: "formal",
+      explanation_style:
+        params.decision.presentationFormat === "qa"
+          ? "exploratory"
+          : params.decision.depth === "brief" &&
+              params.decision.supportLevel === "minimal"
+            ? "concise"
+            : "stepwise",
+      response_format: "mcq",
+    },
+    decision: pedagogicalDecision,
+  });
+
+  return {
+    delivery: materialization.delivery,
+    renderingDecision: materialization.renderingDecision,
+    rulesLayer: {
+      id: materialization.rulesLayerId,
+      basis: `${materialization.basis}|decision=six_factor_primary`,
+    },
+    pedagogicalDecision,
+  };
+}
+
 async function resolveEpisodeOrchestrationPackage(params: {
   user: GenerateTestUser;
   input: CreateLearningEpisodeInput;
@@ -481,7 +538,28 @@ async function resolveEpisodeOrchestrationPackage(params: {
       personalizationMode === "on") ||
     (policySelection.selectionMode === "observational_only" &&
       personalizationMode === "on");
-  const recommendation = shouldFetchPredictedRecommendation
+  const shouldUseSixFactorPrimary = shouldUseSixFactorAsPrimaryDecision({
+    personalizationMode,
+    selectionMode: policySelection.selectionMode,
+  });
+  const sixFactorPrimary = shouldUseSixFactorPrimary
+    ? await resolvePrimarySixFactorDecision({
+        prisma,
+        userId: params.user.id,
+        subjectId: params.subject.id,
+        topicRef: params.input.conceptKey ?? params.input.skillKey ?? null,
+        conceptKey: params.input.conceptKey ?? null,
+        skillKey: params.input.skillKey ?? null,
+        familyKey: params.input.familyKey ?? null,
+        topic: params.input.topic,
+        previousDifficulty: selfReportTest.pedagogicalDecision.difficulty,
+        previousDepth: selfReportTest.pedagogicalDecision.depth,
+        declaredPreferences,
+        policyId: policySelection.policyId,
+        backendKind: "six_factor_policy",
+      })
+    : null;
+  const recommendation = shouldFetchPredictedRecommendation && !sixFactorPrimary
     ? await getSubjectRecommendation(params.user.id, params.subject.id, {
         sectionId: params.sectionId,
         topic: params.input.topic,
@@ -489,9 +567,16 @@ async function resolveEpisodeOrchestrationPackage(params: {
         mode,
       })
     : null;
+  const sixFactorTestMaterialization = sixFactorPrimary
+    ? buildSixFactorMaterialization({
+        surface: "test",
+        decision: sixFactorPrimary.shadow.decision,
+      })
+    : null;
 
   const baseTestMaterialization =
-    recommendation?.ok === true
+    sixFactorTestMaterialization ??
+    (recommendation?.ok === true
       ? {
           delivery: recommendation.preset.delivery,
           renderingDecision: recommendation.preset.renderingDecision,
@@ -519,7 +604,7 @@ async function resolveEpisodeOrchestrationPackage(params: {
               difficulty: baselineTest.delivery.difficulty_target,
               depth: baselineTest.delivery.depth,
             } satisfies PedagogicalDecision,
-          };
+          });
 
   const pedagogicalDecision: PedagogicalDecision = {
     difficulty: baseTestMaterialization.pedagogicalDecision.difficulty,
@@ -536,21 +621,29 @@ async function resolveEpisodeOrchestrationPackage(params: {
   });
   const assignment = buildEvaluationAssignment({
     selection: policySelection,
-    runtimePolicyId: recommendation?.ok
-      ? recommendation.preset.meta?.runtimePolicyId ?? null
-      : null,
-    backendKind: recommendation?.ok
-      ? recommendation.preset.meta?.backendKind ?? null
-      : null,
-    backendId: recommendation?.ok
-      ? recommendation.preset.meta?.backendId ?? null
-      : null,
+    runtimePolicyId: sixFactorPrimary
+      ? sixFactorPrimary.shadow.decision.policyId
+      : recommendation?.ok
+        ? recommendation.preset.meta?.runtimePolicyId ?? null
+        : null,
+    backendKind: sixFactorPrimary
+      ? sixFactorPrimary.shadow.decision.backendKind
+      : recommendation?.ok
+        ? recommendation.preset.meta?.backendKind ?? null
+        : null,
+    backendId: sixFactorPrimary
+      ? sixFactorPrimary.shadow.decision.artifactPath ??
+        sixFactorPrimary.shadow.decision.modelVersion
+      : recommendation?.ok
+        ? recommendation.preset.meta?.backendId ?? null
+        : null,
   });
   const policyMeta = {
     personalizationMode:
       policySelection.personalizationMode ?? personalizationMode,
     usedRecommendation: recommendation?.ok === true,
     usedBaseline:
+      sixFactorPrimary == null &&
       recommendation?.ok !== true &&
       policySelection.selectionMode !== "self_report_declared",
     usedDeclaredPreferences: policySelection.selectionMode === "self_report_declared",
@@ -558,13 +651,47 @@ async function resolveEpisodeOrchestrationPackage(params: {
     assignedArm: policySelection.arm,
     selectionMode: policySelection.selectionMode,
     declaredCoverage: selfReportTest.coverage,
+    usedSixFactorPrimary: sixFactorPrimary != null,
+    sixFactorDecisionSource:
+      sixFactorPrimary?.shadow.decision.decisionSource ?? null,
+    sixFactorFallbackUsed:
+      sixFactorPrimary?.shadow.decision.fallbackUsed ?? null,
+    pedagogicalDecisionRole: sixFactorPrimary
+      ? "derived_two_factor_compatibility_projection"
+      : "legacy_two_factor_decision",
   } satisfies Record<string, unknown>;
   const bridgeDecisionSource = resolveBridgeDecisionSource({
     usedRecommendation: recommendation?.ok === true,
     selectionMode: policySelection.selectionMode,
   });
   const learnerStateSnapshot =
-    recommendation?.ok === true
+    sixFactorPrimary
+      ? buildLearnerStateSnapshotV1({
+          declaredPreferences,
+          recentPerformance: {
+            recentAccuracy: sixFactorPrimary.shadow.features.recentCorrectRate,
+            totalQuestionsBefore:
+              sixFactorPrimary.shadow.features.priorAttemptsCount,
+            timeSinceLastAttemptSec:
+              sixFactorPrimary.shadow.features.minutesSinceLastActivity == null
+                ? null
+                : Math.round(
+                    sixFactorPrimary.shadow.features.minutesSinceLastActivity *
+                      60,
+                  ),
+          },
+          topicContext: {
+            subjectId: params.subject.id,
+            subjectTitle: params.subject.title,
+            sectionId: params.sectionId,
+            topic: params.input.topic,
+            context: params.input.topic,
+            taskType: mode,
+          },
+          notes:
+            "Six-factor primary decision used pre-decision learner-state aggregates.",
+        })
+      : recommendation?.ok === true
       ? recommendation.preset.decisionBoundary.learnerStateSnapshot
       : buildLearnerStateSnapshotV1({
           declaredPreferences,
@@ -587,7 +714,28 @@ async function resolveEpisodeOrchestrationPackage(params: {
   const recommendationFallbackUsed =
     shouldFetchPredictedRecommendation && recommendation?.ok !== true;
   const decisionProvenance =
-    recommendation?.ok === true
+    sixFactorPrimary
+      ? buildDecisionProvenanceV1({
+          backendKind: decisionBackendKindForSixFactor(
+            sixFactorPrimary.shadow.decision,
+          ),
+          policyName:
+            sixFactorPrimary.shadow.decision.policyId ??
+            "six_factor_runtime_ml_policy_v1",
+          policyVersion:
+            sixFactorPrimary.shadow.decision.modelVersion ??
+            "eduai_app_six_factor_decision_v1_2026_05",
+          sourceModule: "@/lib/ml-six-factor-policy-adapter.ts",
+          fallbackUsed: sixFactorPrimary.shadow.decision.fallbackUsed,
+          artifactId:
+            sixFactorPrimary.shadow.decision.artifactPath ??
+            sixFactorPrimary.shadow.decision.modelVersion,
+          notes:
+            sixFactorPrimary.shadow.decision.decisionSource === "ml_policy"
+              ? "Primary episode pedagogical decision came from six-factor candidate scoring."
+              : "Primary episode decision used explicit six-factor fallback; it is not ML evidence.",
+        })
+      : recommendation?.ok === true
       ? recommendation.preset.decisionBoundary.provenance
       : buildDecisionProvenanceV1({
           backendKind:
@@ -618,7 +766,32 @@ async function resolveEpisodeOrchestrationPackage(params: {
                 : "Episode used the baseline bridge materialization without switching the active runtime backend.",
         });
   const pedagogicalDecisionV1 =
-    recommendation?.ok === true
+    sixFactorPrimary
+      ? normalizeToPedagogicalDecisionV1({
+          difficulty: pedagogicalDecision.difficulty,
+          depth: pedagogicalDecision.depth,
+          instructionalMode: mode,
+          hintPolicy:
+            sixFactorPrimary.shadow.decision.supportLevel === "minimal"
+              ? "on_request"
+              : "guided_scaffolding",
+          decisionSource: "six_factor_policy",
+          policyName: decisionProvenance.policy_name,
+          policyVersion: decisionProvenance.policy_version,
+          decisionConfidence: sixFactorPrimary.shadow.decision.confidence ?? 0,
+          materialization: {
+            surface: "test",
+            responseFormat: baseTestMaterialization.delivery.response_format,
+            tone: baseTestMaterialization.delivery.tone,
+            explanationStyle:
+              baseTestMaterialization.delivery.explanation_style,
+            presentationMode:
+              baseTestMaterialization.renderingDecision.presentationMode,
+            formattingHint:
+              baseTestMaterialization.renderingDecision.formattingHint,
+          },
+        })
+      : recommendation?.ok === true
       ? recommendation.preset.decisionBoundary.pedagogicalDecision
       : normalizeToPedagogicalDecisionV1({
           difficulty: pedagogicalDecision.difficulty,
@@ -675,7 +848,23 @@ async function resolveEpisodeOrchestrationPackage(params: {
     },
     pedagogicalDecision,
     decisionContext: recommendation?.ok ? recommendation.preset.decisionContext : null,
-    decisionBackend: recommendation?.ok
+    decisionBackend: sixFactorPrimary
+      ? {
+          runtimePolicyId:
+            sixFactorPrimary.shadow.decision.policyId ??
+            "six_factor_runtime_ml_policy_v1",
+          backendKind:
+            sixFactorPrimary.shadow.decision.backendKind ??
+            sixFactorPrimary.shadow.decision.decisionSource,
+          backendId:
+            sixFactorPrimary.shadow.decision.artifactPath ??
+            sixFactorPrimary.shadow.decision.modelVersion,
+          backendStatus: sixFactorPrimary.shadow.decision.fallbackUsed
+            ? "fallback"
+            : "ready",
+          schemaVersion: sixFactorPrimary.shadow.decision.modelVersion,
+        }
+      : recommendation?.ok
       ? {
           runtimePolicyId:
             recommendation.preset.meta?.runtimePolicyId ?? null,
@@ -696,6 +885,8 @@ async function resolveEpisodeOrchestrationPackage(params: {
           }
         : null,
     policyMeta,
+    sixFactorDecision: sixFactorPrimary?.shadow.decision ?? null,
+    sixFactorDecisionMetadata: sixFactorPrimary?.shadow.metadata ?? null,
     decisionBoundary,
     surfaces: {
       test: {
@@ -978,6 +1169,19 @@ async function hydrateLearningContentStep(
       : assistantSignals?.generationSource === "llm_repaired"
         ? "llm_repaired"
         : "llm";
+  const mlPersonalization = buildMlPersonalizationView(assistantSignals);
+  const selectedSixFactorConfig = mlPersonalization?.selected_config ?? null;
+  const storedPedagogicalDecision = asObject(
+    assistantSignals?.pedagogicalDecision,
+  );
+  const storedDifficulty =
+    typeof storedPedagogicalDecision?.difficulty === "string"
+      ? storedPedagogicalDecision.difficulty
+      : null;
+  const storedDepth =
+    typeof storedPedagogicalDecision?.depth === "string"
+      ? storedPedagogicalDecision.depth
+      : null;
   const dialogueThread = session.messages
     .map((message) => {
       const signals = asObject(message.signalsJson);
@@ -1058,21 +1262,12 @@ async function hydrateLearningContentStep(
       reachedLimit: learnerTurnsRemaining === 0,
     },
     pedagogicalContext: {
-      difficulty:
-        typeof assistantSignals?.pedagogicalDecision === "object" &&
-        assistantSignals.pedagogicalDecision &&
-        typeof (assistantSignals.pedagogicalDecision as Record<string, unknown>).difficulty ===
-          "string"
-          ? ((assistantSignals.pedagogicalDecision as Record<string, unknown>)
-              .difficulty as string)
-          : null,
-      depth:
-        typeof assistantSignals?.pedagogicalDecision === "object" &&
-        assistantSignals.pedagogicalDecision &&
-        typeof (assistantSignals.pedagogicalDecision as Record<string, unknown>).depth ===
-          "string"
-          ? ((assistantSignals.pedagogicalDecision as Record<string, unknown>).depth as string)
-          : null,
+      difficulty: selectedSixFactorConfig?.difficulty ?? storedDifficulty,
+      depth: selectedSixFactorConfig?.depth ?? storedDepth,
+      supportLevel: selectedSixFactorConfig?.support_level ?? null,
+      presentationFormat: selectedSixFactorConfig?.presentation_format ?? null,
+      examplesLevel: selectedSixFactorConfig?.examples_level ?? null,
+      terminologyLevel: selectedSixFactorConfig?.terminology_level ?? null,
       tone:
         typeof assistantSignals?.uxPreset === "object" &&
         assistantSignals.uxPreset &&
@@ -1099,7 +1294,7 @@ async function hydrateLearningContentStep(
       personalizationMode:
         assistantSignals?.personalizationMode === "off" ? "off" : "on",
     },
-    mlPersonalization: buildMlPersonalizationView(assistantSignals),
+    mlPersonalization,
   };
 }
 
@@ -1161,6 +1356,8 @@ function buildTestPlanFromOrchestration(
     decisionBackend: orchestration.decisionBackend,
     recommendationSnapshot: orchestration.recommendationSnapshot,
     policyMeta: orchestration.policyMeta,
+    sixFactorDecision: orchestration.sixFactorDecision ?? null,
+    sixFactorDecisionMetadata: orchestration.sixFactorDecisionMetadata ?? null,
   };
 }
 
@@ -1181,6 +1378,8 @@ function buildLearningContentPlanFromOrchestration(
         orchestration.surfaces.learningContent.delivery.response_format,
     },
     renderingRules: orchestration.surfaces.learningContent.rulesLayer,
+    sixFactorDecision: orchestration.sixFactorDecision ?? null,
+    sixFactorDecisionMetadata: orchestration.sixFactorDecisionMetadata ?? null,
   };
 }
 
@@ -1310,8 +1509,24 @@ async function materializeNewStep(params: {
         reachedLimit: false,
       },
       pedagogicalContext: {
-        difficulty: params.orchestration.pedagogicalDecision.difficulty,
-        depth: params.orchestration.pedagogicalDecision.depth,
+        difficulty:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig.difficulty ??
+          params.orchestration.pedagogicalDecision.difficulty,
+        depth:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig.depth ??
+          params.orchestration.pedagogicalDecision.depth,
+        supportLevel:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig.support_level ??
+          null,
+        presentationFormat:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig
+            .presentation_format ?? null,
+        examplesLevel:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig.examples_level ??
+          null,
+        terminologyLevel:
+          artifact.sixFactorDeliveredConfig?.deliveredConfig
+            .terminology_level ?? null,
         tone: params.orchestration.surfaces.learningContent.delivery.tone,
         explanationStyle:
           params.orchestration.surfaces.learningContent.delivery
@@ -1374,6 +1589,19 @@ export async function createLearningEpisode(
       skillKey: input.skillKey ?? null,
       conceptKey: input.conceptKey ?? null,
     }),
+    sixFactorDecisionMetadata: orchestration.sixFactorDecisionMetadata
+      ? {
+          ...orchestration.sixFactorDecisionMetadata,
+          featuresSnapshot: {
+            ...orchestration.sixFactorDecisionMetadata.featuresSnapshot,
+            sessionRef: resolvedEpisode.episode.id,
+          },
+          featureRefs: {
+            ...orchestration.sixFactorDecisionMetadata.featureRefs,
+            sessionRef: resolvedEpisode.episode.id,
+          },
+        }
+      : null,
     decisionBoundary: buildDeliveredPedagogicalDecisionV1({
       learnerStateSnapshot: orchestration.decisionBoundary.learner_state_snapshot,
       pedagogicalDecision: orchestration.decisionBoundary.pedagogical_decision,

@@ -34,12 +34,21 @@ import {
 } from "@/lib/recommendation";
 import {
   createDeclaredPreferenceMaterialization,
+  materializeDeliveryPlan,
 } from "@/lib/personalization-runtime";
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
 } from "@/lib/ml-six-factor-shadow";
-import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildOptionalSixFactorDeliveredConfigMetadata,
+} from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildSixFactorCompatibilityPedagogicalDecision,
+  buildSixFactorDerivedPedagogicalDecision,
+  resolvePrimarySixFactorDecision,
+  shouldUseSixFactorAsPrimaryDecision,
+} from "@/lib/ml-six-factor-primary-decision";
 import { buildLearnerStateAggregatesForSixFactorPolicy } from "@/lib/ml-six-factor-learner-state-features";
 import { buildMlPersonalizationView } from "@/lib/ml-personalization-view";
 import {
@@ -271,14 +280,82 @@ export async function POST(request: Request) {
       basis: selfReportMaterialization.materialization.basis,
     },
   };
+  const decisionAt = new Date();
+  const sixFactorPrimary = shouldUseSixFactorAsPrimaryDecision({
+    personalizationMode,
+    selectionMode: policySelection.selectionMode,
+  })
+    ? await resolvePrimarySixFactorDecision({
+        prisma,
+        userId: user.id,
+        subjectId: promptContext.subjectId,
+        topicRef: promptContext.conceptKey ?? promptContext.skillKey ?? null,
+        conceptKey: promptContext.conceptKey,
+        skillKey: promptContext.skillKey,
+        familyKey: promptContext.familyKey,
+        topic: promptContext.topic,
+        sessionRef: evaluationRequest?.episodeId ?? null,
+        previousDifficulty: selfReportMaterialization.pedagogicalDecision.difficulty,
+        previousDepth: selfReportMaterialization.pedagogicalDecision.depth,
+        declaredPreferences,
+        policyId: policySelection.policyId,
+        backendKind: "six_factor_policy",
+        decisionCreatedAt: decisionAt,
+      })
+    : null;
+  const sixFactorMaterialization = sixFactorPrimary
+    ? materializeDeliveryPlan({
+        surface: "chat",
+        preferences: {
+          tone: "formal",
+          explanation_style:
+            sixFactorPrimary.shadow.decision.presentationFormat === "qa"
+              ? "exploratory"
+              : sixFactorPrimary.shadow.decision.depth === "brief" &&
+                  sixFactorPrimary.shadow.decision.supportLevel === "minimal"
+                ? "concise"
+                : "stepwise",
+          response_format: "mcq",
+        },
+        decision: buildSixFactorDerivedPedagogicalDecision(
+          sixFactorPrimary.shadow.decision,
+        ),
+      })
+    : null;
+  const sixFactorPreset = sixFactorMaterialization && sixFactorPrimary
+    ? {
+        uxPreset: sixFactorMaterialization.uxPreset,
+        pedagogyPreset: sixFactorMaterialization.pedagogyPreset,
+        runtime: {
+          policyId:
+            sixFactorPrimary.shadow.decision.policyId ??
+            "six_factor_runtime_ml_policy_v1",
+          policyVersion: sixFactorPrimary.shadow.decision.modelVersion,
+          backendKind:
+            sixFactorPrimary.shadow.decision.backendKind ??
+            sixFactorPrimary.shadow.decision.decisionSource,
+          backendId:
+            sixFactorPrimary.shadow.decision.artifactPath ??
+            sixFactorPrimary.shadow.decision.modelVersion,
+        },
+        pedagogicalDecision: buildSixFactorDerivedPedagogicalDecision(
+          sixFactorPrimary.shadow.decision,
+        ),
+        rulesLayer: {
+          id: sixFactorMaterialization.rulesLayerId,
+          basis: `${sixFactorMaterialization.basis}|decision=six_factor_primary`,
+        },
+      }
+    : null;
   const preset =
-    policySelection.selectionMode === "self_report_declared"
+    sixFactorPreset ??
+    (policySelection.selectionMode === "self_report_declared"
       ? selfReportPreset
       : policySelection.selectionMode === "predicted_runtime" ||
           (policySelection.selectionMode === "observational_only" &&
             personalizationMode === "on")
         ? await getUserPresetForChat(user.id)
-        : baselinePreset;
+        : baselinePreset);
 
   const tone = preset.uxPreset.tone ?? V2_BASELINE_UX_PRESET.tone;
   const explanationStyle =
@@ -305,7 +382,6 @@ export async function POST(request: Request) {
     evaluationAssignment.personalizationMode ?? personalizationMode;
   const policyMode = evaluationAssignment.policyMode;
   const policyId = evaluationAssignment.policyId;
-  const decisionAt = new Date();
   const decisionAtIso = decisionAt.toISOString();
   const sixFactorLearnerStateAggregates = isSixFactorShadowEnabled()
     ? await buildLearnerStateAggregatesForSixFactorPolicy({
@@ -340,6 +416,7 @@ export async function POST(request: Request) {
   };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
+    decisionOverride: sixFactorPrimary?.shadow.decision ?? null,
     path: "chat",
   });
   const skipOptionalShadowAfterApplyFailure =
@@ -386,9 +463,7 @@ export async function POST(request: Request) {
       effectivePreferences,
     },
     subjectTopic: promptContext,
-    learnerStateAggregates: sixFactorApply.applied
-      ? sixFactorLearnerStateAggregates
-      : null,
+    learnerStateAggregates: null,
     sixFactorPromptInstructionBlock: sixFactorApply.promptInstructionBlock,
     tone,
     explanationStyle,
@@ -484,10 +559,16 @@ export async function POST(request: Request) {
       tone,
       explanation_style: explanationStyle,
     },
-    pedagogicalDecision: {
-      difficulty,
-      depth,
-    },
+    pedagogicalDecision:
+      sixFactorDeliveredConfig && sixFactorPrimary
+        ? buildSixFactorCompatibilityPedagogicalDecision({
+            decision: sixFactorPrimary.shadow.decision,
+            source: "six_factor_primary",
+          })
+        : {
+            difficulty,
+            depth,
+          },
     rulesLayer: preset.rulesLayer,
     evaluationSignal: {
       quality: "secondary_chat_support",
@@ -568,10 +649,16 @@ export async function POST(request: Request) {
         explanation_style: explanationStyle,
         response_format: responseFormat,
       },
-      pedagogicalDecision: {
-        difficulty,
-        depth,
-      },
+      pedagogicalDecision:
+        sixFactorDeliveredConfig && sixFactorPrimary
+          ? buildSixFactorCompatibilityPedagogicalDecision({
+              decision: sixFactorPrimary.shadow.decision,
+              source: "six_factor_primary",
+            })
+          : {
+              difficulty,
+              depth,
+            },
       evaluationSignal: {
         quality: "secondary_chat_support",
         role: "supporting_secondary",

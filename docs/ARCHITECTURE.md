@@ -115,10 +115,58 @@ Behavior:
 - enabling `EDUAI_SIX_FACTOR_SHADOW_ONLY` records decisions without applying them to learner-facing prompts;
 - `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1` controls the visible learner-facing personalization card.
 
-## Current evaluation flow
+## Current Implementation State
 
-1. The learner starts from Learn or Practice.
-2. The app stores replay-safe behavioral and performance signals.
+The repository currently contains a mix of:
+- heuristic baselines;
+- stub model paths;
+- artifact-backed ML runtime paths;
+- rule-based rendering/materialization logic.
+
+Those paths must be interpreted honestly:
+- heuristic and stub components are not ML;
+- baseline/runtime support metrics are not a substitute for the dissertation ML target definition;
+- if an artifact-backed ML slot is unavailable, the system must report that explicitly rather than hiding a fallback.
+
+Current runtime alignment:
+- the current predicted learning episode/chat path uses the six-factor configuration as the primary pedagogical decision (`difficulty`, `depth`, `supportLevel`, `presentationFormat`, `examplesLevel`, `terminologyLevel`);
+- `difficulty` and `depth` remain two factors inside that six-factor decision and must not be deleted;
+- legacy `{ difficulty, depth }` delivery objects remain as derived compatibility projections for existing routes, storage, and old records;
+- tone, explanation style, and response formatting are materialized afterward in an explicit rules layer;
+- legacy delivery fields remain only as compatibility adapters for current routes and storage surfaces.
+
+Current decision-boundary step:
+- the repository now carries one explicit research-boundary contract in `src/lib/pedagogical-decision-contract.ts`;
+- `PedagogicalDecisionV1` is the canonical bridge object for pedagogical delivery ownership, even though current runtime still produces it through adapters over existing heuristic/stub/artifact paths;
+- `DecisionProvenanceV1` records whether the current decision boundary was backed by a heuristic, stub, artifact, or unknown source, without pretending that every bridge path is ML;
+- `LearnerStateSnapshotV1` is intentionally only a boundary snapshot, not a new full learner model or migration-driven state redesign;
+- `DeliveredPedagogicalDecisionV1` binds learner snapshot, decision, provenance, and episode-linkage placeholders so later cleanup/export/serving work can depend on one object instead of scattered shapes;
+- this step does not switch the active runtime backend and does not claim that current routes or stored records are fully migrated to the new boundary.
+
+Current evaluation alignment:
+- the runtime can group related interactions into an explicit evaluation episode;
+- each stored test or chat session can now be linked to the episode, policy arm, pedagogical decision, and topic/concept/skill scope that produced it;
+- each linked artifact is also registered in a central `EvaluationEpisodeItem` protocol registry with explicit sequence role (`precheck`, `learning_content`, `postcheck`, `holdout`, `delayed_recheck`), item usage (`training` vs `evaluation` vs chat support), and practice-effect linkage metadata;
+- each evaluation episode now also carries an explicit data-collection phase/origin marker so future synthetic and real training data can stay separated without UI/runtime toggles;
+- arm assignment is now a runtime contract rather than a loose metadata label: baseline, self-report, predicted, and manual override can be selected and then fixed on the episode;
+- a lightweight episode coordinator can now lock one episode-level decision package and advance a structured MVP loop (`precheck -> learning_content -> postcheck/holdout`) instead of relying on manual client-side glue across unrelated endpoints;
+- the learning-content step is now a first-class episode artifact: EduAI generates a structured explanation/chat-delivery step from the same locked six-factor pedagogical decision and a compatibility `difficulty/depth` projection used by older surrounding contracts;
+- the admin-side operator surface now reuses the same subject APIs plus the same episode coordinator instead of introducing a second control plane: it launches episodes, inspects linkage/provenance/sequence, and marks operational export readiness from the stored episode summary;
+- tests remain the primary learning-evaluation signal, while chat is logged only as a secondary supporting signal;
+- direct repetition, isomorphic same-family checks, unseen holdouts, and delayed retention checks are now distinguished in the protocol layer instead of only being implied by scattered metadata.
+
+Current training-data alignment:
+- PostgreSQL remains the canonical operational store; training workflows do not bypass the app by writing only raw CSV files;
+- the main project can now export versioned training snapshots from operational episode data into `training_datasets/synthetic/` and `training_datasets/real/`;
+- both phase roots share one fixed training schema contract, so later retraining on real EduAI data does not require a separate ingestion rewrite;
+- current snapshot writing uses CSV plus explicit schema/metadata/manifest files, with a documented later conversion path to Parquet;
+- a fixed future runtime artifact slot exists under `artifacts/runtime/eduai_native_pedagogy/current/`; this slot may now receive an EduAI-native artifact package, but serving integration remains inactive until a later explicit activation step;
+- synthetic bridge artifacts in that slot must be labeled as internal pipeline artifacts, not as real-user validation.
+
+## High-Level Data Flow
+
+1. The learner starts from `Learn`, which is now the active episode-first learner route.
+2. The API stores replay-safe behavioral and performance signals.
 3. The prediction layer builds features only from information available before the current decision point.
 4. The prediction accuracy runtime may estimate expected next-task accuracy.
 5. The six-factor runtime may select a candidate pedagogical configuration.

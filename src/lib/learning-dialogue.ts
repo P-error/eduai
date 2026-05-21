@@ -17,7 +17,14 @@ import {
   type PromptLearnerStateAggregates,
 } from "@/lib/llm-prompt-builders";
 import { buildAppliedSixFactorPromptInstructions } from "@/lib/ml-six-factor-apply";
-import { buildOptionalSixFactorDeliveredConfigMetadata } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildOptionalSixFactorDeliveredConfigMetadata,
+  buildSixFactorDecisionFromDeliveredConfigMetadata,
+  readSixFactorDeliveredConfigMetadata,
+} from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildSixFactorCompatibilityPedagogicalDecision,
+} from "@/lib/ml-six-factor-primary-decision";
 import {
   buildOptionalSixFactorShadowMetadata,
   isSixFactorShadowEnabled,
@@ -212,6 +219,13 @@ export async function appendLearningEpisodeDialogueTurn(
     session.messages.find((message) => message.role === "assistant") ??
     null;
   const seedSignals = asObject(seedAssistantMessage?.signalsJson);
+  const seedSixFactorDeliveredConfig =
+    readSixFactorDeliveredConfigMetadata(seedSignals);
+  const seedSixFactorDecision = seedSixFactorDeliveredConfig
+    ? buildSixFactorDecisionFromDeliveredConfigMetadata(
+        seedSixFactorDeliveredConfig,
+      )
+    : null;
   const promptTemplate = await getActivePromptTemplate("chat_system_v1");
   const declaredPreferences = sanitizePreferenceMap(
     (user.declaredPreferencesJson ?? {}) as Record<string, unknown>,
@@ -252,8 +266,13 @@ export async function appendLearningEpisodeDialogueTurn(
     sessionRef: episodeId,
     ...(learnerStateAggregates ?? {}),
     previousDifficulty:
-      learningContent.pedagogicalContext.difficulty ?? "medium",
-    previousDepth: learningContent.pedagogicalContext.depth ?? "standard",
+      seedSixFactorDeliveredConfig?.deliveredConfig.difficulty ??
+      learningContent.pedagogicalContext.difficulty ??
+      "medium",
+    previousDepth:
+      seedSixFactorDeliveredConfig?.deliveredConfig.depth ??
+      learningContent.pedagogicalContext.depth ??
+      "standard",
     declaredPreferences,
     policyId: learningContent.pedagogicalContext.policyId,
     backendKind:
@@ -262,6 +281,7 @@ export async function appendLearningEpisodeDialogueTurn(
   };
   const sixFactorApply = buildAppliedSixFactorPromptInstructions({
     context: sixFactorPolicyContext,
+    decisionOverride: seedSixFactorDecision,
     path: "chat",
   });
   const skipOptionalShadowAfterApplyFailure =
@@ -288,9 +308,7 @@ export async function appendLearningEpisodeDialogueTurn(
     personalizationReady: user.personalizationReady,
     state,
     subjectTitle: session.subject?.title ?? null,
-    learnerStateAggregates: sixFactorApply.applied
-      ? learnerStateAggregates
-      : null,
+    learnerStateAggregates: null,
     sixFactorPromptInstructionBlock: sixFactorApply.promptInstructionBlock,
   });
 
@@ -366,14 +384,20 @@ export async function appendLearningEpisodeDialogueTurn(
         tone,
         explanation_style: explanationStyle,
       },
-      pedagogicalDecision: {
-        difficulty:
-          state.currentStep.learningContent.pedagogicalContext.difficulty ??
-          "medium",
-        depth:
-          state.currentStep.learningContent.pedagogicalContext.depth ??
-          "standard",
-      },
+      pedagogicalDecision:
+        sixFactorDeliveredConfig && seedSixFactorDecision
+          ? buildSixFactorCompatibilityPedagogicalDecision({
+              decision: seedSixFactorDecision,
+              source: "six_factor_primary",
+            })
+          : {
+              difficulty:
+                state.currentStep.learningContent.pedagogicalContext
+                  .difficulty ?? "medium",
+              depth:
+                state.currentStep.learningContent.pedagogicalContext.depth ??
+                "standard",
+            },
       generationSource,
       rulesLayer:
         typeof seedSignals?.rulesLayer === "object" && seedSignals.rulesLayer

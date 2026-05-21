@@ -63,9 +63,7 @@ export function buildSubjectTopicPromptSection(
 ) {
   return buildPromptSection("2. Subject/topic context:", [
     prettyJson({
-      subjectId: context.subjectId ?? null,
       subjectTitle: context.subjectTitle ?? null,
-      sectionId: context.sectionId ?? null,
       sectionPath: context.sectionPath ?? null,
       topic: context.topic ?? null,
       conceptKey: context.conceptKey ?? null,
@@ -79,7 +77,6 @@ export function buildSubjectTopicPromptSection(
 export function buildLearnerProfilePromptSection(profile: PromptProfileContext) {
   return buildPromptSection("3. Learner profile and preferences:", [
     prettyJson({
-      userRef: profile.userRef ?? null,
       personalizationReady: profile.personalizationReady,
       declaredPreferences: profile.declaredPreferences,
       effectivePreferences: profile.effectivePreferences ?? null,
@@ -92,9 +89,26 @@ export function buildLearnerProfilePromptSection(profile: PromptProfileContext) 
 export function buildLearnerStateAggregatePromptSection(
   aggregates: PromptLearnerStateAggregates,
 ) {
-  return buildPromptSection("4. Learner-state aggregates:", [
-    prettyJson(aggregates),
-    "Use these aggregate pre-decision signals for pedagogical calibration only.",
+  const priorEvidence =
+    aggregates.priorAttemptsCount <= 0
+      ? "no prior attempt evidence"
+      : aggregates.priorAttemptsCount < 3
+        ? "limited prior attempt evidence"
+        : "available prior attempt evidence";
+  const recentEvidence =
+    aggregates.recentAttemptsCount <= 0
+      ? "recent performance unknown"
+      : aggregates.recentCorrectRate == null
+        ? "recent performance available without a stable rate"
+        : aggregates.recentCorrectRate < 0.45
+          ? "recent performance suggests the learner may need more support"
+          : aggregates.recentCorrectRate > 0.75
+            ? "recent performance suggests readiness for more independence"
+            : "recent performance suggests balanced support";
+
+  return buildPromptSection("4. Learner evidence summary:", [
+    `${priorEvidence}; ${recentEvidence}.`,
+    "Use this summary for pedagogical calibration only.",
     "Do not use raw answers or hidden outcome fields.",
   ]);
 }

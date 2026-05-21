@@ -39,7 +39,15 @@ import {
 import {
   buildOptionalSixFactorDeliveredConfigMetadata,
   buildSixFactorDeliveredConfigMetadata,
+  buildLegacyDerivedSixFactorDeliveredConfigMetadata,
+  buildSixFactorDecisionFromDeliveredConfigMetadata,
+  readSixFactorDeliveredConfigMetadata,
 } from "@/lib/ml-six-factor-decision-metadata";
+import {
+  buildSixFactorCompatibilityPedagogicalDecision,
+  buildSixFactorDerivedPedagogicalDecision,
+  shouldUseSixFactorAsPrimaryDecision,
+} from "@/lib/ml-six-factor-primary-decision";
 import {
   buildMissingSixFactorOutcome,
   buildSixFactorOutcome,
@@ -290,6 +298,10 @@ function assertPromptHasSixFactorInstructions(
   payload: ReturnType<typeof buildContentPathRegressionPayload>,
 ) {
   const prompt = payload.learnerFacing.prompt;
+  assert(
+    prompt.includes("Selected six-factor pedagogical profile"),
+    `${payload.path} applied prompt must include a selected pedagogical profile`,
+  );
   for (const label of [
     "difficulty:",
     "depth:",
@@ -307,13 +319,24 @@ function assertPromptHasSixFactorInstructions(
     payload.learnerFacing.promptInstructionsApplied === true,
     `${payload.path} must mark prompt instructions as applied`,
   );
+  assert(
+    !prompt.includes("Learner-state aggregates") &&
+      !prompt.includes("priorAttemptsCount=") &&
+      !prompt.includes("featuresSnapshot") &&
+      !prompt.includes("featureRefs") &&
+      !prompt.includes("candidateCount") &&
+      !prompt.includes("artifactPath"),
+    `${payload.path} applied prompt must not leak raw learner-state or runtime metadata`,
+  );
 }
 
 function assertPromptOmitsSixFactorInstructions(
   payload: ReturnType<typeof buildContentPathRegressionPayload>,
 ) {
   assert(
-    !payload.learnerFacing.prompt.includes("Six-factor render instructions"),
+    !payload.learnerFacing.prompt.includes(
+      "Selected six-factor pedagogical profile",
+    ),
     `${payload.path} must not include six-factor prompt instructions`,
   );
 }
@@ -577,6 +600,39 @@ export function runMlSixFactorShadowSelfCheck() {
     validateSixFactorDecision(heuristic),
     "heuristic fallback must be a valid six-factor decision",
   );
+  assert(
+    shouldUseSixFactorAsPrimaryDecision({
+      personalizationMode: "on",
+      selectionMode: "predicted_runtime",
+      env: { EDUAI_SIX_FACTOR_ML_POLICY: "1" },
+    }),
+    "predicted personalization must use six-factor as the primary decision when ML policy is enabled",
+  );
+  assert(
+    !shouldUseSixFactorAsPrimaryDecision({
+      personalizationMode: "on",
+      selectionMode: "predicted_runtime",
+      env: { EDUAI_SIX_FACTOR_ML_POLICY: "0" },
+    }),
+    "six-factor primary decision must not hide explicit ML-policy opt-out",
+  );
+  const derivedTwoFactor = buildSixFactorDerivedPedagogicalDecision(heuristic);
+  assert(
+    derivedTwoFactor.difficulty === heuristic.difficulty &&
+      derivedTwoFactor.depth === heuristic.depth &&
+      !("supportLevel" in derivedTwoFactor),
+    "difficulty/depth projection must be derived compatibility only",
+  );
+  const compatibilityProjection =
+    buildSixFactorCompatibilityPedagogicalDecision({
+      decision: heuristic,
+      source: "six_factor_primary",
+    });
+  assert(
+    compatibilityProjection.compatibilityRole ===
+      "derived_two_factor_projection",
+    "compatibility pedagogicalDecision must be explicitly marked as derived",
+  );
 
   const features = buildEduAIAppPolicyFeaturesV1({
     userRef: "user_1",
@@ -739,6 +795,76 @@ export function runMlSixFactorShadowSelfCheck() {
       defaultApply.metadata.decisionSource === "ml_policy" &&
       defaultApply.metadata.appliedToLearnerFacingOutput === true,
     "missing env flags must keep ML/apply active by default",
+  );
+  const overrideApply = buildAppliedSixFactorPromptInstructions({
+    context: shadowContext,
+    decisionOverride: {
+      ...staticFallback,
+      difficulty: "hard",
+      depth: "detailed",
+      supportLevel: "scaffolded",
+      presentationFormat: "qa",
+      examplesLevel: "multiple",
+      terminologyLevel: "technical",
+      decisionSource: "ml_policy",
+      fallbackUsed: false,
+    },
+    env: {
+      EDUAI_SIX_FACTOR_ML_POLICY: "1",
+      EDUAI_SIX_FACTOR_APPLY: "1",
+    },
+    path: "test_generation",
+  });
+  assert(
+    overrideApply.applied === true &&
+      overrideApply.metadata.deliveredConfig.difficulty === "hard" &&
+      overrideApply.metadata.deliveredConfig.support_level === "scaffolded" &&
+      overrideApply.metadata.decisionSource === "ml_policy",
+    "apply layer must reuse the primary six-factor decision instead of recomputing from difficulty/depth",
+  );
+  const legacyMetadata = buildLegacyDerivedSixFactorDeliveredConfigMetadata({
+    pedagogicalDecision: {
+      difficulty: "easy",
+      depth: "brief",
+    },
+    decisionRuntime: {
+      runtimePolicyId: "prediction_runtime_v1_2026_03",
+      backendKind: "heuristic_baseline",
+    },
+    userRef: "legacy_user",
+    subjectRef: "legacy_subject",
+    topicRef: "legacy_topic",
+    sessionRef: "legacy_episode",
+    contentEventRef: "legacy_content",
+    decisionCreatedAt: "2026-05-08T10:00:00.000Z",
+  });
+  assert(legacyMetadata, "legacy metadata must be created from difficulty/depth");
+  assert(
+    legacyMetadata.decisionSource === "legacy_derived" &&
+      legacyMetadata.fallbackUsed === true &&
+      legacyMetadata.deliveredConfig.difficulty === "easy" &&
+      legacyMetadata.deliveredConfig.depth === "brief",
+    "legacy difficulty/depth records must adapt to complete six-factor metadata for read/export only",
+  );
+  assertSixMlFactors(legacyMetadata.deliveredConfig as Record<string, unknown>);
+  const readLegacy = readSixFactorDeliveredConfigMetadata({
+    pedagogicalDecision: {
+      difficulty: "medium",
+      depth: "standard",
+    },
+    policyId: "v2_personalized",
+  });
+  assert(
+    readLegacy?.decisionSource === "legacy_derived" &&
+      readLegacy.deliveredConfig.support_level != null,
+    "metadata reader must expose old two-factor records as legacy-derived six-factor configs",
+  );
+  const roundTrippedDecision =
+    buildSixFactorDecisionFromDeliveredConfigMetadata(legacyMetadata);
+  assert(
+    roundTrippedDecision.decisionSource === "legacy_derived" &&
+      validateSixFactorDecision(roundTrippedDecision),
+    "delivered metadata must round-trip to a valid six-factor decision",
   );
   const shadowOnlyApply = buildAppliedSixFactorPromptInstructions({
     context: shadowContext,

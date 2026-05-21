@@ -2,6 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { issueToken } from "@/lib/auth";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-constants";
 import { getEvaluationEpisodeExport } from "@/lib/evaluation";
+import {
+  isMlSixFactorConfig,
+  readSixFactorDeliveredConfigMetadata,
+} from "@/lib/ml-six-factor-decision-metadata";
 import { POST as createEpisodeRoute } from "@/app/api/evaluation/episodes/route";
 import { GET as getEpisodeRoute } from "@/app/api/evaluation/episodes/[id]/route";
 import { POST as advanceEpisodeRoute } from "@/app/api/evaluation/episodes/[id]/next/route";
@@ -17,6 +21,17 @@ function assert(condition: unknown, message: string): asserts condition {
 
 async function parseJson(response: Response) {
   return (await response.json()) as RouteJson;
+}
+
+async function assertOkResponse(response: Response, message: string) {
+  if (response.ok) return;
+  let detail = "";
+  try {
+    detail = JSON.stringify(await response.json());
+  } catch {
+    detail = await response.text().catch(() => "");
+  }
+  throw new Error(`${message}: ${response.status} ${detail.slice(0, 500)}`);
 }
 
 function authHeaders(token: string) {
@@ -165,7 +180,7 @@ export async function runLearningEpisodeSelfCheck() {
         }),
       }),
     );
-    assert(createResponse.ok, "create episode route failed");
+    await assertOkResponse(createResponse, "create episode route failed");
     const created = await parseJson(createResponse);
     const episode = created.episode as RouteJson;
     const currentStep = created.currentStep as RouteJson;
@@ -177,6 +192,24 @@ export async function runLearningEpisodeSelfCheck() {
       currentStep.sequenceRole === "precheck" &&
         currentStep.contentKind === "generated_test",
       "expected precheck test on episode start",
+    );
+    const precheckRecord = await prisma.generatedTest.findUnique({
+      where: { id: precheckTestId },
+      select: { validationMetaJson: true },
+    });
+    const precheckSixFactor = readSixFactorDeliveredConfigMetadata(
+      precheckRecord?.validationMetaJson,
+    );
+    assert(
+      precheckSixFactor &&
+        isMlSixFactorConfig(precheckSixFactor.deliveredConfig) &&
+        precheckSixFactor.appliedToLearnerFacingOutput === true,
+      "precheck must include applied complete six-factor delivered config",
+    );
+    assert(
+      precheckSixFactor.decisionSource !== "legacy_derived" &&
+        precheckSixFactor.policyId !== "prediction_runtime_v1_2026_03",
+      "precheck must not use the old two-factor runtime as the primary source",
     );
 
     const precheckAnswers = await buildCorrectAnswers(precheckTestId, true);
@@ -192,7 +225,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: precheckTestId }) },
     );
-    assert(precheckSubmit.ok, "precheck submit failed");
+    await assertOkResponse(precheckSubmit, "precheck submit failed");
 
     const learningContentResponse = await advanceEpisodeRoute(
       new Request(`http://localhost/api/evaluation/episodes/${episodeId}/next`, {
@@ -202,13 +235,30 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: episodeId }) },
     );
-    assert(learningContentResponse.ok, "advance to learning content failed");
+    await assertOkResponse(
+      learningContentResponse,
+      "advance to learning content failed",
+    );
     const learningContentState = await parseJson(learningContentResponse);
     const learningContentStep = learningContentState.currentStep as RouteJson;
     assert(
       learningContentStep.sequenceRole === "learning_content" &&
         learningContentStep.contentKind === "chat_session",
       "expected learning-content step after precheck",
+    );
+    const learningContent = learningContentStep.learningContent as RouteJson;
+    const mlPersonalization = learningContent.mlPersonalization as RouteJson;
+    const selectedConfig = mlPersonalization.selected_config as RouteJson;
+    assert(
+      isMlSixFactorConfig(selectedConfig),
+      "learning-content API view must expose all six personalization factors",
+    );
+    assert(
+      typeof (learningContent.pedagogicalContext as RouteJson).supportLevel ===
+        "string" &&
+        typeof (learningContent.pedagogicalContext as RouteJson)
+          .presentationFormat === "string",
+      "learning-content pedagogicalContext must include six-factor fields",
     );
 
     const learningAckState = await parseJson(
@@ -235,7 +285,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: episodeId }) },
     );
-    assert(postcheckResponse.ok, "advance to postcheck failed");
+    await assertOkResponse(postcheckResponse, "advance to postcheck failed");
     const postcheckState = await parseJson(postcheckResponse);
     const postcheckTest = (postcheckState.currentStep as RouteJson).test as RouteJson;
     const postcheckTestId = String(postcheckTest.id ?? "");
@@ -252,7 +302,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: postcheckTestId }) },
     );
-    assert(postcheckSubmit.ok, "postcheck submit failed");
+    await assertOkResponse(postcheckSubmit, "postcheck submit failed");
 
     const holdoutResponse = await advanceEpisodeRoute(
       new Request(`http://localhost/api/evaluation/episodes/${episodeId}/next`, {
@@ -262,7 +312,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: episodeId }) },
     );
-    assert(holdoutResponse.ok, "advance to holdout failed");
+    await assertOkResponse(holdoutResponse, "advance to holdout failed");
     const holdoutState = await parseJson(holdoutResponse);
     const holdoutTest = (holdoutState.currentStep as RouteJson).test as RouteJson;
     const holdoutTestId = String(holdoutTest.id ?? "");
@@ -279,7 +329,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: holdoutTestId }) },
     );
-    assert(holdoutSubmit.ok, "holdout submit failed");
+    await assertOkResponse(holdoutSubmit, "holdout submit failed");
 
     const stateResponse = await getEpisodeRoute(
       new Request(`http://localhost/api/evaluation/episodes/${episodeId}`, {
@@ -288,7 +338,7 @@ export async function runLearningEpisodeSelfCheck() {
       }),
       { params: Promise.resolve({ id: episodeId }) },
     );
-    assert(stateResponse.ok, "episode state route failed");
+    await assertOkResponse(stateResponse, "episode state route failed");
     const finalState = await parseJson(stateResponse);
     const finalEpisode = finalState.episode as RouteJson;
     const finalCurrentStep = finalState.currentStep as RouteJson;
@@ -313,6 +363,35 @@ export async function runLearningEpisodeSelfCheck() {
     assert(
       (exportedEpisode.counts as RouteJson).testItems === 3,
       "expected precheck/postcheck/holdout test items",
+    );
+    const exportedItems = exportedEpisode.items as RouteJson[];
+    const exportedLearningItem = exportedItems.find(
+      (item) => item.sequenceRole === "learning_content",
+    );
+    const exportedDecisionRuntime = exportedLearningItem?.decisionRuntime as RouteJson;
+    const exportedSixFactor = readSixFactorDeliveredConfigMetadata(
+      exportedDecisionRuntime,
+    );
+    assert(
+      exportedSixFactor &&
+        isMlSixFactorConfig(exportedSixFactor.deliveredConfig),
+      "evaluation export must retain all six factors in decisionRuntimeJson",
+    );
+    const storedLearningItem = await prisma.evaluationEpisodeItem.findFirst({
+      where: {
+        episodeId,
+        sequenceRole: "learning_content",
+      },
+      select: {
+        pedagogicalDecisionJson: true,
+      },
+    });
+    const exportedPedagogicalDecision =
+      storedLearningItem?.pedagogicalDecisionJson as RouteJson;
+    assert(
+      exportedPedagogicalDecision.compatibilityRole ===
+        "derived_two_factor_projection",
+      "exported pedagogicalDecision must be marked as derived compatibility",
     );
 
     return {

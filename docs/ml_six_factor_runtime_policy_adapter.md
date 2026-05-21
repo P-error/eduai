@@ -18,6 +18,14 @@ pre-decision features + candidate_config -> predicted outcome
 
 The app contract stays `features -> six-factor decision`. Candidate scoring is an internal implementation detail.
 
+For new predicted/observational learning episode and chat flows, this
+six-factor decision is the primary pedagogical decision. The legacy
+`difficulty/depth` object is still emitted where older contracts need it, but it
+is a derived compatibility projection rather than the policy owner.
+`configs/active_policy.json` remains only the legacy accuracy/time prediction
+runtime config and is marked as a compatibility layer; it must not be treated as
+the modern pedagogical decision policy.
+
 ## Runtime Flags
 
 - ML policy is enabled by default. `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off` disables it and uses the legacy heuristic/static fallback.
@@ -77,6 +85,11 @@ If all candidates are filtered, the adapter scores a safe fallback candidate ins
 If ML policy mode is disabled, missing, invalid, or fails scoring, the adapter returns a full six-factor fallback decision.
 The decision keeps all six factors, sets `fallbackUsed=true`, and records warnings with the error class.
 
+Legacy records that predate delivered six-factor metadata can be read/exported
+through a `legacy_derived` adapter. That adapter preserves stored
+`difficulty/depth`, fills the other four factors with explicit bridge values,
+and marks the result as fallback/compatibility, not ML.
+
 ## Learner-Facing Behavior
 
 By default this path applies six-factor prompt instructions to eligible chat, learning content, dialogue, and test generation prompts. It does not change technical test `response_format=mcq`.
@@ -104,7 +117,7 @@ When apply mode is active, the app:
 app context -> six-factor decision -> render mapping -> prompt instruction block -> LLM content generation
 ```
 
-The six-factor instruction block includes all six factors:
+The six-factor instruction block includes a compact profile summary and all six factors:
 
 - `difficulty`
 - `depth`
@@ -113,8 +126,9 @@ The six-factor instruction block includes all six factors:
 - `examples_level`
 - `terminology_level`
 
-It is appended as a separate internal block after the structured package or inside the structured chat/dialogue system prompt.
+It is appended as a learner-facing-clean block after the sanitized external task package or inside the structured chat/dialogue system prompt.
 It does not replace safety constraints, the output JSON contract, or the MCQ contract.
+It does not expose raw learner-state aggregates, full internal generation packages, feature snapshots, feature refs, backend/artifact diagnostics, or private user/session/content refs.
 
 The technical test response format remains `mcq`; `presentation_format` is not treated as test `response_format`.
 
@@ -161,4 +175,5 @@ Real-user observations and controlled evaluation are still required before any l
 
 ## Next Step
 
-Extend delivered-config logging and outcome linking/export so applied six-factor decisions can be evaluated later against real learning outcomes.
+Use the delivered-config logging and outcome linking/export to evaluate applied
+six-factor decisions against real learning outcomes.

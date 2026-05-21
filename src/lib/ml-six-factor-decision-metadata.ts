@@ -8,11 +8,15 @@ import {
   SIX_FACTOR_DECISION_SOURCE_VALUES,
   SUPPORT_LEVEL_VALUES,
   TERMINOLOGY_LEVEL_VALUES,
+  fromMlSixFactorConfig,
+  toMlSixFactorConfig,
   type EduAIAppPolicyFeaturesV1,
+  type EduAIAppSixFactorDecisionV1,
   type EduAISixFactorMlConfigV1,
   type SixFactorDecisionSource,
 } from "@/lib/ml-six-factor-policy-contract";
 import { sanitizeAppPolicyFeatures } from "@/lib/ml-six-factor-feature-builder";
+import { createHeuristicSixFactorFallbackFromTwoFactor } from "@/lib/ml-six-factor-fallback";
 import { type SixFactorDecisionMetadataV1 } from "@/lib/ml-six-factor-shadow";
 
 export const SIX_FACTOR_DELIVERED_CONFIG_METADATA_VERSION =
@@ -76,6 +80,10 @@ function readWarnings(value: unknown) {
   return value
     .map((entry) => readString(entry))
     .filter((entry): entry is string => entry != null);
+}
+
+function readObjectValue(value: unknown, key: string) {
+  return isRecord(value) ? value[key] : undefined;
 }
 
 function isAllowed<const T extends readonly string[]>(
@@ -165,6 +173,111 @@ export function buildOptionalSixFactorDeliveredConfigMetadata(params: {
   });
 }
 
+export function buildSixFactorDecisionFromDeliveredConfigMetadata(
+  metadata: SixFactorDeliveredConfigMetadataV1,
+): EduAIAppSixFactorDecisionV1 {
+  return {
+    ...fromMlSixFactorConfig(metadata.deliveredConfig),
+    decisionSource: metadata.decisionSource,
+    policyId: metadata.policyId,
+    modelVersion: metadata.modelVersion,
+    artifactPath: metadata.artifactPath,
+    backendKind: metadata.backendKind,
+    fallbackUsed: metadata.fallbackUsed,
+    candidateCount: metadata.candidateCount,
+    confidence: metadata.confidence,
+    warnings: metadata.warnings,
+  };
+}
+
+export function buildLegacyDerivedSixFactorDeliveredConfigMetadata(params: {
+  pedagogicalDecision: unknown;
+  decisionRuntime?: unknown;
+  userRef?: string | null;
+  subjectRef?: string | null;
+  topicRef?: string | null;
+  sessionRef?: string | null;
+  contentEventRef?: string | null;
+  decisionCreatedAt?: DateInput;
+  featuresCutoffAt?: DateInput;
+}): SixFactorDeliveredConfigMetadataV1 | null {
+  const root = isRecord(params.pedagogicalDecision)
+    ? params.pedagogicalDecision
+    : null;
+  if (!root) return null;
+
+  const difficulty = readString(root.difficulty);
+  const depth = readString(root.depth);
+  if (!difficulty || !depth) return null;
+
+  const runtime = isRecord(params.decisionRuntime)
+    ? params.decisionRuntime
+    : {};
+  const bridgeDecision = createHeuristicSixFactorFallbackFromTwoFactor({
+    currentDifficulty: difficulty,
+    currentDepth: depth,
+    policyId:
+      readObjectValue(runtime, "runtimePolicyId") ??
+      readObjectValue(runtime, "policyId"),
+    backendKind: readObjectValue(runtime, "backendKind"),
+    modelVersion:
+      readObjectValue(runtime, "modelVersion") ??
+      readObjectValue(runtime, "backendId"),
+  });
+  const config = toMlSixFactorConfig(bridgeDecision);
+  const nowIso = new Date().toISOString();
+  const decisionCreatedAt = toIso(params.decisionCreatedAt, nowIso);
+
+  return {
+    metadataVersion: SIX_FACTOR_DELIVERED_CONFIG_METADATA_VERSION,
+    sixFactorDecisionVersion: EDUAI_APP_SIX_FACTOR_DECISION_V1,
+    featuresVersion: EDUAI_APP_POLICY_FEATURES_V1,
+    featuresSnapshot: sanitizeAppPolicyFeatures({
+      userRef: params.userRef ?? "unknown_user",
+      subjectRef: params.subjectRef ?? null,
+      topicRef: params.topicRef ?? null,
+      sessionRef: params.sessionRef ?? null,
+      contentEventRef: params.contentEventRef ?? null,
+      previousDifficulty: config.difficulty,
+      previousDepth: config.depth,
+      policyId:
+        readObjectValue(runtime, "runtimePolicyId") ??
+        readObjectValue(runtime, "policyId"),
+      backendKind: readObjectValue(runtime, "backendKind"),
+      modelVersion:
+        readObjectValue(runtime, "modelVersion") ??
+        readObjectValue(runtime, "backendId"),
+    }),
+    candidateConfig: config,
+    deliveredConfig: config,
+    decisionSource: "legacy_derived",
+    policyId:
+      readString(readObjectValue(runtime, "runtimePolicyId")) ??
+      readString(readObjectValue(runtime, "policyId")),
+    modelVersion:
+      readString(readObjectValue(runtime, "modelVersion")) ??
+      readString(readObjectValue(runtime, "backendId")),
+    artifactPath: null,
+    backendKind: readString(readObjectValue(runtime, "backendKind")),
+    fallbackUsed: true,
+    candidateCount: null,
+    confidence: 0,
+    warnings: [
+      "legacy_derived: old two-factor pedagogicalDecision was adapted for read/export compatibility only.",
+    ],
+    appliedToLearnerFacingOutput: false,
+    appliedPath: null,
+    appliedPromptInstructionCount: null,
+    decisionCreatedAt,
+    featuresCutoffAt: toIso(params.featuresCutoffAt, decisionCreatedAt),
+    leakageGuard: {
+      usesOnlyPreDecisionData: true,
+      notes:
+        "Legacy-derived six-factor metadata reconstructed from stored difficulty/depth; not an ML decision and not learner-facing apply evidence.",
+    },
+  };
+}
+
 function normalizeCandidateCount(value: unknown) {
   const numeric = readNumber(value);
   if (numeric == null) return null;
@@ -242,6 +355,21 @@ export function readSixFactorDeliveredConfigMetadata(
   if (isRecord(value.sixFactorShadow)) {
     return readSixFactorDeliveredConfigMetadata(value.sixFactorShadow);
   }
+
+  if (isRecord(value.pedagogicalDecision)) {
+    return buildLegacyDerivedSixFactorDeliveredConfigMetadata({
+      pedagogicalDecision: value.pedagogicalDecision,
+      decisionRuntime: value.decisionRuntime ?? value,
+      decisionCreatedAt: readString(value.atIso),
+    });
+  }
+
+  const legacy = buildLegacyDerivedSixFactorDeliveredConfigMetadata({
+    pedagogicalDecision: value,
+    decisionRuntime: value,
+    decisionCreatedAt: readString(value.decisionCreatedAt),
+  });
+  if (legacy) return legacy;
 
   if (
     isMlSixFactorConfig(value.candidateConfig) &&

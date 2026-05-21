@@ -39,6 +39,9 @@ function sanitizeWarningsForView(warnings: string[]) {
     if (warning.includes("render mapping applied")) {
       return "Six-factor render mapping was applied under the explicit apply flag.";
     }
+    if (warning.includes("legacy_derived")) {
+      return "Old difficulty/depth data was adapted for compatibility; this is not a new ML decision.";
+    }
     return warning;
   });
 

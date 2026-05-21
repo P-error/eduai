@@ -44,7 +44,7 @@ The applied v1 paths are:
 - `src/lib/test-generation.ts`
 - `src/lib/learning-dialogue.ts`
 
-When enabled, the path appends a separate internal prompt block with all six factors:
+When enabled, the path appends a learner-facing-clean prompt block with all six factors:
 
 - `difficulty`
 - `depth`
@@ -53,10 +53,25 @@ When enabled, the path appends a separate internal prompt block with all six fac
 - `examples_level`
 - `terminology_level`
 
-The block is added after the structured package or inside the structured system prompt, depending on the path.
+The block is added after the sanitized external task package or inside the structured system prompt, depending on the path.
 It must preserve the output JSON contract, MCQ contract, dialogue budget, and safety instructions.
+It must not expose raw learner-state aggregates, feature snapshots, feature refs, backend/artifact diagnostics, or internal package/linkage fields.
 
 Technical test `response_format=mcq` is not replaced by six-factor `presentation_format`.
+
+## Primary Decision Path
+
+For new predicted/observational episode and chat paths, the primary pedagogical
+decision is now the six-factor decision. The older `{ difficulty, depth }`
+object remains only as a derived compatibility projection for existing route,
+storage, and UI contracts. It must not be interpreted as the full
+personalization decision.
+
+When the six-factor policy is enabled, the app does not use
+`getSubjectRecommendation` or `prediction_runtime_v1_2026_03` as the main
+pedagogical decision owner for new predicted episode steps. Those paths remain
+compatibility/fallback surfaces for explicit opt-out, baseline, self-report, or
+legacy reads.
 
 ## Provenance
 
@@ -75,6 +90,9 @@ When apply mode is active, `sixFactorShadow` metadata records:
 
 If the artifact is missing, invalid, or runtime-incompatible, the adapter falls back to the explicit heuristic/static six-factor bridge and records warnings.
 If the scorer produces a non-finite score, the adapter also falls back and records a `scoring_error` warning.
+Old records that only contain `{ difficulty, depth }` are adapted to a complete
+six-factor shape only for read/export compatibility and are marked
+`decisionSource=legacy_derived`.
 
 ## Learner-facing UI
 

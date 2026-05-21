@@ -1,5 +1,7 @@
 # Repository Cleanup Report
 
+Historical cleanup report from 2026-05-07. Its Codex report location conclusion is superseded by the 2026-05-18 policy: new Codex/task reports go to `codex-report/`; `reports/codex/` is legacy/archive only.
+
 ## Что найдено
 
 - Активный Next.js runtime находится в `src/`.
@@ -42,16 +44,16 @@
 - `codex-report/.gitkeep` - legacy placeholder оставлен, сами отчёты перенесены в `reports/codex/`.
 - `.logs/` - output path используется `npm run dev:log`.
 
-## Обновлённая организация
+## Обновлённая организация на момент cleanup
 
-- Новые Codex reports должны идти в `reports/codex/`.
+- На 2026-05-07 cleanup action направлял Codex reports в `reports/codex/`; это правило superseded 2026-05-18.
 - Audits и review notes должны идти в `reports/audits/`.
 - Old one-off snapshots должны идти в `reports/archive/`.
 - Bulky local review/source packs должны идти в `eduai-clean/archive/`.
 
 ## Оставшиеся проблемы
 
-- `codex-report/` остаётся только как legacy placeholder; новые отчёты должны идти в `reports/codex/`.
+- Оценка `codex-report/` как legacy placeholder устарела; текущая policy 2026-05-18 считает `codex-report/` canonical current path для новых Codex/task reports.
 - В рабочем дереве много незакоммиченных runtime/source изменений, не связанных с этой cleanup-задачей.
 - `eslint.config.mjs` всё ещё содержит ignore-паттерны для старых root archive paths; они не ломают build, но могут быть упрощены отдельной config-only задачей.
 - `training_datasets` и `bootstrap_training` содержат generated data рядом с training scripts; это осознанно оставлено для reproducibility и требует отдельной data retention политики.

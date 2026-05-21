@@ -1,6 +1,6 @@
 # LLM Prompt Strictness Rules
 
-Updated: 2026-05-16
+Updated: 2026-05-19
 
 ## Required Section Order
 
@@ -9,7 +9,7 @@ Runtime prompt builders use this order where the data is available:
 1. Role/task
 2. Subject/topic context
 3. Learner profile and declared/effective preferences
-4. Learner-state aggregates
+4. Learner evidence summary, when explicitly needed; raw aggregate field dumps are not printed
 5. Six-factor personalization policy
 6. Content/output requirements
 7. Strict output format and conflict resolution
@@ -25,7 +25,7 @@ Six-factor config is mapped in `src/lib/ml-six-factor-render-mapping.ts`.
 | `depth` | Controls explanation length and reasoning detail. `brief` limits explanation to essentials; `detailed` requires intermediate reasoning and common-mistake support. |
 | `support_level` | Controls scaffolding. `minimal` gives a hint/cue before full solution; `guided` and `scaffolded` require at least one visible guided support marker such as `Check:`, `Hint:`, `Mini-question:`, or `Next step:` inside the allowed response fields. |
 | `presentation_format` | Controls structure inside explanation/chat text only. It must not change JSON keys, MCQ structure, option count, or `answerIndex`. |
-| `examples_level` | Controls examples. `none` suppresses extra examples; `single` requires exactly one visible marker such as `Example:` or `One example:` when the output format has room; `multiple` allows 2-3 clearly marked examples or one example plus a counterexample. |
+| `examples_level` | Controls examples. `none` suppresses extra examples; `single` asks for one short worked illustration when the output format has room; `multiple` allows 2-3 clearly marked examples or one example plus a counterexample. |
 | `terminology_level` | Controls terminology. `simple` uses everyday wording and defines required terms; `technical` uses precise terms with first-use definitions. |
 
 Unknown or null factors are normalized by the six-factor contract to safe baseline values before prompt instructions are built.
@@ -42,8 +42,8 @@ For `TestSchema`, visible support/example markers may appear only inside allowed
 
 Path-specific constraints:
 
-- Chat: if the learner asks about an underspecified prior check or mistake, the answer may state that exact context is missing, but it still includes one topic-safe `Example:` block and one visible `Next step:` or `Hint:` support element when six-factor apply mode is active.
-- Learning content: the card keeps the runtime schema requirement of 2-4 sections. With `examples_level=single`, the only example marker is a dedicated section heading `One example:`; other fields must avoid extra example cues.
+- Chat: if the learner asks about an underspecified prior check or mistake, the answer may state that exact context is missing, then still gives topic-safe explanation, hint, or a short example when useful.
+- Learning content: the card keeps the runtime schema requirement of 2-4 sections. With `examples_level=single`, the structural worked-example requirement is one section heading exactly `One example:`. The validator no longer fails merely because a normal body sentence contains the word "example".
 - Test generation: the requested MCQ count and TestSchema remain fixed; support/example wording may shape explanations only.
 
 ## Forbidden Prompt Inputs
@@ -54,17 +54,12 @@ Pre-decision prompts must not contain:
 - raw `TestAttempt` answer payloads,
 - future outcome labels,
 - post-decision target fields such as post-score, next-step-success, or normalized learning gain,
-- hidden training labels.
+- hidden training labels,
+- full internal generation packages,
+- internal-only fields such as `episodeId`, `protocolKey`, `policyId`, `assignmentSource`, `rulesLayer`, `linkedContentId`, `holdoutStrategy`, backend/artifact/candidate diagnostics, feature snapshots, feature refs, or raw user/session/content refs,
+- raw learner-state aggregate field dumps such as prior/recent rates, attempt counts, topic counts, recency, or session position.
 
-Allowed learner-state values are aggregate pre-decision signals, for example:
-
-- `priorAttemptsCount`,
-- `priorCorrectRate`,
-- `recentCorrectRate`,
-- `recentAttemptsCount`,
-- `topicSeenCount`,
-- `minutesSinceLastActivity`,
-- `sessionPosition`.
+Raw learner-state aggregates may still be used before generation for six-factor selection and retained in metadata for replay/export. External prompts receive only sanitized educational context, compact pedagogical profile, and strict output constraints.
 
 ## Technical MCQ Rule
 
@@ -81,7 +76,7 @@ For test generation:
 For learning content:
 
 - `learning_content_card` is strict JSON with no extra keys, title/summary/reflectionPrompt non-empty, and 2-4 non-empty sections.
-- Runtime validation checks topic anchoring and six-factor markers. `examples_level=single` must not produce multiple example markers; `support_level=guided` requires a visible guided marker.
+- Runtime validation checks topic anchoring and six-factor markers. `examples_level=single` requires one `sections[].heading === "One example:"`; `support_level=guided` requires a visible guided marker.
 
 ## Flags
 

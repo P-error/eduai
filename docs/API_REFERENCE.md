@@ -120,10 +120,11 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
 - Auth: required
 - Query: `subjectId` optional
 - Purpose: expected accuracy/time + next difficulty + chat engagement prediction
-- Runtime selection: loaded from `configs/active_policy.json`
+- Runtime selection: legacy accuracy/time prediction loaded from `configs/active_policy.json`; it is not the primary six-factor pedagogical policy for new episode/chat decisions.
 - Current config shape:
   - `version = prediction_runtime_config_v1_2026_03`
   - `policyId = prediction_runtime_v1_2026_03`
+  - optional `compatibilityRole = legacy_accuracy_runtime_not_primary_pedagogical_policy`
   - `backend.kind = heuristic_baseline | stub_model | artifact_ml`
   - `backend.heuristicPolicyId = v1_accuracy_raw_duration_baseline | v2_accuracy_beta_duration_unified` when `backend.kind=heuristic_baseline`
   - optional `backend.artifactPath` when `backend.kind=artifact_ml`
@@ -304,7 +305,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - strict answer length/type/range validation
   - one attempt per `(userId,testId)` enforced at DB-level (`TestAttempt_userId_testId_key`)
   - duplicate submit is idempotent: returns the existing attempt result
-  - prediction logging uses the active runtime backend selection from `configs/active_policy.json`
+  - prediction logging uses the legacy accuracy/time runtime backend selection from `configs/active_policy.json`
   - `_meta.prediction.policyId` stores the active runtime policy id
   - `_meta.prediction.runtime` stores backend kind, backend id, feature/artifact metadata, and explicit artifact state
   - `_meta.prediction.targets.*` stores per-target status and source metadata
@@ -329,9 +330,10 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - optional `context`: `{ subjectId?, subjectTitle?, sectionId?, sectionPath?, topic?, conceptKey?, skillKey?, familyKey? }`
   - optional `evaluation` with the same episode/assignment/sequence/linkage fields as `POST /api/tests/generate`
 - Behavior:
-  - applies baseline, self-report, or predicted runtime path before rendering the chat response
+  - applies baseline, self-report, or six-factor predicted runtime path before rendering the chat response
   - validates `context.subjectId` ownership when it is provided
-  - by default, the prompt receives learner-state aggregates and six-factor instructions; `EDUAI_SIX_FACTOR_APPLY=0` or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` disables learner-facing application
+  - by default, pre-decision learner-state aggregates are used for six-factor selection/logging, but raw aggregate fields are not printed into the chat prompt; when apply is enabled, the prompt receives a clean six-factor pedagogical profile/instruction block
+  - when the six-factor ML policy is enabled, `pedagogicalDecision.{difficulty,depth}` is a compatibility projection; `sixFactorPersonalization.selected_config` is the full six-factor learner-facing view
   - rate limiting: external route-class limiter (`chat_turn`) with per-user and per-IP minute windows
   - optional create/reuse of an evaluation episode
   - registers the chat session as a secondary-support evaluation episode item when evaluation is requested
@@ -347,6 +349,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
 - The coordinator materializes learning content as a structured explanation plus bounded episode-local dialogue loop inside the same evaluation episode contract.
 - Follow-up learner questions stay on the same episode-linked `chat_session`; `/chat` does not return as the canonical learner route.
 - `/learn` episode state may include `learningContent.mlPersonalization` and assistant dialogue message `mlPersonalization` fields. The UI shows them only when `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`.
+- New predicted episode steps store full six-factor delivered metadata in `decisionRuntimeJson.sixFactorDeliveredConfig`; stored `pedagogicalDecisionJson` may still expose `difficulty/depth`, but it is marked as a derived compatibility projection when six-factor metadata exists.
 - Tests remain the primary learning signal; the learning-content/chat step is logged only as secondary/supporting evidence.
 
 ### `POST /api/chat/send` (legacy)

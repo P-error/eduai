@@ -46,6 +46,7 @@ const DECISION_SOURCE_LABELS: Record<string, string> = {
   static_fallback: "безопасный fallback",
   fallback: "безопасный fallback",
   shadow_only: "shadow-наблюдение",
+  legacy_derived: "устаревшая совместимость",
 };
 
 function humanize(value: string | null | undefined) {
@@ -68,7 +69,8 @@ function decisionHeadline(metadata: MlPersonalizationView) {
   if (
     metadata.fallbackUsed ||
     metadata.decisionSource === "static_fallback" ||
-    metadata.decisionSource === "fallback"
+    metadata.decisionSource === "fallback" ||
+    metadata.decisionSource === "legacy_derived"
   ) {
     return "Использован безопасный fallback";
   }

@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import {
+  buildLegacyDerivedSixFactorDeliveredConfigMetadata,
   buildSixFactorDeliveredConfigMetadata,
   readSixFactorDeliveredConfigMetadata,
   type SixFactorDeliveredConfigMetadataV1,
@@ -142,6 +143,7 @@ async function loadExportEpisodes(
           topic: true,
           conceptKey: true,
           skillKey: true,
+          pedagogicalDecisionJson: true,
           decisionRuntimeJson: true,
           outcomeJson: true,
           deliveredAt: true,
@@ -209,10 +211,32 @@ async function loadContentMetadataMaps(
 }
 
 function readMetadataForItem(params: {
+  episode: LoadedEpisode;
   item: LoadedItem;
   contentMetadata: Prisma.JsonValue | null | undefined;
 }) {
-  const sources = [params.item.decisionRuntimeJson, params.contentMetadata];
+  const legacyDerived = buildLegacyDerivedSixFactorDeliveredConfigMetadata({
+    pedagogicalDecision: params.item.pedagogicalDecisionJson,
+    decisionRuntime: params.item.decisionRuntimeJson,
+    userRef: params.episode.userId,
+    subjectRef: params.item.subjectId ?? params.episode.subjectId,
+    topicRef:
+      params.item.conceptKey ??
+      params.episode.conceptKey ??
+      params.item.skillKey ??
+      params.episode.skillKey ??
+      params.item.topic ??
+      params.episode.topic,
+    sessionRef: params.item.episodeId,
+    contentEventRef: params.item.contentId,
+    decisionCreatedAt: params.item.deliveredAt,
+    featuresCutoffAt: params.item.deliveredAt,
+  });
+  const sources = [
+    params.item.decisionRuntimeJson,
+    params.contentMetadata,
+    legacyDerived,
+  ];
 
   for (const source of sources) {
     const metadata = readSixFactorDeliveredConfigMetadata(source);
@@ -455,7 +479,7 @@ export async function exportRealUserTrainingObservations(
         item.contentKind === "generated_test"
           ? metadataMaps.testMetadata.get(item.contentId)
           : metadataMaps.chatMetadata.get(item.contentId);
-      const metadata = readMetadataForItem({ item, contentMetadata });
+      const metadata = readMetadataForItem({ episode, item, contentMetadata });
 
       if (!metadata) {
         const hasMarker =

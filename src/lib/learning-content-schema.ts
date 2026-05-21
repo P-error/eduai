@@ -47,19 +47,23 @@ function anchorTokens(value: string) {
     .filter((token) => token.length >= 4);
 }
 
-function countExampleMarkers(text: string) {
-  return (
-    text.match(
-      /\b(one example|worked example|example|for example|sample|пример|например)\b/gi,
-    )?.length ?? 0
-  );
-}
-
 function hasGuidedSupportMarker(text: string) {
   return /\b(check|hint|mini[- ]?question|next step|try this)\s*[:：-]/i.test(text) ||
     /\b(проверь|подсказка|мини[- ]?вопрос|следующий шаг|попробуй)\s*[:：-]/i.test(
       text,
     );
+}
+
+function isExactSingleExampleHeading(value: string) {
+  return value.trim() === "One example:";
+}
+
+function isOtherExampleHeading(value: string) {
+  const heading = value.trim();
+  if (isExactSingleExampleHeading(heading)) return false;
+  return /\b(one example|worked example|example|for example|sample|пример|например)\b/i.test(
+    heading,
+  );
 }
 
 export function attachLearningContentSchemaVersion(
@@ -128,12 +132,23 @@ export function validateLearningContentCard(params: {
   }
 
   if (params.sixFactorConfig?.examples_level === "single") {
-    const exampleMarkers = countExampleMarkers(text);
-    if (exampleMarkers > 1) {
+    const exactExampleSections = params.card.sections.filter((section) =>
+      isExactSingleExampleHeading(section.heading),
+    );
+    const otherExampleHeadings = params.card.sections.filter((section) =>
+      isOtherExampleHeading(section.heading),
+    );
+    if (exactExampleSections.length === 0) {
       errors.push({
-        code: "too_many_example_markers",
+        code: "missing_single_example_section",
         message:
-          "examples_level=single allows at most one visible example marker.",
+          "examples_level=single requires one section heading exactly \"One example:\".",
+      });
+    } else if (exactExampleSections.length > 1 || otherExampleHeadings.length > 0) {
+      errors.push({
+        code: "too_many_example_sections",
+        message:
+          "examples_level=single allows only one worked-example section heading.",
       });
     }
   }

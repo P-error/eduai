@@ -6,6 +6,13 @@ import {
   type EvaluationTouchpointType,
 } from "@/lib/evaluation";
 import { type RenderingDecision } from "@/lib/personalization-runtime";
+import {
+  buildExternalLearningContentTaskPackage,
+  buildExternalTestGenerationTaskPackage,
+} from "@/lib/prompt-materialization";
+import type {
+  SixFactorPedagogicalPromptProfileV1,
+} from "@/lib/ml-six-factor-render-mapping";
 
 export const EPISODE_GENERATION_PACKAGE_SCHEMA_VERSION =
   "episode_generation_package_v1_2026_03" as const;
@@ -101,27 +108,41 @@ export type LearningContentCard = {
   reflectionPrompt: string;
 };
 
-export function buildTestGenerationPrompt(packageInput: TestGenerationPackage) {
+export function buildTestGenerationPrompt(
+  packageInput: TestGenerationPackage,
+  sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null,
+) {
+  const externalPackage = buildExternalTestGenerationTaskPackage(
+    packageInput,
+    sixFactorProfile,
+  );
+
   return [
-    "Generate a test strictly from this structured package.",
-    "Do not change the pedagogical decision, rendering constraints, linkage contract, or output contract.",
+    "Generate a test strictly from this external task package.",
     "Strict output format: return only JSON matching TestSchema: {\"title\": string, \"questions\": [{\"prompt\": string, \"options\": string[], \"answerIndex\": number, \"explanation\": string}]}",
     "Technical response_format=mcq is mandatory. presentation_format may affect wording inside prompt/explanation only; it must not change JSON keys, MCQ option structure, option count, answerIndex, or validation format.",
+    "Use the requested question count from outputContract.questionCount exactly.",
     "Safety/schema constraints override personalization style and six-factor presentation instructions.",
-    JSON.stringify(packageInput, null, 2),
+    JSON.stringify(externalPackage, null, 2),
   ].join("\n\n");
 }
 
 export function buildLearningContentPrompt(
   packageInput: LearningContentGenerationPackage,
+  sixFactorProfile?: SixFactorPedagogicalPromptProfileV1 | null,
 ) {
+  const externalPackage = buildExternalLearningContentTaskPackage(
+    packageInput,
+    sixFactorProfile,
+  );
+
   return [
-    "Generate learning content strictly from this structured package.",
+    "Generate learning content strictly from this external task package.",
     "This step is the instructional core of the episode and must prepare the learner for later test-based evaluation.",
     "Do not mention hidden policies, internal metadata, or package fields.",
     "Strict output format: return only JSON matching learning_content_card: {\"title\": string, \"summary\": string, \"sections\": [{\"heading\": string, \"body\": string}], \"reflectionPrompt\": string}. The sections array must contain 2-4 items.",
     "Safety/schema constraints override personalization style and six-factor presentation instructions.",
-    JSON.stringify(packageInput, null, 2),
+    JSON.stringify(externalPackage, null, 2),
   ].join("\n\n");
 }
 

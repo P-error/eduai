@@ -44,7 +44,7 @@ Some documents are explicitly marked as baseline or historical reference documen
 9. `docs/repository_map.md` - repository structure and risky paths.
 10. `docs/artifact_inventory.md` - generated artifacts, canonical examples, and archive policy.
 11. `docs/cleanup_policy.md` - cleanup destinations and pre-move checks.
-12. `docs/repository_cleanup_report.md` - latest repository cleanup findings.
+12. `docs/repository_cleanup_report.md` - historical repository cleanup findings; current Codex/task report location is defined in cleanup/map/inventory docs.
 13. `docs/llm_prompt_inventory.md` - real external LLM prompt/message paths.
 14. `docs/llm_prompt_strictness_rules.md` - prompt ordering, six-factor mapping, and schema precedence.
 15. `docs/llm_prompt_audit.md` - local prompt snapshot audit and assertions.
@@ -64,3 +64,4 @@ Some documents are explicitly marked as baseline or historical reference documen
 - User-facing language uses: `Personalized` / `Standard`.
 - Internal keys (`policyMode`, `learningEligible`, axis keys) are documented for engineering only.
 - If a document is marked as `baseline`, `legacy`, or `historical reference`, it is not the strategic target-state core by itself.
+- Current Codex/task reports are written to `codex-report/`; `reports/codex/` is legacy/archive only.

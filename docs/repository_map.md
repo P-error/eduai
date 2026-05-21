@@ -1,6 +1,6 @@
 # Repository Map
 
-Карта отражает фактическую структуру репозитория после обновления документации под текущий исполняемый контур.
+Карта отражает фактическую структуру репозитория после обновления документации под текущий исполняемый контур и policy update 2026-05-18.
 
 ## Основные зоны
 
@@ -25,10 +25,11 @@
 
 ## Reports
 
-- `reports/codex/` - отчёты Codex по задачам, включая legacy `codex_report_*.md`, перенесённые из `codex-report/`.
+- `codex-report/` - canonical current location для новых Codex/task reports.
+- `reports/codex/` - legacy/archive location для старых Codex reports, включая ранее перенесённые `codex_report_*.md`; не использовать для новых отчётов.
 - `reports/audits/` - аудиты и ревью состояния репозитория.
 - `reports/archive/` - старые одноразовые отчёты, tree snapshots и исторические report snapshots.
-- `codex-report/` - legacy placeholder. После cleanup active report location: `reports/codex/`.
+- Один и тот же Codex/task report не должен дублироваться в `codex-report/` и `reports/codex/`.
 
 ## Generated and tracked artifacts
 

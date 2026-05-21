@@ -1148,6 +1148,8 @@ export async function POST(
           ),
         },
       });
+    }, {
+      timeout: 15_000,
     });
   } catch (error) {
     if (

@@ -11,6 +11,9 @@ import {
   normalizeTrainingDatasetPhase,
   type TrainingDatasetPhase,
 } from "@/lib/training-dataset-contract";
+import {
+  readSixFactorDeliveredConfigMetadata,
+} from "@/lib/ml-six-factor-decision-metadata";
 
 export const EVALUATION_SCHEMA_VERSION =
   "evaluation_protocol_v1_2026_03" as const;
@@ -227,12 +230,14 @@ export type EvaluationItemMeta = {
     | {
         difficulty: string;
         depth: string;
+        [key: string]: unknown;
       }
     | null;
   decisionRuntime: {
     runtimePolicyId: string | null;
     backendKind: string | null;
     backendId: string | null;
+    [key: string]: unknown;
   };
   assignment: EvaluationAssignmentMeta;
 };
@@ -749,6 +754,29 @@ function parseDelayedMinutes(value: unknown) {
     : null;
 }
 
+function buildStoredPedagogicalDecisionJson(params: {
+  pedagogicalDecision: EvaluationItemMeta["pedagogicalDecision"];
+  decisionRuntimeJson: Record<string, unknown> | null;
+}) {
+  if (params.pedagogicalDecision == null) return null;
+  const sixFactorDeliveredConfig = readSixFactorDeliveredConfigMetadata(
+    params.decisionRuntimeJson,
+  );
+  if (!sixFactorDeliveredConfig) return params.pedagogicalDecision;
+
+  return {
+    ...params.pedagogicalDecision,
+    compatibilityRole: "derived_two_factor_projection",
+    derivedFrom:
+      sixFactorDeliveredConfig.decisionSource === "legacy_derived"
+        ? "legacy_derived"
+        : "six_factor_delivered_config",
+    sixFactorConfig: sixFactorDeliveredConfig.deliveredConfig,
+    sixFactorDecisionSource: sixFactorDeliveredConfig.decisionSource,
+    sixFactorFallbackUsed: sixFactorDeliveredConfig.fallbackUsed,
+  };
+}
+
 function sequenceRoleSatisfied(
   sequenceRole: EvaluationSequenceRole,
   items: EvaluationItemRecord[],
@@ -888,11 +916,13 @@ function parseItemRecord(item: {
     typeof pedagogicalDecision?.difficulty === "string" &&
     typeof pedagogicalDecision?.depth === "string"
       ? {
+          ...pedagogicalDecision,
           difficulty: pedagogicalDecision.difficulty,
           depth: pedagogicalDecision.depth,
         }
       : null;
   const normalizedDecisionRuntime = {
+    ...(decisionRuntime ?? {}),
     runtimePolicyId:
       typeof decisionRuntime?.runtimePolicyId === "string"
         ? decisionRuntime.runtimePolicyId
@@ -1635,6 +1665,10 @@ export async function registerEvaluationEpisodeItem(params: {
           ...(params.item.decisionRuntime ?? {}),
           ...params.decisionRuntimeSupplement,
         };
+  const storedPedagogicalDecisionJson = buildStoredPedagogicalDecisionJson({
+    pedagogicalDecision: params.item.pedagogicalDecision,
+    decisionRuntimeJson,
+  });
 
   let created: {
     id: string;
@@ -1665,9 +1699,9 @@ export async function registerEvaluationEpisodeItem(params: {
         sectionId: params.item.sectionId,
         topic: params.item.topic,
         pedagogicalDecisionJson:
-          params.item.pedagogicalDecision == null
+          storedPedagogicalDecisionJson == null
             ? Prisma.JsonNull
-            : (params.item.pedagogicalDecision as Prisma.InputJsonValue),
+            : (storedPedagogicalDecisionJson as Prisma.InputJsonValue),
         decisionRuntimeJson:
           decisionRuntimeJson == null
             ? Prisma.JsonNull
@@ -2286,8 +2320,8 @@ export function runEvaluationProtocolSyntheticSelfCheck() {
         subjectId: item.subjectId,
         sectionId: item.sectionId,
         topic: item.topic,
-        pedagogicalDecisionJson: item.pedagogicalDecision,
-        decisionRuntimeJson: item.decisionRuntime,
+        pedagogicalDecisionJson: item.pedagogicalDecision as Prisma.JsonValue,
+        decisionRuntimeJson: item.decisionRuntime as Prisma.JsonValue,
         outcomeJson: {
           attemptId: "attempt-2",
           accuracy: 0.8,

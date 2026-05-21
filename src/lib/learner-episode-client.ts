@@ -58,6 +58,10 @@ export type LearnerEpisodeLearningContent = {
   pedagogicalContext: {
     difficulty: string | null;
     depth: string | null;
+    supportLevel?: string | null;
+    presentationFormat?: string | null;
+    examplesLevel?: string | null;
+    terminologyLevel?: string | null;
     tone: string | null;
     explanationStyle: string | null;
     policyMode: string | null;

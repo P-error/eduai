@@ -22,6 +22,8 @@ npx tsc \
   src/lib/ml-six-factor-candidate-generator.ts \
   src/lib/ml-six-factor-runtime-scorer.ts \
   src/lib/ml-six-factor-policy-adapter.ts \
+  src/lib/ml-six-factor-learner-state-features.ts \
+  src/lib/ml-six-factor-primary-decision.ts \
   src/lib/ml-six-factor-render-mapping.ts \
   src/lib/ml-six-factor-shadow.ts \
   src/lib/ml-six-factor-apply.ts \

@@ -4,7 +4,7 @@
 
 ## Куда класть новые материалы
 
-- Codex task reports: `reports/codex/codex_report_YYYYMMDD_HHMM.md`.
+- Codex task reports: `codex-report/codex_report_YYYYMMDD_HHMM.md`.
 - Project audits/reviews: `reports/audits/`.
 - Старые одноразовые отчёты и tree snapshots: `reports/archive/`.
 - ML evaluation summaries, если они не принадлежат конкретному training lane: `reports/ml/`.
@@ -22,7 +22,7 @@
 
 Исключение: активные project files вроде `README.md`, `VISION.md`, `AGENTS.md`, `context_seed.md`, config/build files и package locks.
 
-Legacy path `codex-report/` может оставаться как placeholder, но новые task reports должны сохраняться в `reports/codex/`.
+`reports/codex/` является legacy/archive location для старых Codex reports. Новые task reports туда не писать и не создавать дубли одного отчёта одновременно в `codex-report/` и `reports/codex/`.
 
 ## Naming
 

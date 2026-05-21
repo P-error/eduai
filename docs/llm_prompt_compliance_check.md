@@ -92,7 +92,7 @@ The JSON includes:
 - leakage/strict-rule violations,
 - recommendations.
 
-For `support_level=guided`, compliance expects a visible guided support marker such as `Check:`, `Hint:`, `Mini-question:`, or `Next step:`. For `examples_level=single`, compliance expects exactly one visible example marker such as `Example:` or `One example:` in chat/learning content responses. MCQ/TestSchema responses keep the technical schema as the higher-priority contract; support/example signals may only appear inside allowed prompt or explanation fields.
+For `support_level=guided`, compliance expects a visible guided support marker such as `Check:`, `Hint:`, `Mini-question:`, or `Next step:`. For `examples_level=single`, learning-content compliance is structural: one dedicated `One example:` section heading is expected, while normal body text is not rejected merely for containing the word "example". MCQ/TestSchema responses keep the technical schema as the higher-priority contract; support/example signals may only appear inside allowed prompt or explanation fields.
 
 For `learning_content_card`, the compliance check also enforces the runtime contract of 2-4 sections. With `examples_level=single`, the prompt requires a single dedicated `One example:` section heading and no extra example cues elsewhere in the card. For chat prompts that reference an underspecified prior check, a compliant response must not only ask for more context; it must still provide one topic-safe example and one visible guided next step when six-factor apply mode is active.
 

@@ -23,6 +23,7 @@ export type PedagogicalHintPolicyV1 =
   | "guided_scaffolding"
   | "unknown";
 export type PedagogicalDecisionSourceV1 =
+  | "six_factor_policy"
   | "predicted_runtime_bridge"
   | "declared_preference_bridge"
   | "baseline_bridge"
@@ -201,6 +202,7 @@ function normalizeDecisionSourceV1(
   value: string | null | undefined,
 ): PedagogicalDecisionSourceV1 {
   if (
+    value === "six_factor_policy" ||
     value === "predicted_runtime_bridge" ||
     value === "declared_preference_bridge" ||
     value === "baseline_bridge" ||
