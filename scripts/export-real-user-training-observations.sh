@@ -18,6 +18,7 @@ npx tsc \
   src/lib/ml-six-factor-policy-contract.ts \
   src/lib/ml-six-factor-feature-builder.ts \
   src/lib/ml-six-factor-shadow.ts \
+  src/lib/ml-six-factor-fallback.ts \
   src/lib/ml-six-factor-decision-metadata.ts \
   src/lib/ml-six-factor-outcome-linking.ts \
   src/lib/ml-six-factor-training-observation.ts \

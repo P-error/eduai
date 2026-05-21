@@ -68,7 +68,7 @@ function readString(value: unknown) {
 
 function normalizeLimit(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return 1000;
-  return Math.max(1, Math.min(10_000, Math.floor(value)));
+  return Math.max(1, Math.min(50_000, Math.floor(value)));
 }
 
 function normalizeDatasetOriginPrefix(
@@ -122,6 +122,7 @@ async function loadExportEpisodes(
       conceptKey: true,
       skillKey: true,
       createdAt: true,
+      assignmentJson: true,
       user: {
         select: {
           id: true,
@@ -401,6 +402,63 @@ function buildOutcomeLinkForItem(params: {
   } as const;
 }
 
+function enrichMetadataWithEpisodePolicyContext(params: {
+  episode: LoadedEpisode;
+  metadata: SixFactorDeliveredConfigMetadataV1;
+}): SixFactorDeliveredConfigMetadataV1 {
+  const assignment = isRecord(params.episode.assignmentJson)
+    ? params.episode.assignmentJson
+    : {};
+  const routing = isRecord(assignment.researchRouting)
+    ? assignment.researchRouting
+    : {};
+
+  const policyId =
+    readString(assignment.policyId) ??
+    readString(assignment.policy_id) ??
+    params.metadata.policyId ??
+    null;
+
+  const modelVersion =
+    readString(assignment.servedModelVersion) ??
+    readString(assignment.modelVersion) ??
+    readString(assignment.model_version) ??
+    params.metadata.modelVersion ??
+    null;
+
+  const backendKind =
+    readString(assignment.backendKind) ??
+    readString(assignment.backend_kind) ??
+    readString(assignment.policyMode) ??
+    params.metadata.backendKind ??
+    null;
+
+  const explicitFallback =
+    typeof assignment.fallbackUsed === "boolean"
+      ? assignment.fallbackUsed
+      : typeof assignment.usedFallback === "boolean"
+        ? assignment.usedFallback
+        : typeof assignment.isFallback === "boolean"
+          ? assignment.isFallback
+          : null;
+
+  const reroutedThisEpisode =
+    typeof routing.reroutedThisEpisode === "boolean"
+      ? routing.reroutedThisEpisode
+      : null;
+
+  return {
+    ...params.metadata,
+    policyId,
+    modelVersion,
+    backendKind,
+    fallbackUsed:
+      explicitFallback ??
+      reroutedThisEpisode ??
+      false,
+  };
+}
+
 function buildObservationFromItem(params: {
   episode: LoadedEpisode;
   item: LoadedItem;
@@ -494,10 +552,15 @@ export async function exportRealUserTrainingObservations(
         continue;
       }
 
+      const policyEnrichedMetadata = enrichMetadataWithEpisodePolicyContext({
+        episode,
+        metadata,
+      });
+
       const outcomeLinkResult = buildOutcomeLinkForItem({
         episode,
         item,
-        metadata,
+        metadata: policyEnrichedMetadata,
         strictEpisodeOutcomeLinking: options.strictEpisodeOutcomeLinking,
       });
       if (!outcomeLinkResult.outcomeLink) {
@@ -513,7 +576,7 @@ export async function exportRealUserTrainingObservations(
       const observation = buildObservationFromItem({
         episode,
         item,
-        metadata,
+        metadata: policyEnrichedMetadata,
         outcomeLink,
       });
       if (!isTrainingObservationV1Shape(observation)) {
