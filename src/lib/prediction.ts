@@ -183,11 +183,11 @@ function buildPredictionNotes(runtime: PredictionRuntimeDescriptor) {
     );
   } else if (runtime.backendStatus === "ready") {
     disclaimer.unshift(
-      "Expected accuracy currently uses an artifact-backed offline ML backend.",
+      "Expected accuracy currently uses an accuracy artifact-backed offline ML backend.",
     );
   } else {
     disclaimer.unshift(
-      "Artifact-backed ML backend is configured, but the runtime artifact slot is not ready.",
+      "Accuracy artifact-backed ML backend is configured, but the runtime artifact slot is not ready.",
     );
     limitations.push(
       `Configured artifact state: ${runtime.artifact.status}${runtime.artifact.warning ? ` (${runtime.artifact.warning})` : ""}.`,

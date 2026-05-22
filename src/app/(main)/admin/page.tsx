@@ -222,55 +222,55 @@ export default function AdminOverviewPage() {
               <span>{summary.runtime.artifactPath ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Artifact runtime ready</span>
+              <span>Accuracy artifact runtime ready</span>
               <span>{summary.runtime.artifactRuntimeReady ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>ML-first production eligible</span>
+              <span>Accuracy ML-first production eligible</span>
               <span>{summary.runtime.mlFirstProductionEligible ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Production eligible</span>
+              <span>Accuracy production eligible</span>
               <span>{summary.runtime.productionEligible ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Research evidence</span>
+              <span>Accuracy artifact research evidence</span>
               <span>{summary.runtime.researchEvidence ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Strict ML-first ready</span>
+              <span>Strict accuracy ML-first ready</span>
               <span>{summary.runtime.mlFirstReady ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Fallback available</span>
+              <span>Accuracy fallback available</span>
               <span>{summary.runtime.heuristicFallbackAvailable ? messages.common.yes : messages.common.no}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Fallback mode</span>
+              <span>Accuracy fallback mode</span>
               <span>{summary.runtime.fallbackMode}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Artifact status</span>
+              <span>Accuracy artifact status</span>
               <span>{summary.runtime.artifactStatus}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Artifact schema</span>
+              <span>Accuracy artifact schema</span>
               <span>{summary.runtime.artifactSchemaVersion ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Model version</span>
+              <span>Accuracy model version</span>
               <span>{summary.runtime.artifactModelVersion ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Artifact source</span>
+              <span>Accuracy artifact source</span>
               <span>{summary.runtime.artifactSourceMode ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Artifact provenance</span>
+              <span>Accuracy artifact provenance</span>
               <span>{summary.runtime.artifactProvenance ?? messages.adminOverview.notConfigured}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Eligible/consent only</span>
+              <span>Accuracy artifact eligible/consent only</span>
               <span>
                 {summary.runtime.artifactEligibleOnly === true &&
                 summary.runtime.artifactConsentOnly === true
@@ -279,14 +279,14 @@ export default function AdminOverviewPage() {
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Train/eval rows</span>
+              <span>Accuracy train/eval rows</span>
               <span>
                 {summary.runtime.artifactTrainSampleCount ?? "n/a"}/
                 {summary.runtime.artifactEvalSampleCount ?? "n/a"}
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>ML-first eligibility</span>
+              <span>Accuracy ML-first eligibility</span>
               <span>
                 {summary.runtime.productionEligibilityReason ??
                   summary.runtime.artifactMlFirstEligibilityReason ??

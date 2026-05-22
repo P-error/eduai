@@ -247,34 +247,34 @@ async function checkPredictionRuntime() {
   if (snapshot.config.backend.kind === "artifact_ml") {
     if (artifactRuntimeReady && mlFirstProductionEligible) {
       return okCheck(
-        "Prediction runtime is serving from a production-eligible ML artifact.",
+        "Legacy accuracy/time prediction runtime is serving from a production-eligible ML artifact.",
         details,
       );
     }
     if (artifactRuntimeReady) {
       return warnCheck(
-        "DEV ML artifact active; artifact runtime is ready but not production/research eligible.",
+        "DEV accuracy/time ML artifact active; artifact runtime is ready but not production/research eligible.",
         details,
       );
     }
     return errorCheck(
-      "Prediction runtime is configured for artifact ML, but the artifact is missing or invalid.",
+      "Legacy accuracy/time prediction runtime is configured for artifact ML, but the artifact is missing or invalid.",
       details,
     );
   }
 
   if (snapshot.config.backend.kind === "heuristic_baseline") {
     return warnCheck(
-      "Prediction runtime is using an explicit heuristic fallback; accuracy ML-first is blocked until a valid artifact is configured.",
+      "Legacy accuracy/time prediction runtime is using an explicit heuristic fallback; accuracy ML-first is blocked until a valid artifact is configured.",
       details,
     );
   }
 
   if (snapshot.warning) {
-    return warnCheck("Prediction runtime is interpretable with warnings.", details);
+    return warnCheck("Legacy accuracy/time prediction runtime is interpretable with warnings.", details);
   }
 
-  return okCheck("Prediction runtime state is interpretable.", details);
+  return okCheck("Legacy accuracy/time prediction runtime state is interpretable.", details);
 }
 
 async function checkArtifactSlot() {
@@ -298,16 +298,16 @@ async function checkArtifactSlot() {
 
   if (runtime.config.backend.kind === "artifact_ml") {
     if (artifactSnapshot?.status === "ready") {
-      return okCheck("Artifact-backed runtime slot is ready.", details);
+      return okCheck("Legacy accuracy/time artifact-backed runtime slot is ready.", details);
     }
-    return errorCheck("Artifact-backed runtime is configured, but artifact slot is not ready.", details);
+    return errorCheck("Legacy accuracy/time artifact-backed runtime is configured, but artifact slot is not ready.", details);
   }
 
   if (slotSnapshot.status === "invalid") {
-    return warnCheck("Artifact slot metadata is invalid, but runtime is not serving from it.", details);
+    return warnCheck("Accuracy artifact slot metadata is invalid, but runtime is not serving from it.", details);
   }
 
-  return okCheck("Artifact slot state is interpretable for the current bridge runtime.", details);
+  return okCheck("Accuracy artifact slot state is interpretable for the legacy bridge runtime.", details);
 }
 
 function checkSixFactorArtifact() {
@@ -409,9 +409,9 @@ export async function getOperationalReadinessReport(): Promise<OperationalReadin
     prismaContract: "Prisma/runtime contract",
     auth: "Auth/session config",
     rateLimiter: "Rate limiter backend",
-    predictionRuntime: "Prediction runtime state",
-    artifactSlot: "Artifact slot state",
-    sixFactorArtifact: "Six-factor ML artifact state",
+    predictionRuntime: "Legacy accuracy/time prediction runtime state",
+    artifactSlot: "Legacy accuracy artifact slot state",
+    sixFactorArtifact: "Primary six-factor ML artifact state",
     llm: "LLM configuration",
   };
   const checks = Object.entries(components).map(([key, component]) => ({

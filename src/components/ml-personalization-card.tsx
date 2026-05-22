@@ -46,7 +46,7 @@ const terminologyLabels = {
 
 const decisionSourceLabels: Record<string, string> = {
   ml_policy: "ML-модель",
-  heuristic_baseline: "эвристическая персонализация",
+  heuristic_baseline: "эвристический fallback (не ML)",
   static_fallback: "безопасный fallback",
   fallback: "безопасный fallback",
   shadow_only: "shadow-наблюдение",
@@ -80,7 +80,7 @@ function decisionHeadline(metadata: MlPersonalizationView) {
     return "Использован безопасный fallback";
   }
   if (metadata.decisionSource === "heuristic_baseline") {
-    return "Эвристическая персонализация выбрала";
+    return "Эвристический fallback выбрал";
   }
   if (metadata.decisionSource === "ml_policy") {
     return "ML-модель выбрала";

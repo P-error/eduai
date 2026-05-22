@@ -14,14 +14,16 @@ Read this first when judging the current implementation:
 
 The current implementation has two separate ML-related runtime contours:
 
-1. **Prediction accuracy runtime**
+1. **Prediction accuracy/time runtime**
    - Configured by `configs/active_policy.json`.
+   - This is a legacy compatibility runtime for expected accuracy/time support, not the primary pedagogical policy.
    - Current tracked config uses `backend.kind=artifact_ml` with `configs/ml_accuracy_logreg_artifact.dev.json`.
    - That DEV artifact predicts `expected_accuracy` only.
    - It is synthetic/dev evidence, not production ML-first evidence and not real-user learning-effect proof.
 
 2. **Six-factor pedagogical runtime**
    - Implemented in `src/lib/ml-six-factor-*.ts`.
+   - This is the primary pedagogical decision path for new predicted/observational learner-facing flows.
    - Default artifact path: `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
    - Selects and applies six pedagogical/rendering factors:
      - `difficulty`
@@ -37,6 +39,7 @@ The current implementation has two separate ML-related runtime contours:
    - Current artifact provenance is synthetic/bootstrap. It verifies runtime integration and metadata provenance; it does not prove real educational effectiveness.
 
 Older documents may still mention the early two-factor scope (`difficulty` + `depth`). Treat that as the early bridge scope, not as a complete description of the current runtime.
+When six-factor metadata exists, `{ difficulty, depth }` is only a two-factor compatibility projection.
 
 ## Research framing
 
@@ -101,9 +104,12 @@ Local/demo six-factor mode is explicit in `.env.example`:
 EDUAI_SIX_FACTOR_SHADOW=1
 EDUAI_SIX_FACTOR_ML_POLICY=1
 EDUAI_SIX_FACTOR_APPLY=1
+EDUAI_SIX_FACTOR_SHADOW_ONLY=0
 EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
 NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1
 ```
+
+`NEXT_PUBLIC_SHOW_ML_PERSONALIZATION` controls UI visibility/debug details only. It does not enable or disable six-factor runtime decisions.
 
 3. Start local Postgres and app:
 
@@ -132,7 +138,7 @@ npm run auth:self-check
 npm run pilot-readiness:smoke
 ```
 
-`/api/ready` is the runtime gate. It checks DB, Prisma contract, auth config, rate limiter, prediction runtime, artifact slots, six-factor artifact state, and LLM config.
+`/api/ready` is the runtime gate. It checks DB, Prisma contract, auth config, rate limiter, legacy accuracy/time prediction runtime, artifact slots, six-factor artifact state, and LLM config.
 
 ## Quality checks
 
@@ -153,7 +159,7 @@ npm run prediction-runtime:dev-self-check
 npm run pilot-readiness:smoke
 ```
 
-The strict production ML-first gate is:
+The strict production accuracy ML-first gate is:
 
 ```bash
 npm run prediction-runtime:self-check

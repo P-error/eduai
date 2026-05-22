@@ -4,13 +4,14 @@ This folder documents the current implemented state of EduAI and the agreed rese
 
 Current runtime note:
 
-- EduAI currently has a prediction accuracy runtime configured by `configs/active_policy.json`.
+- EduAI currently has a legacy prediction accuracy/time support runtime configured by `configs/active_policy.json`.
 - The tracked active policy uses a synthetic/dev `artifact_ml` accuracy artifact at `configs/ml_accuracy_logreg_artifact.dev.json`.
-- EduAI also has an integrated six-factor pedagogical runtime in `src/lib/ml-six-factor-*.ts`.
+- EduAI also has an integrated six-factor pedagogical runtime in `src/lib/ml-six-factor-*.ts`; this is the primary pedagogical decision path for new predicted/observational learner-facing flows.
 - The current default six-factor scorer path is `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
 - The six factors are `difficulty`, `depth`, `support_level`, `presentation_format`, `examples_level`, and `terminology_level`.
 - Synthetic/dev artifacts verify runtime wiring and provenance, not real-user learning effect.
 - Older wording about only `difficulty + depth` describes an earlier bridge phase, not the complete current runtime.
+- Stored `{ difficulty, depth }` values are either two six-factor fields or compatibility projections, not the whole personalization decision.
 
 `docs/RESEARCH_SPEC.md` is the primary research framing document for dissertation-related decisions.
 `VISION.md` is the target-state product direction.

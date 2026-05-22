@@ -40,12 +40,20 @@ The local template points runtime to the THU six-factor ML scorer. ML/apply is e
 EDUAI_SIX_FACTOR_SHADOW=1
 EDUAI_SIX_FACTOR_ML_POLICY=1
 EDUAI_SIX_FACTOR_APPLY=1
+EDUAI_SIX_FACTOR_SHADOW_ONLY=0
 EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
 ```
 
-For a fast local rollback, set `EDUAI_SIX_FACTOR_APPLY=0`, `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`, or `EDUAI_SIX_FACTOR_ML_POLICY=0` for legacy fallback.
+Flag roles:
+- `EDUAI_SIX_FACTOR_SHADOW=1` builds six-factor metadata/logging.
+- `EDUAI_SIX_FACTOR_ML_POLICY=1` enables artifact candidate scoring for the six-factor pedagogical decision.
+- `EDUAI_SIX_FACTOR_APPLY=1` applies the selected six-factor profile to learner-facing prompts.
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` keeps scoring/logging but disables learner-facing apply.
 
-Prediction accuracy ML-first is separate from the six-factor scorer. To generate the local accuracy artifact from runtime-eligible data:
+For a fast local rollback, set `EDUAI_SIX_FACTOR_APPLY=0`, `EDUAI_SIX_FACTOR_SHADOW_ONLY=1`, or `EDUAI_SIX_FACTOR_ML_POLICY=0` for explicit fallback. That fallback is not ML evidence.
+`NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1` only reveals UI/debug details; it does not enable or disable runtime six-factor decisions.
+
+Legacy prediction accuracy/time ML-first is separate from the six-factor scorer. To generate the local accuracy artifact from runtime-eligible data:
 
 ```bash
 DATABASE_URL="postgresql://eduai:eduai_dev_password@localhost:5432/eduai?schema=public" \

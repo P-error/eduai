@@ -28,13 +28,14 @@ the modern pedagogical decision policy.
 
 ## Runtime Flags
 
-- ML policy is enabled by default. `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off` disables it and uses the legacy heuristic/static fallback.
-- Six-factor metadata construction is enabled by default. `EDUAI_SIX_FACTOR_SHADOW=0|false|off` disables metadata construction.
-- Learner-facing apply is enabled by default. `EDUAI_SIX_FACTOR_APPLY=0|false|off` disables prompt application.
+- `EDUAI_SIX_FACTOR_SHADOW=1` enables metadata/logging construction for six-factor decisions.
+- `EDUAI_SIX_FACTOR_ML_POLICY=1` enables artifact candidate scoring for the six-factor pedagogical decision.
+- `EDUAI_SIX_FACTOR_APPLY=1` applies the selected six-factor profile to learner-facing prompts.
 - `EDUAI_SIX_FACTOR_SHADOW_ONLY=1|true|on` scores/logs the candidate but does not apply it to learner-facing prompts.
-- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional JSON artifact path. If omitted, the adapter first uses `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`, then the legacy example artifact if present.
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH` is the JSON artifact path for this primary pedagogical runtime. It is separate from `configs/active_policy.json`. If omitted, the adapter first uses `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`, then the legacy example artifact if present.
 
 If the artifact is missing, invalid, or runtime-incompatible, the app falls back safely and records the fallback reason in warnings.
+If `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off`, the app uses the explicit heuristic/static fallback; that fallback is not ML evidence.
 
 ## Artifact Adapter
 

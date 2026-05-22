@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This layer records the app-facing six-factor decision that was available at delivery time. It supports the dissertation loop:
+This layer records the primary app-facing six-factor pedagogical decision that was available at delivery time. It supports the dissertation loop:
 
 `decision -> delivered content -> observed outcome -> real_user training_observation.v1 export`.
 
@@ -46,3 +46,5 @@ If `EDUAI_SIX_FACTOR_APPLY=1`, metadata records:
 - `appliedPromptInstructionCount=6`
 
 If apply is disabled, `appliedToLearnerFacingOutput=false`. Default learner-facing behavior remains unchanged.
+`EDUAI_SIX_FACTOR_SHADOW_ONLY=1` keeps scoring/logging while also forcing `appliedToLearnerFacingOutput=false`.
+`NEXT_PUBLIC_SHOW_ML_PERSONALIZATION` only controls UI visibility/debug details and does not change this runtime metadata.

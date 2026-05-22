@@ -210,9 +210,10 @@ function formatArmLabel(value: string) {
 }
 
 function backendHonestyLabel(backendKind: string | null | undefined) {
-  if (backendKind === "artifact_ml") return "Artifact-backed ML";
+  if (backendKind === "artifact_ml") return "Accuracy artifact ML support";
   if (backendKind === "heuristic_baseline") return "Heuristic baseline, not ML";
   if (backendKind === "stub_model") return "Stub model, not ML";
+  if (backendKind === "six_factor_policy") return "Primary six-factor policy";
   return "Backend not declared";
 }
 

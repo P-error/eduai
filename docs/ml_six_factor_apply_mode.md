@@ -19,13 +19,14 @@ pre-decision features + candidate_config -> predicted outcome
 
 ## Flags
 
-- `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off`: disables artifact-backed candidate scoring and uses legacy fallback.
-- `EDUAI_SIX_FACTOR_APPLY=0|false|off`: disables learner-facing prompt application.
-- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1|true|on`: keeps ML scoring/logging but does not apply the prompt block.
-- `EDUAI_SIX_FACTOR_SHADOW=0|false|off`: disables six-factor metadata construction.
-- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: optional artifact path for ML policy mode.
+- `EDUAI_SIX_FACTOR_SHADOW=1`: enables six-factor metadata/logging construction.
+- `EDUAI_SIX_FACTOR_ML_POLICY=1`: enables artifact-backed candidate scoring for the six-factor pedagogical decision.
+- `EDUAI_SIX_FACTOR_APPLY=1`: applies the selected six-factor profile to learner-facing prompts.
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=1|true|on`: keeps scoring/logging but does not apply the prompt block.
+- `EDUAI_SIX_FACTOR_ARTIFACT_PATH`: artifact path for six-factor ML policy mode, separate from `configs/active_policy.json`.
 
 Absence of these flags keeps ML policy, six-factor decision, and apply active.
+Setting `EDUAI_SIX_FACTOR_ML_POLICY=0|false|off` uses an explicit heuristic/static fallback; that fallback is not ML evidence.
 
 The THU scorer runtime copy prepared for local/demo/production shadow or apply is:
 
@@ -96,12 +97,9 @@ six-factor shape only for read/export compatibility and are marked
 
 ## Learner-facing UI
 
-When `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1`, `/learn` shows a compact
-`ML-персонализация` card for learning-content and assistant dialogue outputs
-that have canonical six-factor delivered metadata. The card uses a safe summary
-only: selected six-factor config, decision source, fallback flag, artifact
-version, backend kind, candidate count, and whether the decision was applied to the learner-facing output.
-It does not show raw feature snapshots, warnings, prompt text, or debug JSON.
+`NEXT_PUBLIC_SHOW_ML_PERSONALIZATION` controls UI visibility/debug details only.
+It does not enable or disable six-factor scoring, selection, or prompt apply.
+The `/learn` UI may show a compact primary six-factor summary when canonical delivered metadata exists; the flag is only for expanded/operator-style details.
 
 ## Honesty Note
 

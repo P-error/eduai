@@ -21,8 +21,8 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - Prisma/runtime schema contract
   - auth/session config sanity
   - external rate limiter backend reachability
-  - prediction runtime interpretability
-  - artifact slot/runtime artifact interpretability
+  - legacy accuracy/time prediction runtime interpretability
+  - legacy accuracy artifact slot/runtime artifact interpretability
   - required LLM configuration sanity
 
 ## Auth
@@ -119,7 +119,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
 ### `GET /api/users/me/predictions`
 - Auth: required
 - Query: `subjectId` optional
-- Purpose: expected accuracy/time + next difficulty + chat engagement prediction
+- Purpose: expected accuracy/time support + next-difficulty compatibility suggestion + chat engagement prediction
 - Runtime selection: legacy accuracy/time prediction loaded from `configs/active_policy.json`; it is not the primary six-factor pedagogical policy for new episode/chat decisions.
 - Current config shape:
   - `version = prediction_runtime_config_v1_2026_03`
@@ -132,6 +132,7 @@ Auth: protected user-facing routes use the httpOnly cookie session `eduai_sessio
   - `forTests.predictionPolicyId`
   - `forTests.predictionRuntime`
   - per-target metadata with `status` and source information
+  - legacy `recommendedPreset.policyId = v2_personalized` as a two-factor compatibility preset id, not the six-factor primary policy id
 - No hidden artifact fallback:
   - if configured `artifact_ml` backend has no valid artifact, `expectedAccuracy.status = unavailable` and `expectedAccuracy.value = null`
   - duration prediction still uses the shared heuristic duration path
@@ -419,6 +420,8 @@ Common query params:
 - `policyMode=any|personalization_on|personalization_off|manual_delivery_override`
 - `subjectId` optional
 - `includeExcluded=1` optional
+
+`policyMode=personalization_on` is a stored assignment/analytics label. It is not an env flag and does not by itself prove that a six-factor ML artifact was applied.
 
 ### `GET /api/admin/prediction-backtest`
 - Auth: admin required

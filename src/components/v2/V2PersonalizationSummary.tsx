@@ -42,7 +42,7 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
 
 const DECISION_SOURCE_LABELS: Record<string, string> = {
   ml_policy: "ML-модель",
-  heuristic_baseline: "эвристическая персонализация",
+  heuristic_baseline: "эвристический fallback (не ML)",
   static_fallback: "безопасный fallback",
   fallback: "безопасный fallback",
   shadow_only: "shadow-наблюдение",
@@ -75,7 +75,7 @@ function decisionHeadline(metadata: MlPersonalizationView) {
     return "Использован безопасный fallback";
   }
   if (metadata.decisionSource === "heuristic_baseline") {
-    return "Эвристическая персонализация выбрала способ подачи";
+    return "Эвристический fallback выбрал способ подачи";
   }
   if (metadata.decisionSource === "ml_policy") {
     return "ML-модель выбрала способ подачи";

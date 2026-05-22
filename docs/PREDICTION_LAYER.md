@@ -18,35 +18,40 @@ Prediction implementation:
 ## Research Contract
 
 The prediction layer exists to infer effective preference, not merely to echo declared preference.
+In the current runtime, primary pedagogical selection for new predicted/observational learner-facing flows belongs to the six-factor runtime documented in `docs/ml_six_factor_runtime_policy_adapter.md`.
+This document describes the legacy accuracy/time support runtime and its honesty rules.
 
 Core distinction:
 - declared preference = what the learner says they prefer;
 - effective preference = what leads to the best measurable learning result.
 
-Current dissertation ML focus:
+Current primary six-factor pedagogical decision scope:
 - `difficulty`;
-- `explanation depth`.
+- `depth`;
+- `support_level`;
+- `presentation_format`;
+- `examples_level`;
+- `terminology_level`.
 
-Optional future ML axis:
-- `instructional_mode`.
-
-Tone, style, and formatting are not current dissertation ML targets.
-They belong to the rule-based rendering layer described in `docs/ARCHITECTURE.md`.
+The legacy accuracy/time runtime predicts support signals such as expected accuracy/time. It does not own the full pedagogical decision.
+Stored `{ difficulty, depth }` objects are either two six-factor fields or compatibility projections.
 
 ## Current Runtime Decision Alignment
 
-The current runtime now exposes an explicit two-step contract:
-- decision layer output: `difficulty` and `depth`;
-- rendering/materialization output: tone, explanation style, and response format.
+The current runtime now exposes an explicit ownership contract:
+- primary pedagogical decision: six-factor runtime decision;
+- compatibility projection: `{ difficulty, depth }`;
+- support prediction: expected accuracy/time from the legacy runtime;
+- rendering/materialization: prompt/content shaping from the selected six-factor profile and route constraints.
 
 Current implementation detail:
-- `src/lib/personalization-runtime.ts` evaluates candidate `difficulty` values by calling the active runtime backend for `expectedAccuracy`;
-- it then selects `depth` through an explicit, labeled heuristic or stub rule, depending on backend state;
-- routes such as `POST /api/tests/generate` and `POST /api/chat` consume the materialized rendering output instead of mixing wide axis presets directly into core decision logic.
+- `src/lib/ml-six-factor-primary-decision.ts` resolves the primary six-factor decision for new predicted/observational flows;
+- `src/lib/personalization-runtime.ts` remains a legacy bridge that can evaluate candidate `difficulty` values by calling the active accuracy/time backend for `expectedAccuracy`;
+- when the legacy bridge selects `depth` through a rule, that source remains labeled as heuristic or stub.
 
 Compatibility note:
 - legacy `uxPreset`, `pedagogyPreset`, and delivery payload fields still exist for route/storage compatibility;
-- they now act as adapters over the narrower pedagogical decision contract rather than as the canonical decision space.
+- legacy `{ difficulty, depth }` fields now act as adapters/projections rather than as the canonical decision space.
 
 ## Definition Of Optimal Content
 
@@ -60,14 +65,14 @@ Secondary support metric:
 - expected time or duration may be used as a constraint, efficiency signal, or audit metric;
 - it is not the primary educational objective.
 
-## Current Runtime Boundary
+## Legacy Accuracy/Time Runtime Boundary
 
 The current repository contains prediction-runtime machinery for operational support signals such as:
 - `expectedAccuracy`;
 - `expectedTotalDurationMs`.
 
 These outputs are useful for monitoring, calibration, and baseline comparisons.
-They do not replace the pedagogical target definition above.
+They do not replace the primary six-factor pedagogical decision path.
 
 Current runtime modes may include:
 - heuristic baselines;
@@ -83,7 +88,7 @@ Honesty rule:
 ## Policy And Versioning
 
 Prediction policies must remain versioned and comparable.
-Current runtime configuration is selected via:
+Legacy accuracy/time runtime configuration is selected via:
 - `configs/active_policy.json`
 
 Current runtime contract carries explicit metadata such as:
@@ -92,9 +97,11 @@ Current runtime contract carries explicit metadata such as:
 - source type (`heuristic`, `stub`, `ml_artifact`);
 - artifact state snapshot when relevant.
 
-This versioning requirement applies both to:
+This versioning requirement applies to:
 - current heuristic or stub baselines;
-- future dissertation ML policies for `difficulty` and `depth`.
+- six-factor pedagogical policies such as `six_factor_policy`;
+- compatibility bridge policies such as `v2_personalized`;
+- artifact-backed support runtimes such as `prediction_runtime_v1_2026_03`.
 
 ## Replay-Safe Feature Rules
 
@@ -113,7 +120,7 @@ Current feature payload builder:
 Current shared feature schema used by the accuracy artifact path:
 - `accuracy_ml_features_v1`
 
-## Runtime Backends
+## Legacy Accuracy/Time Runtime Backends
 
 ### Heuristic baseline backend
 
@@ -133,8 +140,8 @@ It is not ML.
 ### Artifact-backed ML backend
 
 This path loads an offline JSON artifact and evaluates a shared feature vector.
-Current repository support is focused on operational outcome prediction artifacts.
-Future dissertation-policy artifacts for `difficulty` and `depth` must follow the same honesty, versioning, and replay constraints.
+Current repository support in this slot is focused on operational outcome prediction artifacts.
+Six-factor pedagogical artifacts live in the separate `EDUAI_SIX_FACTOR_ARTIFACT_PATH` path and must follow the same honesty, versioning, and replay constraints.
 
 Artifact slot states are explicit:
 - `ready`
@@ -143,7 +150,7 @@ Artifact slot states are explicit:
 
 If the artifact is not `ready`, runtime must expose that state rather than silently substituting another backend.
 
-## Current Artifact Path
+## Current Accuracy Artifact Path
 
 Default local artifact path:
 - `configs/ml_accuracy_logreg_artifact.local.json`
@@ -197,7 +204,7 @@ EDUAI_ML_ARTIFACT_PATH=configs/ml_accuracy_logreg_artifact.dev.json \
 npm run ml-accuracy:train
 ```
 
-Use this active policy only for local/dev pipeline verification:
+Use this active policy only for local/dev pipeline verification of the legacy accuracy/time support runtime:
 
 ```json
 {
@@ -276,8 +283,9 @@ Production deployment note:
 Research/demo wording:
 - allowed only after the runtime self-check passes with a runtime-eligible artifact: "trained model selected expected accuracy";
 - allowed for forced local/dev pipeline validation only: "DEV ML-first runtime";
-- allowed with a scope qualifier while six-factor remains a separate artifact-backed path: "ML-first personalization runtime";
+- allowed for the active learner-facing pedagogical path only when referring to the six-factor runtime with its own artifact/provenance caveats: "six-factor primary pedagogical runtime";
 - not allowed for synthetic-only or unfiltered artifacts: "production ML-first accuracy runtime";
+- not allowed based only on `configs/active_policy.json`: "primary pedagogical policy";
 - not allowed for the forced DEV artifact: "production-ready trained model selected expected accuracy".
 
 These commands document the current operational ML slot.

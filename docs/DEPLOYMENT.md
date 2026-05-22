@@ -15,10 +15,12 @@ Optional variables:
 - `EDUAI_SIX_FACTOR_SHADOW=1`
 - `EDUAI_SIX_FACTOR_ML_POLICY=1`
 - `EDUAI_SIX_FACTOR_APPLY=1`
+- `EDUAI_SIX_FACTOR_SHADOW_ONLY=0`
 - `EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`
-- six-factor ML/apply is explicit-on in env examples; use `EDUAI_SIX_FACTOR_ML_POLICY=0` for legacy fallback, `EDUAI_SIX_FACTOR_APPLY=0` to disable learner-facing apply, or `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` for logging-only diagnostics.
-- prediction accuracy ML-first additionally requires `configs/active_policy.json` to use `backend.kind=artifact_ml` and a valid runtime-eligible accuracy artifact. If the artifact is absent, synthetic-only, unfiltered, or insufficiently evaluated, keep the explicit heuristic fallback and let readiness/self-check report the blocker.
+- six-factor ML/apply is explicit-on in env examples: `EDUAI_SIX_FACTOR_SHADOW=1` builds metadata/logging, `EDUAI_SIX_FACTOR_ML_POLICY=1` enables artifact candidate scoring for the primary six-factor pedagogical decision, `EDUAI_SIX_FACTOR_APPLY=1` applies the selected profile to learner-facing prompts, and `EDUAI_SIX_FACTOR_SHADOW_ONLY=1` means scoring/logging without learner-facing apply.
+- legacy prediction accuracy/time ML-first additionally requires `configs/active_policy.json` to use `backend.kind=artifact_ml` and a valid runtime-eligible accuracy artifact. If the artifact is absent, synthetic-only, unfiltered, or insufficiently evaluated, keep the explicit heuristic fallback and let readiness/self-check report the blocker.
 - `configs/ml_accuracy_logreg_artifact.dev.json` is a forced DEV pipeline artifact. It may be deployed only for a clearly marked demo of the runtime path. Do not use it as a production artifact or research evidence; production readiness must use `npm run prediction-runtime:self-check`, not the DEV self-check.
+- `NEXT_PUBLIC_SHOW_ML_PERSONALIZATION` is a UI visibility/debug flag only; it does not enable or disable the runtime six-factor decision.
 
 Production startup now fails fast on invalid critical env:
 - `DATABASE_URL`
@@ -53,7 +55,7 @@ Why:
 1. Push repository to GitHub (without secrets).
 2. Configure env vars in Vercel Project Settings.
    - For the THU ML scorer, add the `EDUAI_SIX_FACTOR_*` values from `.env.production.example`; these repository templates do not configure hosted env automatically.
-   - For prediction accuracy ML-first, deploy a reviewed artifact generated from eligible+consented data. `configs/*.local.json` is ignored by Git, so do not assume the local default artifact path will exist on Vercel.
+   - For legacy prediction accuracy/time ML-first, deploy a reviewed artifact generated from eligible+consented data. `configs/*.local.json` is ignored by Git, so do not assume the local default artifact path will exist on Vercel.
    - The tracked DEV accuracy artifact is included in the repository for demo/runtime verification. If you deploy it to Vercel, label the deployment as DEV ML runtime and keep `mlFirstProductionEligible=false` visible in `/api/ready` and admin diagnostics.
 3. Run migrations from CI/job/terminal against production DB:
    - `npx prisma migrate deploy`
@@ -72,9 +74,9 @@ It verifies:
 - Prisma/runtime DB contract
 - auth/session config sanity
 - external rate limiter backend reachability
-- prediction runtime interpretability
+- legacy prediction accuracy/time runtime interpretability
 - artifact slot/runtime artifact interpretability
-- prediction artifact path/status/schema/model diagnostics when ML-first is configured
+- legacy accuracy artifact path/status/schema/model diagnostics when accuracy ML-first is configured
 - required LLM config sanity
 
 When the forced DEV accuracy artifact is active and schema-valid, `/api/ready`
