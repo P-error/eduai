@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import {
   buildLegacyDerivedSixFactorDeliveredConfigMetadata,
   buildSixFactorDeliveredConfigMetadata,
+  isMlSixFactorConfig,
   readSixFactorDeliveredConfigMetadata,
   type SixFactorDeliveredConfigMetadataV1,
 } from "@/lib/ml-six-factor-decision-metadata";
@@ -50,6 +51,20 @@ type LoadedEpisodes = Awaited<ReturnType<typeof loadExportEpisodes>>;
 type LoadedEpisode = LoadedEpisodes[number];
 type LoadedItem = LoadedEpisode["items"][number];
 
+type ChatMetadataCandidate = {
+  id: string;
+  sessionId: string;
+  signalsJson: Prisma.JsonValue | null;
+  createdAt: Date;
+};
+
+type ResolvedContentMetadata = {
+  value: Prisma.JsonValue | null | undefined;
+  sourcePath: string | null;
+  allowRawSixFactorConfig: boolean;
+  allowStoredCanonicalMetadata: boolean;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
@@ -88,10 +103,15 @@ function hasSixFactorMarker(value: unknown) {
   return "sixFactorDeliveredConfig" in value || "sixFactorShadow" in value;
 }
 
-function sourcePathForItem(item: LoadedItem) {
-  return item.contentKind === "generated_test"
-    ? "GeneratedTest.validationMetaJson"
-    : "ChatMessage.signalsJson";
+function hasStoredCanonicalDeliveredMetadata(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const nested = value.sixFactorDeliveredConfig;
+  const candidate = isRecord(nested) ? nested : value;
+  return (
+    isMlSixFactorConfig(candidate.candidateConfig) &&
+    isMlSixFactorConfig(candidate.deliveredConfig) &&
+    typeof candidate.decisionSource === "string"
+  );
 }
 
 async function loadExportEpisodes(
@@ -201,20 +221,104 @@ async function loadContentMetadataMaps(
   const testMetadata = new Map(
     tests.map((test) => [test.id, test.validationMetaJson] as const),
   );
-  const chatMetadata = new Map<string, Prisma.JsonValue | null>();
+  const chatMetadataBySession = new Map<string, ChatMetadataCandidate[]>();
   for (const message of messages) {
-    if (readSixFactorDeliveredConfigMetadata(message.signalsJson)) {
-      chatMetadata.set(message.sessionId, message.signalsJson);
-    }
+    if (!hasSixFactorMarker(message.signalsJson)) continue;
+
+    const candidates = chatMetadataBySession.get(message.sessionId) ?? [];
+    candidates.push({
+      id: message.id,
+      sessionId: message.sessionId,
+      signalsJson: message.signalsJson,
+      createdAt: message.createdAt,
+    });
+    chatMetadataBySession.set(message.sessionId, candidates);
   }
 
-  return { testMetadata, chatMetadata };
+  for (const candidates of chatMetadataBySession.values()) {
+    candidates.sort((left, right) => {
+      const byTime = left.createdAt.getTime() - right.createdAt.getTime();
+      return byTime !== 0 ? byTime : left.id.localeCompare(right.id);
+    });
+  }
+
+  return { testMetadata, chatMetadataBySession };
+}
+
+function pickChatMetadataForSession(params: {
+  metadataMaps: Awaited<ReturnType<typeof loadContentMetadataMaps>>;
+  sessionId: string | null | undefined;
+  deliveredAt?: Date | null;
+}) {
+  if (!params.sessionId) return null;
+
+  const candidates =
+    params.metadataMaps.chatMetadataBySession.get(params.sessionId) ?? [];
+  if (candidates.length === 0) return null;
+
+  if (params.deliveredAt) {
+    const deliveredAt = params.deliveredAt.getTime();
+    const notBeforeDeliveredAt = candidates.find(
+      (candidate) => candidate.createdAt.getTime() >= deliveredAt,
+    );
+    if (notBeforeDeliveredAt) return notBeforeDeliveredAt.signalsJson;
+  }
+
+  return candidates[0]?.signalsJson ?? null;
+}
+
+function resolveContentMetadataForItem(params: {
+  item: LoadedItem;
+  metadataMaps: Awaited<ReturnType<typeof loadContentMetadataMaps>>;
+}): ResolvedContentMetadata {
+  if (params.item.contentKind === "chat_session") {
+    return {
+      value: pickChatMetadataForSession({
+        metadataMaps: params.metadataMaps,
+        sessionId: params.item.contentId,
+        deliveredAt: params.item.deliveredAt,
+      }),
+      sourcePath: "ChatMessage.signalsJson",
+      allowRawSixFactorConfig: true,
+      allowStoredCanonicalMetadata: true,
+    };
+  }
+
+  if (params.item.contentKind === "generated_test") {
+    const value = params.metadataMaps.testMetadata.get(params.item.contentId);
+
+    return {
+      value,
+      sourcePath: hasStoredCanonicalDeliveredMetadata(value)
+        ? "GeneratedTest.validationMetaJson:canonical_metadata"
+        : null,
+      allowRawSixFactorConfig: false,
+      allowStoredCanonicalMetadata: true,
+    };
+  }
+
+  return {
+    value: null,
+    sourcePath: null,
+    allowRawSixFactorConfig: false,
+    allowStoredCanonicalMetadata: false,
+  };
+}
+
+function readRawSixFactorDeliveredConfig(value: unknown) {
+  if (!isRecord(value)) return null;
+  const nested = value.sixFactorDeliveredConfig;
+  if (isMlSixFactorConfig(nested)) return nested;
+  if (isMlSixFactorConfig(value)) return value;
+  return null;
 }
 
 function readMetadataForItem(params: {
   episode: LoadedEpisode;
   item: LoadedItem;
   contentMetadata: Prisma.JsonValue | null | undefined;
+  allowRawSixFactorConfig?: boolean;
+  allowStoredCanonicalMetadata?: boolean;
 }) {
   const legacyDerived = buildLegacyDerivedSixFactorDeliveredConfigMetadata({
     pedagogicalDecision: params.item.pedagogicalDecisionJson,
@@ -233,13 +337,33 @@ function readMetadataForItem(params: {
     decisionCreatedAt: params.item.deliveredAt,
     featuresCutoffAt: params.item.deliveredAt,
   });
-  const sources = [
-    params.item.decisionRuntimeJson,
-    params.contentMetadata,
-    legacyDerived,
-  ];
+
+  const rawConfig = params.allowRawSixFactorConfig
+    ? readRawSixFactorDeliveredConfig(params.contentMetadata)
+    : null;
+  if (rawConfig) {
+    const baseMetadata = legacyDerived;
+    if (!baseMetadata) return null;
+
+    return {
+      ...baseMetadata,
+      candidateConfig: rawConfig,
+      deliveredConfig: rawConfig,
+      appliedToLearnerFacingOutput: true,
+      appliedPath: baseMetadata.appliedPath ?? params.item.sequenceRole,
+      warnings: [
+        ...baseMetadata.warnings,
+        "factual_delivered_config_from_chat_message_signals_json",
+      ],
+    } satisfies SixFactorDeliveredConfigMetadataV1;
+  }
+
+  const sources = params.allowStoredCanonicalMetadata
+    ? [params.contentMetadata]
+    : [];
 
   for (const source of sources) {
+    if (!hasStoredCanonicalDeliveredMetadata(source)) continue;
     const metadata = readSixFactorDeliveredConfigMetadata(source);
     if (metadata) return metadata;
   }
@@ -533,16 +657,29 @@ export async function exportRealUserTrainingObservations(
       if (observations.length >= limit) break;
       totalScanned += 1;
 
-      const contentMetadata =
-        item.contentKind === "generated_test"
-          ? metadataMaps.testMetadata.get(item.contentId)
-          : metadataMaps.chatMetadata.get(item.contentId);
-      const metadata = readMetadataForItem({ episode, item, contentMetadata });
+      const resolvedContentMetadata = resolveContentMetadataForItem({
+        item,
+        metadataMaps,
+      });
+      const metadata = readMetadataForItem({
+        episode,
+        item,
+        contentMetadata: resolvedContentMetadata.value,
+        allowRawSixFactorConfig: resolvedContentMetadata.allowRawSixFactorConfig,
+        allowStoredCanonicalMetadata:
+          resolvedContentMetadata.allowStoredCanonicalMetadata,
+      });
 
       if (!metadata) {
-        const hasMarker =
-          hasSixFactorMarker(item.decisionRuntimeJson) ||
-          hasSixFactorMarker(contentMetadata);
+        if (
+          item.contentKind === "generated_test" &&
+          resolvedContentMetadata.sourcePath == null
+        ) {
+          increment(skipReasons, "generated_test_without_factual_delivered_config");
+          continue;
+        }
+
+        const hasMarker = hasSixFactorMarker(resolvedContentMetadata.value);
         increment(
           skipReasons,
           hasMarker
@@ -585,7 +722,9 @@ export async function exportRealUserTrainingObservations(
       }
 
       observations.push(observation);
-      sourcePaths.push(sourcePathForItem(item));
+      if (resolvedContentMetadata.sourcePath) {
+        sourcePaths.push(resolvedContentMetadata.sourcePath);
+      }
     }
   }
 
