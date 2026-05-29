@@ -84,15 +84,22 @@ env/
 /reports/archive/
 /reports/audits/
 /repo_tree*.txt
-/repo_audit*.md
 repo_tree*.txt
 repo_audit*.md
+/repo_cleanup_execution_report.md
+/repo_stale_files_audit.md
+/eduai_v18_actual_config_audit.sql
+/eduai_v18_exporter_actual_config_fix.patch
+/run_v18_ml_pipeline.sh
+/mk.sh
 
 # local archives and review packs
 *.zip
 *.tar
 *.tar.gz
 *.tgz
+/backup/
+/eduai_vercel_export_*/
 review_pack/
 source_pack/
 audit_pack/

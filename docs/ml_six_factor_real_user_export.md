@@ -56,14 +56,18 @@ ml/.venv/bin/python ml/scripts/validate_dataset.py \
 
 ## Source Mapping
 
-The exporter scans evaluation episodes and joins stored content metadata:
+The exporter scans evaluation episodes and joins factual content metadata:
 
-- `EvaluationEpisodeItem.decisionRuntimeJson.sixFactorDeliveredConfig`
-- `GeneratedTest.validationMetaJson.sixFactorDeliveredConfig`
-- `ChatMessage.signalsJson.sixFactorDeliveredConfig`
 - `EvaluationEpisodeItem.outcomeJson`
+- `ChatMessage.signalsJson.sixFactorDeliveredConfig` for `chat_session` / `learning_content` rows
 
-Default diagnostic export keeps the existing broad linkage: for a content item, the outcome target is the next generated test outcome in the episode, and the previous generated test outcome, when present, is used as `pre_score`.
+`ChatMessage.signalsJson.sixFactorDeliveredConfig` may be a raw six-factor config in archived SQL data. The exporter preserves all six factors from that raw config instead of adapting it through the legacy `difficulty/depth` bridge.
+
+`EvaluationEpisodeItem.decisionRuntimeJson` is not used as the primary delivered_config source. It may still supply compatibility/provenance fields through the exported metadata path, but it must not overwrite factual chat content configuration.
+
+`GeneratedTest.validationMetaJson.sixFactorDeliveredConfig` is used only when it contains canonical delivered metadata. Historical/generated-test rows that contain only raw or constant compatibility config are skipped with `generated_test_without_factual_delivered_config`; the exporter does not borrow future or adjacent learning-content config for generated tests.
+
+Default diagnostic export keeps broad outcome linkage for factual learning-content rows: for a content item, the outcome target is the next generated test outcome in the episode, and the previous generated test outcome, when present, is used as `pre_score`.
 
 Strict mode uses only unambiguous `precheck -> learning_content -> postcheck` episode pairs. It skips non-learning-content rows, missing precheck, missing postcheck, and ambiguous episodes with explicit summary counters.
 
@@ -83,6 +87,7 @@ Schema-required `subject_ref` and `topic_ref` use safe `unknown_*` placeholders 
 ## Limitations
 
 - Existing historical rows without `sixFactorDeliveredConfig` cannot be exported as six-factor real_user observations.
+- Generated-test rows without canonical delivered metadata are intentionally skipped rather than converted through constant validation metadata.
 - Live export depends on database availability and stored evaluation/content metadata.
 - `next_step_success` is a v1 threshold proxy from observed accuracy.
 - Open or synthetic data must not be mixed with this export as if it were real causal evidence.
