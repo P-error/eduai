@@ -1,29 +1,8 @@
 {
   "functions": {
     "api/**/*.py": {
-      "includeFiles": [
-        "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/model.cbm",
-        "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/artifact.json",
-        "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/feature_schema.json",
-        "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/metrics.json",
-        "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/prediction_parity_sample.jsonl"
-      ],
-      "excludeFiles": [
-        ".next/**",
-        "node_modules/**",
-        "ml/**",
-        "training_datasets/**",
-        "bootstrap_training/**",
-        "exports/**",
-        "tmp/**",
-        "reports/**",
-        "codex-report/**",
-        "eduai-clean/**",
-        "**/__pycache__/**",
-        "**/*.pyc",
-        "eduai_repo_context_pack_*.zip",
-        "eduai_vercel_export_*.tar.gz"
-      ]
+      "includeFiles": "artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/**",
+      "excludeFiles": "{.next,node_modules,ml,training_datasets,bootstrap_training,exports,tmp,reports,codex-report,eduai-clean}/**"
     }
   }
 }
