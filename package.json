@@ -30,6 +30,10 @@
     "prediction-runtime:self-check": "bash scripts/prediction-runtime-ml-first-self-check.sh",
     "prediction-runtime:dev-self-check": "bash scripts/prediction-runtime-dev-self-check.sh",
     "ml-six-factor:self-check": "bash scripts/ml-six-factor-shadow-self-check.sh",
+    "ml-six-factor:runtime-artifact-audit": "bash scripts/ml-six-factor-runtime-artifact-audit.sh",
+    "ml-catboost:train": "bash scripts/train-catboost-candidate-scorer-self-check.sh",
+    "catboost-runtime:parity": "bash scripts/catboost-runtime-parity-self-check.sh",
+    "catboost-policy-v2:smoke": "bash scripts/catboost-policy-v2-learner-flow-smoke.sh",
     "eduai-native-synthetic:generate": "bash scripts/eduai-native-synthetic-generate.sh",
     "training-dataset:export": "bash scripts/training-dataset-export.sh",
     "training-dataset:self-check": "bash scripts/training-dataset-self-check.sh",
@@ -42,6 +46,7 @@
     "learning-quality-gate:self-check": "bash scripts/learning-quality-gate-self-check.sh",
     "learning-evidence:self-check": "bash scripts/learning-evidence-self-check.sh",
     "learner-truth:self-check": "bash scripts/learner-truth-self-check.sh",
+    "research-policy-registry:self-check": "bash scripts/research-policy-registry-self-check.sh",
     "pilot-readiness:smoke": "bash scripts/pilot-readiness-smoke.sh"
   },
   "dependencies": {

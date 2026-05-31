@@ -1,0 +1,159 @@
+{
+  "artifact_schema_version": "catboost_candidate_scorer_payload.v1",
+  "catboost_version": "1.2.10",
+  "categorical_feature_columns": [],
+  "categorical_feature_count": 0,
+  "feature_count": 69,
+  "input_rows": 4791,
+  "learning_gain_mae": 0.337337,
+  "learning_gain_rmse": 0.419109,
+  "learning_gain_target": "expected_learning_gain_signed",
+  "metrics_by_split": {
+    "test": {
+      "combined_outcome_score": {
+        "mae": 0.217863,
+        "rmse": 0.251128
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.290126,
+        "rmse": 0.342045
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.337337,
+        "rmse": 0.419109
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.585691,
+        "balanced_accuracy": 0.578668,
+        "mae": 0.467526,
+        "majority_class_accuracy": 0.574043,
+        "positive_rate": 0.574043,
+        "rmse": 0.480921
+      },
+      "learning_gain_mae": 0.337337,
+      "learning_gain_rmse": 0.419109,
+      "learning_gain_target": "expected_learning_gain_signed",
+      "row_count": 601
+    },
+    "train": {
+      "combined_outcome_score": {
+        "mae": 0.214761,
+        "rmse": 0.245954
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.288354,
+        "rmse": 0.339203
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.336273,
+        "rmse": 0.417074
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.709353,
+        "balanced_accuracy": 0.702112,
+        "mae": 0.438142,
+        "majority_class_accuracy": 0.539568,
+        "positive_rate": 0.539568,
+        "rmse": 0.452777
+      },
+      "learning_gain_mae": 0.336273,
+      "learning_gain_rmse": 0.417074,
+      "learning_gain_target": "expected_learning_gain_signed",
+      "row_count": 3475
+    },
+    "validation": {
+      "combined_outcome_score": {
+        "mae": 0.21693,
+        "rmse": 0.254949
+      },
+      "expected_learning_gain_proxy": {
+        "mae": 0.311862,
+        "rmse": 0.365832
+      },
+      "expected_learning_gain_signed": {
+        "mae": 0.366179,
+        "rmse": 0.453244
+      },
+      "expected_next_step_success": {
+        "accuracy": 0.631579,
+        "balanced_accuracy": 0.59979,
+        "mae": 0.434895,
+        "majority_class_accuracy": 0.583732,
+        "positive_rate": 0.583732,
+        "rmse": 0.460155
+      },
+      "learning_gain_mae": 0.366179,
+      "learning_gain_rmse": 0.453244,
+      "learning_gain_target": "expected_learning_gain_signed",
+      "row_count": 627
+    }
+  },
+  "model_family": "catboost_candidate_scorer_v1",
+  "next_step_success_accuracy": 0.585691,
+  "next_step_success_balanced_accuracy": 0.578668,
+  "skipped_rows": 88,
+  "source_dataset": "1805/ml_training_v10_results/exports/real_user_training_observations_v10.strict.jsonl",
+  "split_diagnostics": {
+    "empty_split_warnings": [],
+    "row_count_by_split": {
+      "test": 601,
+      "train": 3475,
+      "validation": 627
+    },
+    "split_sizes": {
+      "test": 601,
+      "train": 3475,
+      "validation": 627
+    },
+    "split_strategy": "user_id_hash",
+    "topics_overlap_counts": {
+      "train_test": 71,
+      "train_validation": 73,
+      "validation_test": 68
+    },
+    "topics_per_split": {
+      "test": 71,
+      "train": 80,
+      "validation": 73
+    },
+    "users_overlap_counts": {
+      "train_test": 0,
+      "train_validation": 0,
+      "validation_test": 0
+    },
+    "users_per_split": {
+      "test": 31,
+      "train": 171,
+      "validation": 35
+    },
+    "warnings": [
+      "topics_overlap:train_validation:73",
+      "topics_overlap:train_test:71",
+      "topics_overlap:validation_test:68"
+    ]
+  },
+  "split_ratios": {
+    "test": 0.15,
+    "train": 0.7,
+    "validation": 0.15
+  },
+  "split_strategy": "user_id_hash",
+  "supervised_usable_rows": 4703,
+  "target_name": "expected_learning_gain_signed",
+  "target_names": [
+    "expected_learning_gain_signed",
+    "expected_learning_gain_proxy",
+    "expected_next_step_success",
+    "combined_outcome_score"
+  ],
+  "test_rows": 601,
+  "train_rows": 3475,
+  "training_parameters": {
+    "best_iteration": 167,
+    "depth": 6,
+    "iterations": 300,
+    "learning_rate": 0.05,
+    "seed": 42
+  },
+  "validation_rows": 627
+}

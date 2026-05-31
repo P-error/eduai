@@ -1,0 +1,27 @@
+{
+  "artifact_schema_version": "catboost_candidate_scorer_payload.v1",
+  "feature_schema_file": "feature_schema.json",
+  "leakage_guard": {
+    "outcome_fields_in_features": false,
+    "uses_only_pre_decision_data": true
+  },
+  "metrics_file": "metrics.json",
+  "model_family": "catboost_candidate_scorer_v1",
+  "model_file": "model.cbm",
+  "model_file_sha256": "546d4c22986d0b4a0cc3ab6a70aa62e37a059a52462154b312ddf6a532da943e",
+  "primary_target": "expected_learning_gain_signed",
+  "runtime_compatible_with_current_typescript_loader": true,
+  "runtime_status": "runtime_supported",
+  "seed": 42,
+  "source_dataset": "1805/ml_training_v10_results/exports/real_user_training_observations_v10.strict.jsonl",
+  "split_strategy": "user_id_hash",
+  "target_names": [
+    "expected_learning_gain_signed",
+    "expected_learning_gain_proxy",
+    "expected_next_step_success",
+    "combined_outcome_score"
+  ],
+  "target_schema_version": "outcome_targets.v2_signed_gain",
+  "thesis_policy_id": "policy_v2",
+  "trained_at": "2026-05-29T05:09:11Z"
+}

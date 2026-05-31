@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -42,6 +43,7 @@ FILE_PATH_ENV = "EDUAI_SYNC_FILE"
 FILE_NAME_ENV = "EDUAI_SYNC_NAME"
 REMOTE_SUFFIX_ENV = "EDUAI_SYNC_REMOTE_SUFFIX"
 TAILSCALE_TARGET_ENV = "EDUAI_SYNC_TAILSCALE_TARGET"
+TAILSCALE_TARGET_HINT_ENV = "EDUAI_SYNC_TAILSCALE_TARGET_HINT"
 
 LOCAL_ROOT = Path(__file__).resolve().parent
 LOCAL_TMP_DIR = Path("/tmp")
@@ -168,6 +170,9 @@ def _resolve_taildrop_target(config: SshConfig) -> str:
         return explicit
     if _is_tailnet_target(config.host):
         return config.host
+    detected = _detect_taildrop_target()
+    if detected:
+        return detected
     raise RuntimeError(
         f"Taildrop target is not set. Define {TAILSCALE_TARGET_ENV} "
         "or set EDUAI_SYNC_HOST to a Tailscale IP/DNS."
@@ -178,22 +183,134 @@ def _tailscale_available() -> bool:
     return shutil.which("tailscale") is not None
 
 
-def _taildrop_copy(local_path: Path, remote_name: str, target: str) -> None:
-    """Send file via tailscale file cp."""
+def _run_tailscale(args: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run tailscale CLI and capture text output."""
 
     if not _tailscale_available():
         raise RuntimeError("tailscale CLI is not available in PATH.")
 
-    cmd = ["tailscale", "file", "cp", str(local_path), f"{target}:"]
-    if remote_name and remote_name != local_path.name:
-        cmd.extend(["--name", remote_name])
-
-    result = subprocess.run(
-        cmd,
+    return subprocess.run(
+        ["tailscale", *args],
         check=False,
         capture_output=True,
         text=True,
     )
+
+
+def _target_from_peer(peer: dict[str, object]) -> str | None:
+    """Return a usable Taildrop target from a status peer object."""
+
+    dns_name = str(peer.get("DNSName") or "").strip().rstrip(".")
+    if dns_name:
+        return dns_name
+
+    tailscale_ips = peer.get("TailscaleIPs")
+    if isinstance(tailscale_ips, list):
+        for value in tailscale_ips:
+            ip = str(value or "").strip()
+            if ip:
+                return ip
+
+    host_name = str(peer.get("HostName") or "").strip()
+    return host_name or None
+
+
+def _peer_matches_hint(peer: dict[str, object], hint: str) -> bool:
+    """Return true when a peer matches a user-provided target hint."""
+
+    if not hint:
+        return True
+
+    needle = hint.lower()
+    candidates = [
+        peer.get("HostName"),
+        peer.get("DNSName"),
+        peer.get("OS"),
+        *(
+            peer.get("TailscaleIPs")
+            if isinstance(peer.get("TailscaleIPs"), list)
+            else []
+        ),
+    ]
+    return any(needle in str(value or "").lower() for value in candidates)
+
+
+def _detect_taildrop_target_from_status() -> str | None:
+    """Detect an available Taildrop target from tailscale status JSON."""
+
+    result = _run_tailscale(["status", "--json"])
+    if result.returncode != 0:
+        return None
+
+    try:
+        status = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+    peers = status.get("Peer")
+    if not isinstance(peers, dict):
+        return None
+
+    hint = os.environ.get(TAILSCALE_TARGET_HINT_ENV, "").strip()
+    candidates: list[dict[str, object]] = []
+    for peer in peers.values():
+        if not isinstance(peer, dict):
+            continue
+        if not peer.get("TaildropTarget"):
+            continue
+        if str(peer.get("NoFileSharingReason") or "").strip():
+            continue
+        if not _peer_matches_hint(peer, hint):
+            continue
+        if _target_from_peer(peer):
+            candidates.append(peer)
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda peer: (
+            0 if peer.get("Online") else 1,
+            0 if peer.get("Active") else 1,
+            0 if str(peer.get("OS") or "").lower() == "android" else 1,
+            str(peer.get("HostName") or ""),
+        )
+    )
+    return _target_from_peer(candidates[0])
+
+
+def _detect_taildrop_target_from_targets() -> str | None:
+    """Detect a Taildrop target from tailscale file cp --targets."""
+
+    result = _run_tailscale(["file", "cp", "--targets"])
+    if result.returncode != 0:
+        return None
+
+    rows = [line.split() for line in result.stdout.splitlines() if line.strip()]
+    targets = [row[0] for row in rows if row]
+    if len(targets) != 1:
+        return None
+    return targets[0]
+
+
+def _detect_taildrop_target() -> str | None:
+    """Detect a Taildrop target without requiring env configuration."""
+
+    if not _tailscale_available():
+        return None
+
+    return _detect_taildrop_target_from_status() or _detect_taildrop_target_from_targets()
+
+
+def _taildrop_copy(local_path: Path, remote_name: str, target: str) -> None:
+    """Send file via tailscale file cp."""
+
+    cmd = ["tailscale", "file", "cp"]
+    if remote_name and remote_name != local_path.name:
+        cmd.extend(["--name", remote_name])
+    cmd.extend([str(local_path), f"{target}:"])
+
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         details = result.stderr.strip() or result.stdout.strip() or "Unknown error."
         raise RuntimeError(f"Taildrop copy failed: {details}")

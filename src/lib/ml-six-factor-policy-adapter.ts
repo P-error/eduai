@@ -10,7 +10,11 @@ import {
   createHeuristicSixFactorFallbackFromTwoFactor,
   createStaticSixFactorFallback,
 } from "@/lib/ml-six-factor-fallback";
-import { loadSixFactorPolicyArtifact } from "@/lib/ml-six-factor-artifact-loader";
+import {
+  getSixFactorArtifactModelFamily,
+  getSixFactorArtifactModelVersion,
+  loadSixFactorPolicyArtifact,
+} from "@/lib/ml-six-factor-artifact-loader";
 import { generateSixFactorCandidateSet } from "@/lib/ml-six-factor-candidate-generator";
 import { filterUnsafeSixFactorCandidates } from "@/lib/ml-six-factor-guardrails";
 import {
@@ -101,6 +105,7 @@ export function resolveSixFactorPolicyDecisionForFeatures(
       artifactResult.artifact,
       features,
       guardrailResult.candidates,
+      artifactResult.artifactPath,
     );
     const best = selectBestSixFactorCandidate(scores);
     const sortedScores = [...scores].sort(
@@ -116,9 +121,9 @@ export function resolveSixFactorPolicyDecisionForFeatures(
       ...best.candidate,
       decisionSource: "ml_policy",
       policyId: features.policyId ?? "six_factor_runtime_ml_policy_v1",
-      modelVersion: artifactResult.artifact.model_version,
+      modelVersion: getSixFactorArtifactModelVersion(artifactResult.artifact),
       artifactPath: artifactResult.artifactPath,
-      backendKind: artifactResult.artifact.model.model_family,
+      backendKind: getSixFactorArtifactModelFamily(artifactResult.artifact),
       fallbackUsed: guardrailResult.fallbackUsed,
       candidateCount: guardrailResult.candidates.length,
       confidence,

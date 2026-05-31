@@ -21,6 +21,7 @@ npx tsc \
   src/lib/ml-six-factor-artifact-loader.ts \
   src/lib/ml-six-factor-guardrails.ts \
   src/lib/ml-six-factor-candidate-generator.ts \
+  src/lib/ml-six-factor-catboost-python-scorer.ts \
   src/lib/ml-six-factor-runtime-scorer.ts \
   src/lib/ml-six-factor-policy-adapter.ts \
   src/lib/ml-six-factor-render-mapping.ts \

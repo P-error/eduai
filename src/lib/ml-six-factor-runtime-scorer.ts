@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 import {
   DEPTH_VALUES,
@@ -11,7 +13,14 @@ import {
   type EduAIAppPolicyFeaturesV1,
   type SixFactorCandidateConfigV1,
 } from "@/lib/ml-six-factor-policy-contract";
-import type { SixFactorCandidateScorerArtifactV1 } from "@/lib/ml-six-factor-artifact-loader";
+import {
+  CATBOOST_CANDIDATE_SCORER_MODEL_FAMILY,
+  LINEAR_CANDIDATE_SCORER_MODEL_FAMILY,
+  type CatBoostCandidateScorerArtifactV1,
+  type LinearSixFactorCandidateScorerArtifactV1,
+  type SixFactorCandidateScorerArtifactV1,
+} from "@/lib/ml-six-factor-artifact-loader";
+import { scoreCatBoostFeatureRowsWithPython } from "@/lib/ml-six-factor-catboost-python-scorer";
 import { buildSixFactorLearnerStateSafetyProfile } from "@/lib/ml-six-factor-guardrails";
 
 export type SixFactorCandidateScoreV1 = {
@@ -229,8 +238,23 @@ function validateWeights(name: string, weights: number[], width: number) {
   }
 }
 
-export function scoreSixFactorCandidate(
+function isLinearArtifact(
   artifact: SixFactorCandidateScorerArtifactV1,
+): artifact is LinearSixFactorCandidateScorerArtifactV1 {
+  return "model" in artifact && artifact.model.model_family === LINEAR_CANDIDATE_SCORER_MODEL_FAMILY;
+}
+
+function isCatBoostArtifact(
+  artifact: SixFactorCandidateScorerArtifactV1,
+): artifact is CatBoostCandidateScorerArtifactV1 {
+  return (
+    "model_family" in artifact &&
+    artifact.model_family === CATBOOST_CANDIDATE_SCORER_MODEL_FAMILY
+  );
+}
+
+function scoreLinearSixFactorCandidate(
+  artifact: LinearSixFactorCandidateScorerArtifactV1,
   features: EduAIAppPolicyFeaturesV1,
   candidate: SixFactorCandidateConfigV1,
 ): SixFactorCandidateScoreV1 {
@@ -296,14 +320,141 @@ export function scoreSixFactorCandidate(
   };
 }
 
+function selectFeatureValues(
+  featureValues: Record<string, number>,
+  featureNames: readonly string[],
+) {
+  return Object.fromEntries(
+    featureNames.map((name) => [name, Number(featureValues[name] ?? 0)]),
+  ) as Record<string, number>;
+}
+
+function scoreCatBoostSixFactorCandidates(
+  artifact: CatBoostCandidateScorerArtifactV1,
+  artifactPath: string,
+  features: EduAIAppPolicyFeaturesV1,
+  candidates: SixFactorCandidateConfigV1[],
+): SixFactorCandidateScoreV1[] {
+  const featureColumns = readCatBoostFeatureColumnsFromArtifact(artifact, artifactPath);
+  const rows = candidates.map((candidate) => ({
+    features: selectFeatureValues(
+      extractRuntimeScorerFeatures(
+        features,
+        candidate,
+        featureColumns,
+      ),
+      featureColumns,
+    ),
+  }));
+  const predictions = scoreCatBoostFeatureRowsWithPython(
+    artifact,
+    artifactPath,
+    rows,
+  );
+
+  return candidates.map((candidate, index) => {
+    const prediction = predictions[index];
+    if (prediction == null) {
+      throw new Error(`Missing CatBoost prediction for candidate index ${index}.`);
+    }
+    const combinedScore = prediction.combined_outcome_score;
+    if (typeof combinedScore !== "number" || !Number.isFinite(combinedScore)) {
+      throw new Error("CatBoost prediction is missing combined_outcome_score.");
+    }
+
+    return {
+      candidate,
+      predictedLearningGain:
+        typeof prediction.expected_learning_gain_proxy === "number"
+          ? prediction.expected_learning_gain_proxy
+          : null,
+      predictedLearningGainSigned:
+        typeof prediction.expected_learning_gain_signed === "number"
+          ? prediction.expected_learning_gain_signed
+          : null,
+      predictedNextStepSuccess:
+        typeof prediction.expected_next_step_success === "number"
+          ? prediction.expected_next_step_success
+          : null,
+      predictedCombinedScore: combinedScore,
+      warnings: [],
+    };
+  });
+}
+
+function readCatBoostFeatureColumnsFromArtifact(
+  artifact: CatBoostCandidateScorerArtifactV1,
+  artifactPath: string,
+) {
+  const raw = readFileSync(
+    resolve(dirname(artifactPath), artifact.feature_schema_file),
+    "utf8",
+  );
+  const parsed = JSON.parse(raw) as unknown;
+  if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("CatBoost feature_schema must be a JSON object.");
+  }
+  const columns = (parsed as { feature_columns?: unknown }).feature_columns;
+  if (
+    !Array.isArray(columns) ||
+    !columns.every((entry) => typeof entry === "string" && entry.length > 0)
+  ) {
+    throw new Error("CatBoost feature_schema.feature_columns must be a string list.");
+  }
+  return columns;
+}
+
+export function scoreSixFactorCandidate(
+  artifact: SixFactorCandidateScorerArtifactV1,
+  features: EduAIAppPolicyFeaturesV1,
+  candidate: SixFactorCandidateConfigV1,
+  artifactPath?: string,
+): SixFactorCandidateScoreV1 {
+  if (isLinearArtifact(artifact)) {
+    return scoreLinearSixFactorCandidate(artifact, features, candidate);
+  }
+  if (isCatBoostArtifact(artifact)) {
+    if (artifactPath == null) {
+      throw new Error("CatBoost six-factor scorer requires artifactPath.");
+    }
+    const scores = scoreCatBoostSixFactorCandidates(
+      artifact,
+      artifactPath,
+      features,
+      [candidate],
+    );
+    const score = scores[0];
+    if (score == null) {
+      throw new Error("CatBoost six-factor scorer returned no score.");
+    }
+    return score;
+  }
+  throw new Error("Unsupported six-factor scorer artifact family.");
+}
+
 export function scoreSixFactorCandidates(
   artifact: SixFactorCandidateScorerArtifactV1,
   features: EduAIAppPolicyFeaturesV1,
   candidates: SixFactorCandidateConfigV1[],
+  artifactPath?: string,
 ) {
-  return candidates.map((candidate) =>
-    scoreSixFactorCandidate(artifact, features, candidate),
-  );
+  if (isLinearArtifact(artifact)) {
+    return candidates.map((candidate) =>
+      scoreLinearSixFactorCandidate(artifact, features, candidate),
+    );
+  }
+  if (isCatBoostArtifact(artifact)) {
+    if (artifactPath == null) {
+      throw new Error("CatBoost six-factor scorer requires artifactPath.");
+    }
+    return scoreCatBoostSixFactorCandidates(
+      artifact,
+      artifactPath,
+      features,
+      candidates,
+    );
+  }
+  throw new Error("Unsupported six-factor scorer artifact family.");
 }
 
 export function selectBestSixFactorCandidate(

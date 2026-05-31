@@ -16,6 +16,7 @@ test = [
   "pytest>=8.0.0"
 ]
 train = [
+  "catboost>=1.2.7",
   "scikit-learn>=1.4.0"
 ]
 

@@ -12,7 +12,11 @@ import {
   loadAccuracyMlArtifactSnapshot,
 } from "@/lib/prediction-ml";
 import { loadEduAiNativePedagogyArtifactSlotSnapshot } from "@/lib/model-artifact-slot";
-import { loadSixFactorPolicyArtifact } from "@/lib/ml-six-factor-artifact-loader";
+import {
+  getSixFactorArtifactModelFamily,
+  getSixFactorArtifactModelVersion,
+  loadSixFactorPolicyArtifact,
+} from "@/lib/ml-six-factor-artifact-loader";
 import { isSixFactorMlPolicyEnabled } from "@/lib/ml-six-factor-policy-adapter";
 import {
   isSixFactorApplyEnabled,
@@ -325,9 +329,11 @@ function checkSixFactorArtifact() {
     artifactSchemaVersion: artifactResult.ok
       ? artifactResult.artifact.artifact_schema_version
       : null,
-    modelVersion: artifactResult.ok ? artifactResult.artifact.model_version : null,
+    modelVersion: artifactResult.ok
+      ? getSixFactorArtifactModelVersion(artifactResult.artifact)
+      : null,
     modelFamily: artifactResult.ok
-      ? artifactResult.artifact.model.model_family
+      ? getSixFactorArtifactModelFamily(artifactResult.artifact)
       : null,
     warnings: artifactResult.warnings,
   };
