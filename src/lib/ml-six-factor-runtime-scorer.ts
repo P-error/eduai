@@ -20,7 +20,11 @@ import {
   type LinearSixFactorCandidateScorerArtifactV1,
   type SixFactorCandidateScorerArtifactV1,
 } from "@/lib/ml-six-factor-artifact-loader";
-import { scoreCatBoostFeatureRowsWithPython } from "@/lib/ml-six-factor-catboost-python-scorer";
+import {
+  scoreCatBoostFeatureRows,
+  scoreCatBoostFeatureRowsWithPython,
+  type CatBoostRuntimePrediction,
+} from "@/lib/ml-six-factor-catboost-python-scorer";
 import { buildSixFactorLearnerStateSafetyProfile } from "@/lib/ml-six-factor-guardrails";
 
 export type SixFactorCandidateScoreV1 = {
@@ -334,9 +338,27 @@ function scoreCatBoostSixFactorCandidates(
   artifactPath: string,
   features: EduAIAppPolicyFeaturesV1,
   candidates: SixFactorCandidateConfigV1[],
+  env: Record<string, string | undefined> = process.env,
 ): SixFactorCandidateScoreV1[] {
+  const rows = buildCatBoostFeatureRows(artifact, artifactPath, features, candidates);
+  const predictions = scoreCatBoostFeatureRowsWithPython(
+    artifact,
+    artifactPath,
+    rows,
+    env,
+  );
+
+  return mapCatBoostPredictionsToScores(candidates, predictions);
+}
+
+function buildCatBoostFeatureRows(
+  artifact: CatBoostCandidateScorerArtifactV1,
+  artifactPath: string,
+  features: EduAIAppPolicyFeaturesV1,
+  candidates: SixFactorCandidateConfigV1[],
+) {
   const featureColumns = readCatBoostFeatureColumnsFromArtifact(artifact, artifactPath);
-  const rows = candidates.map((candidate) => ({
+  return candidates.map((candidate) => ({
     features: selectFeatureValues(
       extractRuntimeScorerFeatures(
         features,
@@ -346,12 +368,12 @@ function scoreCatBoostSixFactorCandidates(
       featureColumns,
     ),
   }));
-  const predictions = scoreCatBoostFeatureRowsWithPython(
-    artifact,
-    artifactPath,
-    rows,
-  );
+}
 
+function mapCatBoostPredictionsToScores(
+  candidates: SixFactorCandidateConfigV1[],
+  predictions: readonly CatBoostRuntimePrediction[],
+): SixFactorCandidateScoreV1[] {
   return candidates.map((candidate, index) => {
     const prediction = predictions[index];
     if (prediction == null) {
@@ -382,6 +404,24 @@ function scoreCatBoostSixFactorCandidates(
   });
 }
 
+async function scoreCatBoostSixFactorCandidatesAsync(
+  artifact: CatBoostCandidateScorerArtifactV1,
+  artifactPath: string,
+  features: EduAIAppPolicyFeaturesV1,
+  candidates: SixFactorCandidateConfigV1[],
+  env: Record<string, string | undefined> = process.env,
+): Promise<SixFactorCandidateScoreV1[]> {
+  const rows = buildCatBoostFeatureRows(artifact, artifactPath, features, candidates);
+  const predictions = await scoreCatBoostFeatureRows(
+    artifact,
+    artifactPath,
+    rows,
+    env,
+  );
+
+  return mapCatBoostPredictionsToScores(candidates, predictions);
+}
+
 function readCatBoostFeatureColumnsFromArtifact(
   artifact: CatBoostCandidateScorerArtifactV1,
   artifactPath: string,
@@ -409,6 +449,7 @@ export function scoreSixFactorCandidate(
   features: EduAIAppPolicyFeaturesV1,
   candidate: SixFactorCandidateConfigV1,
   artifactPath?: string,
+  env: Record<string, string | undefined> = process.env,
 ): SixFactorCandidateScoreV1 {
   if (isLinearArtifact(artifact)) {
     return scoreLinearSixFactorCandidate(artifact, features, candidate);
@@ -422,6 +463,37 @@ export function scoreSixFactorCandidate(
       artifactPath,
       features,
       [candidate],
+      env,
+    );
+    const score = scores[0];
+    if (score == null) {
+      throw new Error("CatBoost six-factor scorer returned no score.");
+    }
+    return score;
+  }
+  throw new Error("Unsupported six-factor scorer artifact family.");
+}
+
+export async function scoreSixFactorCandidateAsync(
+  artifact: SixFactorCandidateScorerArtifactV1,
+  features: EduAIAppPolicyFeaturesV1,
+  candidate: SixFactorCandidateConfigV1,
+  artifactPath?: string,
+  env: Record<string, string | undefined> = process.env,
+): Promise<SixFactorCandidateScoreV1> {
+  if (isLinearArtifact(artifact)) {
+    return scoreLinearSixFactorCandidate(artifact, features, candidate);
+  }
+  if (isCatBoostArtifact(artifact)) {
+    if (artifactPath == null) {
+      throw new Error("CatBoost six-factor scorer requires artifactPath.");
+    }
+    const scores = await scoreCatBoostSixFactorCandidatesAsync(
+      artifact,
+      artifactPath,
+      features,
+      [candidate],
+      env,
     );
     const score = scores[0];
     if (score == null) {
@@ -437,6 +509,7 @@ export function scoreSixFactorCandidates(
   features: EduAIAppPolicyFeaturesV1,
   candidates: SixFactorCandidateConfigV1[],
   artifactPath?: string,
+  env: Record<string, string | undefined> = process.env,
 ) {
   if (isLinearArtifact(artifact)) {
     return candidates.map((candidate) =>
@@ -452,6 +525,34 @@ export function scoreSixFactorCandidates(
       artifactPath,
       features,
       candidates,
+      env,
+    );
+  }
+  throw new Error("Unsupported six-factor scorer artifact family.");
+}
+
+export async function scoreSixFactorCandidatesAsync(
+  artifact: SixFactorCandidateScorerArtifactV1,
+  features: EduAIAppPolicyFeaturesV1,
+  candidates: SixFactorCandidateConfigV1[],
+  artifactPath?: string,
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (isLinearArtifact(artifact)) {
+    return candidates.map((candidate) =>
+      scoreLinearSixFactorCandidate(artifact, features, candidate),
+    );
+  }
+  if (isCatBoostArtifact(artifact)) {
+    if (artifactPath == null) {
+      throw new Error("CatBoost six-factor scorer requires artifactPath.");
+    }
+    return scoreCatBoostSixFactorCandidatesAsync(
+      artifact,
+      artifactPath,
+      features,
+      candidates,
+      env,
     );
   }
   throw new Error("Unsupported six-factor scorer artifact family.");

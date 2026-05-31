@@ -11,7 +11,7 @@ import {
   type EduAISixFactorMlConfigV1,
 } from "@/lib/ml-six-factor-policy-contract";
 import {
-  buildShadowSixFactorDecision,
+  buildShadowSixFactorDecisionAsync,
   type SixFactorShadowResultV1,
   type SixFactorDecisionMetadataV1,
 } from "@/lib/ml-six-factor-shadow";
@@ -256,7 +256,7 @@ export async function resolvePrimarySixFactorDecision(params: {
     modelVersion: params.modelVersion ?? null,
   } satisfies BuildEduAIAppPolicyFeaturesInput;
 
-  const shadow = buildShadowSixFactorDecision(context, params.env);
+  const shadow = await buildShadowSixFactorDecisionAsync(context, params.env);
   const deliveredConfigMetadata = buildSixFactorDeliveredConfigMetadata({
     sixFactorShadow: shadow.metadata,
     decisionCreatedAt,

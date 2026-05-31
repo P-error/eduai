@@ -14,7 +14,10 @@ import {
   mapSixFactorDecisionToRenderPolicy,
   type SixFactorRenderPolicyV1,
 } from "@/lib/ml-six-factor-render-mapping";
-import { resolveSixFactorPolicyDecisionForFeatures } from "@/lib/ml-six-factor-policy-adapter";
+import {
+  resolveSixFactorPolicyDecisionForFeatures,
+  resolveSixFactorPolicyDecisionForFeaturesAsync,
+} from "@/lib/ml-six-factor-policy-adapter";
 
 export const SIX_FACTOR_SHADOW_ENV = "EDUAI_SIX_FACTOR_SHADOW" as const;
 
@@ -131,6 +134,28 @@ export function buildShadowSixFactorDecision(
   };
 }
 
+export async function buildShadowSixFactorDecisionAsync(
+  context: BuildEduAIAppPolicyFeaturesInput,
+  env: Record<string, string | undefined> = process.env,
+): Promise<SixFactorShadowResultV1> {
+  const features = buildEduAIAppPolicyFeaturesV1(context);
+  const shadowDecision = await resolveSixFactorPolicyDecisionForFeaturesAsync(
+    features,
+    { env },
+  );
+  const renderPolicy = mapSixFactorDecisionToRenderPolicy(shadowDecision);
+
+  return {
+    features,
+    decision: shadowDecision,
+    renderPolicy,
+    promptInstructions: buildSixFactorPromptInstructions(shadowDecision),
+    metadata: buildSixFactorDecisionMetadata(shadowDecision, features),
+    shadowMode: true,
+    appliedToLearnerFacingOutput: false,
+  };
+}
+
 export function buildOptionalSixFactorShadowMetadata(
   context: BuildEduAIAppPolicyFeaturesInput,
   env: Record<string, string | undefined> = process.env,
@@ -140,4 +165,15 @@ export function buildOptionalSixFactorShadowMetadata(
   }
 
   return buildShadowSixFactorDecision(context, env).metadata;
+}
+
+export async function buildOptionalSixFactorShadowMetadataAsync(
+  context: BuildEduAIAppPolicyFeaturesInput,
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (!isSixFactorShadowEnabled(env)) {
+    return null;
+  }
+
+  return (await buildShadowSixFactorDecisionAsync(context, env)).metadata;
 }
