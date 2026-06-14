@@ -1,126 +1,480 @@
 # EduAI
 
-EduAI is a thesis-defensible prototype for prediction and selection of pedagogically meaningful educational content for individual learners.
+**Исследовательский прототип прогнозирования оптимальной педагогической конфигурации образовательного контента для отдельных обучающихся с использованием машинного обучения.**
 
-The current repository is not a generic LMS and not a proof that every learner-facing decision is already validated by real-user ML evidence. It is an auditable research prototype with explicit runtime provenance, fallback states, evaluation episodes, and dataset/export paths.
+EduAI выбирает параметры подачи учебного материала до его генерации, применяет выбранную конфигурацию к объяснению, тесту или учебному диалогу и связывает её с последующим образовательным результатом.
 
-## Current runtime state
+Проект разработан в рамках магистерской диссертации:
 
-Read this first when judging the current implementation:
+> **Development of forecasting the optimal educational content for individual students using machine learning**
 
-- `docs/INDEX.md` - documentation map and current runtime summary.
-- `docs/RESEARCH_SPEC.md` - dissertation/research framing and honesty constraints.
-- `VISION.md` - target-state product direction, not a runtime claim.
+EduAI не является обычным образовательным чат-ботом или универсальной системой управления обучением. Это исследовательский прототип для проверки гипотезы о том, что машинно-обученный выбор параметров образовательного контента может давать более высокий обучающий прирост, чем базовая эвристическая политика.
 
-The current implementation has two separate ML-related runtime contours:
+---
 
-1. **Prediction accuracy/time runtime**
-   - Configured by `configs/active_policy.json`.
-   - This is a legacy compatibility runtime for expected accuracy/time support, not the primary pedagogical policy.
-   - Current tracked config uses `backend.kind=artifact_ml` with `configs/ml_accuracy_logreg_artifact.dev.json`.
-   - That DEV artifact predicts `expected_accuracy` only.
-   - It is synthetic/dev evidence, not production ML-first evidence and not real-user learning-effect proof.
+## Основной результат исследования
 
-2. **Six-factor pedagogical runtime**
-   - Implemented in `src/lib/ml-six-factor-*.ts`.
-   - This is the primary pedagogical decision path for new predicted/observational learner-facing flows.
-   - Default artifact path: `artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json`.
-   - Selects and applies six pedagogical/rendering factors:
-     - `difficulty`
-     - `depth`
-     - `support_level`
-     - `presentation_format`
-     - `examples_level`
-     - `terminology_level`
-   - Applied to learner-facing generation paths when enabled:
-     - chat
-     - learning content
-     - test generation
-   - Current artifact provenance is synthetic/bootstrap. It verifies runtime integration and metadata provenance; it does not prove real educational effectiveness.
+Финальная оценка проводилась на очищенном трёхволновом экспорте реальных пользовательских взаимодействий за период с 10 апреля по 10 мая 2026 года.
 
-Older documents may still mention the early two-factor scope (`difficulty` + `depth`). Treat that as the early bridge scope, not as a complete description of the current runtime.
-When six-factor metadata exists, `{ difficulty, depth }` is only a two-factor compatibility projection.
+| Показатель                            | Значение |
+| ------------------------------------- | -------: |
+| Уникальные пользователи               |      238 |
+| Учебные эпизоды                       |    5 239 |
+| Элементы учебных эпизодов             |   18 411 |
+| Сгенерированные тесты                 |   13 335 |
+| Попытки прохождения тестов            |   13 335 |
+| Учебные диалоги                       |    5 076 |
+| Сообщения в диалогах                  |   29 699 |
+| Восстановленные наблюдения до/после   |    4 791 |
+| Наблюдения базовой политики           |    1 163 |
+| Наблюдения машинно-обученного контура |    3 628 |
 
-## Research framing
+### Сравнение образовательного эффекта
 
-Core distinction:
+| Показатель                                | Базовая политика | Машинно-обученная политика |
+| ----------------------------------------- | ---------------: | -------------------------: |
+| Средний исходный прирост                  |           0,1078 |                     0,1434 |
+| Средний нормализованный обучающий прирост |           0,2630 |                     0,3226 |
 
-- declared preference = what the learner says they prefer;
-- inferred preference = the system estimate from observed behavior and performance;
-- effective preference = what actually yields the best measurable learning result.
+Абсолютная разница нормализованного обучающего прироста составила **+0,0596**.
 
-Conceptual objective:
+Относительное увеличение по сравнению с базовой эвристической политикой составило **+22,7%**.
 
-- optimal educational content = content that maximizes learning gain;
-- first practical proxy = next-task success probability;
-- time is a secondary metric or operational constraint, not the main educational objective.
+Дополнительные результаты:
 
-Honesty rules:
+* критерий Уэлча на уровне эпизодов: `p = 0,000080`;
+* доверительный интервал бутстрэп-оценки разницы: `[+0,0315; +0,0889]`;
+* разница на уровне пользователей: `+0,0843`;
+* критерий Уэлча на уровне пользователей: `p = 0,004121`;
+* средняя парная разница для 32 пользователей, представленных в обеих группах: `+0,1335`;
+* положительное направление парной разницы наблюдалось у `71,9%` пользователей.
 
-- heuristics and stubs are not ML;
-- synthetic/dev artifacts are not real-user efficacy evidence;
-- no hidden fallbacks;
-- no future leakage;
-- policy/backend provenance must remain explicit;
-- tests and structured episode checks remain the primary learning signal;
-- chat is secondary/supporting evidence.
+Результат интерпретируется как умеренное, но статистически устойчивое преимущество машинно-обученной политики в рамках проведённого полевого исследования.
 
-## Core product surface
+---
 
-- Learn: episode-first learning flow with structured checks, learning content, and bounded dialogue.
-- Practice: test generation and submission with telemetry.
-- Profile: declared/effective preference and personalization state.
-- Analytics: progress, prediction status, limitations, and next-step support.
-- Topics/Subjects: learner-owned educational structure.
-- Admin: observability, data quality, prediction metrics, evaluation/export tooling.
+## Что прогнозирует EduAI
 
-## Quickstart
+EduAI не прогнозирует готовый текст ответа. Система оценивает полную педагогическую конфигурацию, состоящую из шести управляемых факторов.
 
-1. Install dependencies:
+| Фактор                           | Значения                                             |
+| -------------------------------- | ---------------------------------------------------- |
+| Сложность объяснения             | `easy`, `medium`, `hard`                             |
+| Глубина объяснения               | `brief`, `standard`, `detailed`                      |
+| Уровень педагогической поддержки | `minimal`, `guided`, `scaffolded`                    |
+| Формат представления             | `paragraph`, `structured_list`, `step_by_step`, `qa` |
+| Количество примеров              | `none`, `single`, `multiple`                         |
+| Плотность терминологии           | `simple`, `balanced`, `technical`                    |
+
+Полное пространство содержит 972 возможные комбинации:
+
+```text
+3 × 3 × 3 × 4 × 3 × 3 = 972
+```
+
+В рабочем контуре не перебираются все 972 варианта. Для каждого решения формируется ограниченный набор допустимых кандидатов, после чего педагогически рискованные сочетания исключаются, а оставшиеся варианты оцениваются моделью.
+
+Базовая контрольная конфигурация:
+
+```text
+medium
+standard
+guided
+step_by_step
+single
+balanced
+```
+
+---
+
+## Принцип работы
+
+Ключевое архитектурное решение EduAI — разделение выбора педагогической конфигурации и генерации учебного материала.
+
+Языковая модель не принимает скрытое педагогическое решение самостоятельно. Она получает уже выбранные параметры и создаёт материал в заданной конфигурации.
+
+```mermaid
+flowchart LR
+    A[Интерфейс обучающегося] --> B[Учебный эпизод]
+    B --> C[Предварительная проверка]
+    C --> D[Признаки до принятия решения]
+    D --> E[Формирование кандидатов]
+    E --> F[Фильтрация рискованных вариантов]
+    F --> G[Оценка CatBoost]
+    G --> H[Выбор шестимерной конфигурации]
+    H --> I[Генерация учебного материала]
+    I --> J[Проверка структуры и качества]
+    J --> K[Последующая проверка]
+    K --> L[Расчёт обучающего прироста]
+    L --> M[Событийное хранилище]
+    M --> N[Экспорт обучающих наблюдений]
+```
+
+Основная последовательность:
+
+```text
+предварительная проверка
+→ снимок признаков до решения
+→ формирование допустимых конфигураций
+→ фильтрация рискованных сочетаний
+→ оценка ожидаемого результата
+→ выбор шестимерной конфигурации
+→ генерация материала
+→ проверка качества
+→ последующая или контрольная проверка
+→ расчёт обучающего прироста
+→ сохранение события
+→ экспорт обучающего наблюдения
+```
+
+---
+
+## Структура учебного эпизода
+
+Учебный эпизод является основной единицей пользовательского сценария и экспериментального анализа.
+
+```mermaid
+flowchart LR
+    A[Запуск эпизода] --> B[Предварительная проверка]
+    B --> C[Выбор конфигурации]
+    C --> D[Учебный материал]
+    D --> E[Учебный диалог]
+    E --> F[Последующая проверка]
+    F --> G[Контрольная проверка]
+    G --> H[Результат эпизода]
+```
+
+Поддерживаемые элементы:
+
+* предварительная проверка исходного уровня;
+* выбор педагогической конфигурации;
+* персонализированное учебное объяснение;
+* ограниченный учебный диалог;
+* последующая проверка;
+* дополнительная контрольная проверка;
+* отложенная проверка в поддерживаемых сценариях;
+* сохранение выбранной и фактически применённой конфигураций;
+* расчёт исходного и нормализованного прироста результата.
+
+---
+
+## Машинно-обученная политика
+
+Финальная исследовательская политика `policy_v2` использует:
+
+```text
+catboost_candidate_scorer_v1
+```
+
+Исполняемый артефакт расположен по адресу:
+
+```text
+artifacts/runtime/eduai_native_pedagogy/
+└── catboost_candidate_scorer_v1/
+    ├── artifact.json
+    ├── feature_schema.json
+    ├── metrics.json
+    ├── model.cbm
+    └── prediction_parity_sample.jsonl
+```
+
+Основные свойства рабочего артефакта:
+
+* семейство модели: CatBoost;
+* количество признаков: 69;
+* стратегия разбиения: `user_id_hash`;
+* политика: `policy_v2`;
+* основной целевой сигнал: `expected_learning_gain_signed`;
+* поддержка оценки полной шестимерной конфигурации;
+* использование только данных, доступных до принятия решения;
+* отсутствие результатов текущего эпизода в предварительных признаках;
+* поддержка локального запуска через Python;
+* поддержка вызова через HTTP-оценщик.
+
+Модель возвращает оценки:
+
+```text
+expected_learning_gain_signed
+expected_learning_gain_proxy
+expected_next_step_success
+combined_outcome_score
+```
+
+Конфигурация выбирается на основании ожидаемого результата среди допустимых кандидатов.
+
+---
+
+## Трёхволновой эксперимент
+
+Развитие политики проходило последовательно.
+
+| Волна   | Период                | Сравниваемые политики                                 |
+| ------- | --------------------- | ----------------------------------------------------- |
+| Волна 1 | 10.04.2026–22.04.2026 | базовая политика и `v0`                               |
+| Волна 2 | 23.04.2026–01.05.2026 | базовая политика, сохранённая `v0` и новая `v1`       |
+| Волна 3 | 03.05.2026–10.05.2026 | базовая политика, сохранённые `v0` и `v1`, новая `v2` |
+
+До первой волны политика `v0` была обучена на смеси синтетических данных и адаптированных открытых образовательных наборов данных.
+
+После каждой волны:
+
+1. собирались новые реальные наблюдения EduAI;
+2. уменьшалась доля синтетического начального сигнала;
+3. добавлялись реальные пользовательские строки;
+4. политика переобучалась;
+5. новая версия выпускалась в следующую волну;
+6. предыдущие версии сохранялись для сравнения.
+
+Политика `v2` стала финальной версией и использует CatBoost.
+
+---
+
+## Обучающий прирост
+
+Основная метрика исследования — знаковый нормализованный обучающий прирост:
+
+```text
+LG = (post_score - pre_score) / (max_score - pre_score)
+```
+
+Формула применяется при условии:
+
+```text
+pre_score < max_score
+```
+
+Отрицательные значения не обрезаются до нуля. Если результат после учебного вмешательства ухудшился, это сохраняется как отрицательный исход.
+
+EduAI разделяет:
+
+* признаки, доступные до решения;
+* выбранную конфигурацию;
+* фактически применённую конфигурацию;
+* учебное вмешательство;
+* последующий результат.
+
+Результат последующей проверки и рассчитанный прирост не используются как признаки при принятии решения в том же эпизоде.
+
+---
+
+## Событийная модель данных
+
+Основная исследовательская цепочка:
+
+```text
+состояние пользователя до решения
+→ выбранная конфигурация
+→ применённая конфигурация
+→ учебное вмешательство
+→ последующий результат
+```
+
+Ключевые модели базы данных:
+
+| Модель                  | Назначение                                                             |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `User`                  | профиль, предпочтения, согласие и состояние персонализации             |
+| `Collection`            | группировка учебных тем                                                |
+| `Subject`               | учебная тема                                                           |
+| `SubjectSection`        | раздел или подтема                                                     |
+| `EvaluationEpisode`     | границы учебного эпизода и экспериментальная политика                  |
+| `EvaluationEpisodeItem` | предварительная проверка, материал, последующая и контрольная проверки |
+| `GeneratedTest`         | структура теста, вопросы и метаданные генерации                        |
+| `TestAttempt`           | ответы пользователя, результат и длительность                          |
+| `ChatSession`           | контейнер учебного диалога                                             |
+| `ChatMessage`           | сообщения и метаданные применённой конфигурации                        |
+| `PromptTemplate`        | версии шаблонов генерации                                              |
+
+Часть исследовательских данных хранится в структурированных JSON-полях:
+
+```text
+assignmentJson
+designJson
+decisionRuntimeJson
+pedagogicalDecisionJson
+outcomeJson
+validationMetaJson
+signalsJson
+```
+
+---
+
+## Технологический стек
+
+### Пользовательское приложение
+
+* Next.js 16
+* React 19
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+
+### Серверная часть
+
+* Next.js
+* Node.js 22
+* Prisma
+* PostgreSQL
+* JWT-аутентификация
+* Zod
+
+### Машинное обучение
+
+* Python 3
+* CatBoost
+* NumPy
+* исследовательские сценарии обучения и проверки
+* исполняемый файл модели `model.cbm`
+
+### Генеративный слой
+
+* совместимый с OpenAI программный интерфейс;
+* генерация учебных объяснений;
+* генерация тестов;
+* учебный диалог;
+* проверка структуры ответа;
+* резервные сценарии при ошибках генерации.
+
+---
+
+## Основные пользовательские возможности
+
+* регистрация и вход;
+* создание коллекций учебных материалов;
+* создание тем и подтем;
+* запуск учебных эпизодов;
+* предварительное тестирование;
+* персонализированный учебный материал;
+* учебный диалог;
+* последующая и контрольная проверки;
+* пользовательская аналитика;
+* просмотр выбранной шестимерной конфигурации;
+* восстановление незавершённого эпизода;
+* административные средства анализа и экспорта.
+
+---
+
+## Структура репозитория
+
+```text
+.
+├── api/
+│   └── catboost-score.py
+├── artifacts/
+│   └── runtime/
+│       └── eduai_native_pedagogy/
+│           └── catboost_candidate_scorer_v1/
+├── ml/
+│   ├── scripts/
+│   │   ├── train_catboost_candidate_scorer.py
+│   │   └── score_catboost_candidate_scorer.py
+│   └── src/
+├── prisma/
+│   └── schema.prisma
+├── scripts/
+│   ├── catboost-policy-v2-learner-flow-smoke.sh
+│   ├── catboost-runtime-parity-self-check.sh
+│   ├── ml-six-factor-runtime-artifact-audit.sh
+│   └── pilot-readiness-smoke.sh
+├── src/
+│   ├── app/
+│   ├── components/
+│   └── lib/
+├── docs/
+├── package.json
+├── requirements.txt
+└── vercel.json
+```
+
+---
+
+## Требования для локального запуска
+
+Необходимы:
+
+* Node.js 22;
+* npm;
+* Python 3;
+* Docker;
+* Docker Compose;
+* доступ к совместимому с OpenAI поставщику языковой модели.
+
+---
+
+## Локальная установка
+
+### 1. Установка зависимостей Node.js
 
 ```bash
 npm ci
 ```
 
-2. Configure env:
+### 2. Создание Python-окружения для CatBoost
+
+```bash
+python3 -m venv ml/.venv
+ml/.venv/bin/pip install --upgrade pip
+ml/.venv/bin/pip install -r requirements.txt
+```
+
+Приложение автоматически использует:
+
+```text
+ml/.venv/bin/python
+```
+
+если этот файл существует.
+
+### 3. Подготовка переменных окружения
 
 ```bash
 cp .env.example .env.local
 ```
 
-Required values:
+Обязательные значения:
 
-- `DATABASE_URL`
-- `DIRECT_URL`
-- `JWT_SECRET`
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL` optional
-- `CHAT_STORE_RAW_CONTENT` optional, default redacted storage
-- `DATASET_EXPORT_SECRET` recommended for export pseudonymization
+```env
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+JWT_SECRET="replace-with-a-long-random-secret"
 
-Local/demo six-factor mode is explicit in `.env.example`:
-
-```bash
-EDUAI_SIX_FACTOR_SHADOW=1
-EDUAI_SIX_FACTOR_ML_POLICY=1
-EDUAI_SIX_FACTOR_APPLY=1
-EDUAI_SIX_FACTOR_SHADOW_ONLY=0
-EDUAI_SIX_FACTOR_ARTIFACT_PATH=artifacts/runtime/eduai_native_pedagogy/thu_linear_candidate_scorer_v1/artifact.json
-NEXT_PUBLIC_SHOW_ML_PERSONALIZATION=1
+OPENAI_API_KEY="..."
+OPENAI_BASE_URL="https://api.openai.com/v1"
 ```
 
-`NEXT_PUBLIC_SHOW_ML_PERSONALIZATION` controls UI visibility/debug details only. It does not enable or disable six-factor runtime decisions.
+Настройки шестимерной политики и локального CatBoost:
 
-3. Start local Postgres and app:
+```env
+EDUAI_SIX_FACTOR_SHADOW="1"
+EDUAI_SIX_FACTOR_ML_POLICY="1"
+EDUAI_SIX_FACTOR_APPLY="1"
+EDUAI_SIX_FACTOR_SHADOW_ONLY="0"
+
+EDUAI_SIX_FACTOR_ARTIFACT_PATH="artifacts/runtime/eduai_native_pedagogy/catboost_candidate_scorer_v1/artifact.json"
+
+EDUAI_CATBOOST_SCORER_MODE="python_cli"
+EDUAI_CATBOOST_PYTHON_BIN="ml/.venv/bin/python"
+EDUAI_CATBOOST_SCORER_SCRIPT="ml/scripts/score_catboost_candidate_scorer.py"
+EDUAI_CATBOOST_SCORER_TIMEOUT_MS="10000"
+
+NEXT_PUBLIC_SHOW_ML_PERSONALIZATION="1"
+```
+
+### 4. Запуск локальной базы и приложения
 
 ```bash
 npm run dev:local
 ```
 
-`dev:local` starts the compose PostgreSQL service, applies `prisma migrate deploy` against the compose-aligned local DB URL, then starts Next.js.
-Use plain `npm run dev` only when the database is already up and `DATABASE_URL` intentionally points to the target database.
+Приложение будет доступно по адресу:
 
-## Pilot-like local startup
+```text
+http://localhost:3000
+```
+
+---
+
+## Запуск в режиме, близком к демонстрационному
 
 ```bash
 npm run db:up
@@ -129,18 +483,36 @@ npm run build
 npm run start
 ```
 
-Operational checks:
+Проверка состояния:
 
 ```bash
 curl http://localhost:3000/api/health
 curl http://localhost:3000/api/ready
-npm run auth:self-check
-npm run pilot-readiness:smoke
 ```
 
-`/api/ready` is the runtime gate. It checks DB, Prisma contract, auth config, rate limiter, legacy accuracy/time prediction runtime, artifact slots, six-factor artifact state, and LLM config.
+---
 
-## Quality checks
+## Рекомендуемый демонстрационный сценарий
+
+1. Открыть страницу регистрации или входа.
+2. Создать коллекцию.
+3. Создать учебную тему.
+4. Создать раздел или подтему.
+5. Открыть `/learn`.
+6. Запустить новый учебный эпизод.
+7. Пройти предварительную проверку.
+8. Показать выбранную шестимерную конфигурацию.
+9. Открыть персонализированный учебный материал.
+10. Задать вопрос в учебном диалоге.
+11. Пройти последующую проверку.
+12. Завершить контрольную проверку.
+13. Открыть аналитику и показать результат эпизода.
+
+---
+
+## Проверки проекта
+
+### Основные проверки
 
 ```bash
 npm run lint
@@ -148,45 +520,102 @@ npm run build
 npx prisma validate
 ```
 
-Useful self-checks:
+### Проверка CatBoost-артефакта
+
+```bash
+npm run ml-six-factor:runtime-artifact-audit
+```
+
+### Проверка совпадения прогнозов приложения и Python
+
+```bash
+npm run catboost-runtime:parity
+```
+
+### Сквозная проверка политики v2
+
+```bash
+npm run catboost-policy-v2:smoke
+```
+
+### Проверка готовности приложения
+
+```bash
+npm run pilot-readiness:smoke
+```
+
+### Дополнительные проверки
 
 ```bash
 npm run auth:self-check
 npm run learner-flow-contract:self-check
 npm run learning-episode:self-check
 npm run ml-six-factor:self-check
-npm run prediction-runtime:dev-self-check
-npm run pilot-readiness:smoke
+npm run research-policy-registry:self-check
 ```
 
-The strict production accuracy ML-first gate is:
+---
 
-```bash
-npm run prediction-runtime:self-check
+## Ограничения исследования
+
+Результаты проекта не следует интерпретировать как доказательство универсальной эффективности EduAI для любых пользователей и предметных областей.
+
+Основные ограничения:
+
+* полевой, а не идеально сбалансированный лабораторный эксперимент;
+* неоднородность учебных тем;
+* повторные эпизоды отдельных пользователей;
+* ограниченный размер парной пользовательской выборки;
+* постепенное изменение политик между волнами;
+* зависимость результата от качества сгенерированного материала;
+* неполное покрытие тестов тегами;
+* возможный эффект повторного знакомства с темой или форматом заданий;
+* отсутствие отдельного экспериментального определения причинного вклада каждого из шести факторов.
+
+Архитектура уменьшает риск утечки будущих данных и прямого повторения заданий, но не устраняет все угрозы валидности.
+
+---
+
+## Академический контекст
+
+**Автор:** Petr Tsekoyev
+**Образовательная программа:** 7M06105 — Computer Science and Engineering
+**Университет:** Astana IT University
+**Научный руководитель:** Talgat Sembayev, PhD, assistant professor
+**Год:** 2026
+
+### Связанные публикации и выступления
+
+1. **How can machine learning personalize educational content generated by LLMs**
+   10th International Conference on Digital Technologies in Education, Science and Industry, 2025.
+
+2. **System-Layer Personalization of LLM-Generated Educational Tests via Empirically Inferred User Preferences**
+   2026 8th International Conference on Computer Science and Technologies in Education.
+
+### Свидетельство на программное обеспечение
+
+EduAI зарегистрирован как объект авторского права на программное обеспечение.
+
+```text
+Номер свидетельства: 71308
+Дата регистрации: 30 апреля 2026 года
+Авторы: Petr Tsekoyev, Talgat Sembayev
 ```
 
-With the tracked synthetic DEV accuracy artifact, the strict production gate is expected to fail with a synthetic/dev eligibility blocker. That is intentional.
+---
 
-## Minimal learner flow
+## Итог
 
-1. Register or login from `/register` or `/login`.
-2. Create a subject and sections/topics.
-3. Use `/learn` for the episode-first loop.
-4. Complete precheck -> learning content/dialogue -> postcheck/holdout steps.
-5. Use `/practice` for custom/core test generation.
-6. Submit tests with telemetry.
-7. Inspect `/profile`, `/analytics`, and admin observability pages.
+EduAI показывает, что персонализированную генерацию образовательного контента можно представить как проверяемый машинно-обученный контур:
 
-Admin access depends on stored `user.isAdmin=true`, not on email domain.
+```text
+данные о состоянии обучающегося
+→ прогноз ожидаемого результата
+→ выбор педагогической конфигурации
+→ контролируемая генерация
+→ измерение последующего результата
+```
 
-## Canonical docs
+В проведённом трёхволновом исследовании машинно-обученная политика показала статистически значимое умеренное преимущество над базовой эвристической политикой по показателю нормализованного обучающего прироста.
 
-- `docs/INDEX.md` - documentation map and current runtime summary.
-- `docs/LOCAL_DEV.md` - local bootstrap and troubleshooting.
-- `docs/DEPLOYMENT.md` - GitHub/Vercel deployment flow.
-- `docs/API_REFERENCE.md` - endpoint contracts.
-- `docs/PREDICTION_LAYER.md` - prediction/runtime honesty rules.
-- `docs/ml_six_factor_apply_mode.md` - six-factor apply behavior.
-- `docs/ml_six_factor_runtime_policy_adapter.md` - six-factor policy adapter.
-
-For bootstrapping a new ChatGPT thread with full current state, use `context_seed.md` if present and up to date.
+Проект следует рассматривать как завершённый исследовательский прототип и основу для дальнейшего изучения персонализированной генерации образовательного контента.
